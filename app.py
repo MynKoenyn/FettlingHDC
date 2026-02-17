@@ -177,5 +177,67 @@ def logout():
     session.clear()
     return redirect(url_for('login'))
 
+@app.route('/report')
+def report():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+        
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    supplier_id = request.args.get('supplier_id')
+    product_id = request.args.get('product_id')
+    
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    # Load filters data
+    cur.execute('SELECT id, name FROM suppliers ORDER BY name')
+    suppliers = cur.fetchall()
+    
+    cur.execute('SELECT id, name FROM products ORDER BY name')
+    products = cur.fetchall()
+    
+    # Build query
+    query = '''
+        SELECT f.entry_date, s.name as supplier_name, p.name as product_name, f.quantity
+        FROM fettling_entries f
+        JOIN products p ON f.product_id = p.id
+        JOIN suppliers s ON p.supplier_id = s.id
+        WHERE 1=1
+    '''
+    params = []
+    
+    if start_date:
+        query += ' AND f.entry_date >= %s'
+        params.append(start_date)
+    if end_date:
+        query += ' AND f.entry_date <= %s'
+        params.append(end_date)
+    if supplier_id:
+        query += ' AND s.id = %s'
+        params.append(supplier_id)
+    if product_id:
+        query += ' AND p.id = %s'
+        params.append(product_id)
+        
+    query += ' ORDER BY f.entry_date DESC, s.name, p.name'
+    
+    cur.execute(query, tuple(params))
+    report_data = cur.fetchall()
+    
+    cur.close()
+    conn.close()
+    
+    return render_template('report.html', 
+                         report_data=report_data, 
+                         suppliers=suppliers, 
+                         products=products,
+                         filters={
+                             'start_date': start_date,
+                             'end_date': end_date,
+                             'supplier_id': supplier_id,
+                             'product_id': product_id
+                         })
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
