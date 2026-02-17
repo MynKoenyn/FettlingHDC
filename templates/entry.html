@@ -4,45 +4,42 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Data Entry</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
-        body { font-family: sans-serif; margin: 2rem; }
-        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
-        .btn { padding: 0.5rem 1rem; background: #6c757d; color: white; text-decoration: none; border-radius: 4px; }
-        
-        .global-date { margin-bottom: 2rem; padding: 1rem; background: #f8f9fa; border-radius: 4px; }
-        
-        table { width: 100%; border-collapse: collapse; }
-        th, td { border: 1px solid #ddd; padding: 0.5rem; }
-        th { background-color: #e9ecef; }
-        
-        select, input { width: 100%; padding: 0.3rem; box-sizing: border-box; }
-        
+        .global-date { margin-bottom: 2rem; padding: 1.5rem; background: #f8fafc; border-radius: 0.75rem; border: 1px solid #e2e8f0; }
         .submit-container { margin-top: 2rem; text-align: right; }
-        .btn-submit { background: #28a745; padding: 1rem 2rem; font-size: 1.1rem; border: none; cursor: pointer; color: white; border-radius: 4px; }
-        .btn-submit:hover { background: #218838; }
+        .line-col { width: 60px; text-align: center; }
     </style>
 </head>
 <body>
     <header>
-        <h1>Daily Fettling Entry</h1>
-        <a href="{{ url_for('dashboard') }}" class="btn">Back to Dashboard</a>
+        <div class="nav-container">
+            <h1>Daily Entry</h1>
+            <nav>
+                <a href="{{ url_for('dashboard') }}">Dashboard</a>
+                <a href="{{ url_for('logout') }}">Logout</a>
+            </nav>
+        </div>
     </header>
 
-    <form method="POST">
-        <div class="global-date">
-            <label><strong>Global Date:</strong></label>
-            <input type="date" name="entry_date" value="{{ today }}" required style="width: auto; margin-left: 1rem;">
-        </div>
+    <div class="container">
+        <form method="POST" class="card">
+            <div class="global-date">
+                <div class="form-group" style="margin-bottom: 0; display: flex; align-items: center; gap: 1rem;">
+                    <label style="margin-bottom: 0;"><strong>Global Entry Date:</strong></label>
+                    <input type="date" name="entry_date" value="{{ today }}" required style="width: auto;">
+                </div>
+            </div>
 
-        <table>
-            <thead>
-                <tr>
-                    <th style="width: 5%">Line</th>
-                    <th style="width: 35%">Supplier</th>
-                    <th style="width: 35%">Product</th>
-                    <th style="width: 25%">Quantity</th>
-                </tr>
-            </thead>
+            <table>
+                <thead>
+                    <tr>
+                        <th class="line-col">#</th>
+                        <th>Supplier</th>
+                        <th>Product</th>
+                        <th style="width: 150px;">Quantity</th>
+                    </tr>
+                </thead>
             <tbody>
                 {% for i in range(1, 51) %}
                 <tr>

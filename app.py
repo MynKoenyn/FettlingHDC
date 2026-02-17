@@ -59,6 +59,58 @@ def dashboard():
     
     return render_template('dashboard.html', recent_activity=recent_activity)
 
+@app.route('/suppliers', methods=['GET', 'POST'])
+def suppliers():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    if request.method == 'POST':
+        name = request.form.get('name')
+        if name:
+            cur.execute('INSERT INTO suppliers (name) VALUES (%s)', (name,))
+            conn.commit()
+            return redirect(url_for('suppliers'))
+            
+    cur.execute('SELECT id, name FROM suppliers ORDER BY name')
+    all_suppliers = cur.fetchall()
+    cur.close()
+    conn.close()
+    return render_template('suppliers.html', suppliers=all_suppliers)
+
+@app.route('/products', methods=['GET', 'POST'])
+def products_crud():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    if request.method == 'POST':
+        name = request.form.get('name')
+        supplier_id = request.form.get('supplier_id')
+        if name and supplier_id:
+            cur.execute('INSERT INTO products (name, supplier_id) VALUES (%s, %s)', (name, supplier_id))
+            conn.commit()
+            return redirect(url_for('products_crud'))
+            
+    cur.execute('''
+        SELECT p.id, p.name, s.name 
+        FROM products p 
+        JOIN suppliers s ON p.supplier_id = s.id 
+        ORDER BY s.name, p.name
+    ''')
+    all_products = cur.fetchall()
+    
+    cur.execute('SELECT id, name FROM suppliers ORDER BY name')
+    all_suppliers = cur.fetchall()
+    
+    cur.close()
+    conn.close()
+    return render_template('products.html', products=all_products, suppliers=all_suppliers)
+
 @app.route('/entry', methods=['GET', 'POST'])
 def entry():
     if 'user_id' not in session:
