@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <style>
+        body { font-family: sans-serif; max-width: 1000px; margin: 2rem auto; padding: 0 1rem; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid #eee; padding-bottom: 1rem; }
+        .btn { padding: 0.5rem 1rem; background: #007bff; color: white; text-decoration: none; border-radius: 4px; }
+        .btn-secondary { background: #6c757d; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        th, td { border: 1px solid #ddd; padding: 0.5rem; text-align: left; }
+        th { background-color: #f8f9fa; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Fettling Dashboard</h1>
+        <div>
+            <span>Welcome, {{ session['username'] }}</span>
+            <a href="{{ url_for('logout') }}" class="btn btn-secondary" style="margin-left: 1rem;">Logout</a>
+        </div>
+    </header>
+
+    <div>
+        <a href="{{ url_for('entry') }}" class="btn">New Daily Entry</a>
+    </div>
+
+    <h2>Recent Activity</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Total Quantity</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in recent_activity %}
+            <tr>
+                <td>{{ row[0] }}</td>
+                <td>{{ row[1] }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="2">No recent entries found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
