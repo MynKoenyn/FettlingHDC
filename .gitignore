@@ -1,8 +1,28 @@
-node_modules
-dist
+# Node / frontend
+node_modules/
+dist/
+
+# macOS
 .DS_Store
-server/public
-vite.config.ts.*
-*.tar.gz
+
+# Env secrets
 .env
-__pycache__
+.env.*
+
+# Python
+__pycache__/
+*.pyc
+
+# Logs
+*.log
+
+# Archives
+*.tar.gz
+
+# Build / misc
+coverage/
+
+# Optional
+venv/
+.idea/
+.vscode/
