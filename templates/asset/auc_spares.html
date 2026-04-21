@@ -1,0 +1,98 @@
+<!-- ============================================================
+     templates/asset/auc_spares.html
+     ============================================================ -->
+{% extends 'asset/base.html' %}
+{% block title %}AUC & Spares{% endblock %}
+{% block page_title %}AUC & Spares{% endblock %}
+
+{% block content %}
+
+<div class="row g-3 mb-4">
+  <div class="col-sm-6">
+    <div class="stat-card gold">
+      <div class="stat-label">Assets Under Construction</div>
+      <div class="stat-value">{{ auc|length }}</div>
+      <div class="stat-sub">Not yet depreciating</div>
+    </div>
+  </div>
+  <div class="col-sm-6">
+    <div class="stat-card muted">
+      <div class="stat-label">Spares</div>
+      <div class="stat-value">{{ spares|length }}</div>
+      <div class="stat-sub">Pending transfer to active</div>
+    </div>
+  </div>
+</div>
+
+<!-- AUC -->
+<div class="ar-card mb-4">
+  <div class="section-header">Assets Under Construction (AUC)</div>
+  {% if auc %}
+  <table class="ar-table">
+    <thead>
+      <tr>
+        <th>Asset Code</th>
+        <th>Description</th>
+        <th class="text-end">Cost</th>
+        <th>Purchase Date</th>
+        <th>Location</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for a in auc %}
+      <tr>
+        <td class="mono" style="color:var(--ar-gold);">{{ a.asset_code }}</td>
+        <td>{{ a.description }}</td>
+        <td class="text-end mono">R{{ '{:,.2f}'.format(a.cost or 0) }}</td>
+        <td style="color:var(--ar-muted);font-size:0.82rem;">{{ a.purchase_date }}</td>
+        <td style="color:var(--ar-muted);font-size:0.82rem;">{{ a.location or '—' }}</td>
+        <td>
+          <a href="{{ url_for('asset.asset_detail', asset_id=a.id) }}"
+             class="btn-outline-ar btn btn-sm">View / Transfer</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p style="color:var(--ar-muted);font-size:0.875rem;">No assets currently under construction.</p>
+  {% endif %}
+</div>
+
+<!-- Spares -->
+<div class="ar-card">
+  <div class="section-header">Spares</div>
+  {% if spares %}
+  <table class="ar-table">
+    <thead>
+      <tr>
+        <th>Asset Code</th>
+        <th>Description</th>
+        <th class="text-end">Cost</th>
+        <th>Purchase Date</th>
+        <th>Serial No.</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for a in spares %}
+      <tr>
+        <td class="mono" style="color:var(--ar-muted);">{{ a.asset_code }}</td>
+        <td>{{ a.description }}</td>
+        <td class="text-end mono">R{{ '{:,.2f}'.format(a.cost or 0) }}</td>
+        <td style="color:var(--ar-muted);font-size:0.82rem;">{{ a.purchase_date }}</td>
+        <td style="color:var(--ar-muted);font-size:0.82rem;">{{ a.serial_no or '—' }}</td>
+        <td>
+          <a href="{{ url_for('asset.asset_detail', asset_id=a.id) }}"
+             class="btn-outline-ar btn btn-sm">View / Transfer</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p style="color:var(--ar-muted);font-size:0.875rem;">No spares on record.</p>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Upload License{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="card shadow-sm">
+        <div class="card-header bg-danger text-white">
+            <h5>No Valid License Found</h5>
+        </div>
+        <div class="card-body">
+            <p>Please upload a valid license file (JSON signed by administrator).</p>
+
+           <form method="POST" enctype="multipart/form-data">
+                {{ form.hidden_tag() }}  {# <-- renders CSRF token #}
+                {{ form.file(class="form-control mb-3") }}
+                {{ form.submit(class="btn btn-primary") }}
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -18,37 +18,37 @@ def seed():
         print("Creating admin user...")
         cur.execute("INSERT INTO users (username, password) VALUES (%s, %s)", ('admin', 'password'))
 
-    # Create Suppliers
-    suppliers = ['Supplier A', 'Supplier B', 'Supplier C', 'Industrial Supplies Co']
-    for s_name in suppliers:
-        cur.execute("SELECT id FROM suppliers WHERE name = %s", (s_name,))
+    # Create Customers
+    customers = ['Customer A', 'Customer B', 'Customer C', 'Industrial Supplies Co']
+    for s_name in customers:
+        cur.execute("SELECT id FROM customers WHERE name = %s", (s_name,))
         if not cur.fetchone():
-            print(f"Creating supplier {s_name}...")
-            cur.execute("INSERT INTO suppliers (name) VALUES (%s)", (s_name,))
+            print(f"Creating customer {s_name}...")
+            cur.execute("INSERT INTO customers (name) VALUES (%s)", (s_name,))
 
-    # Create Products linked to Suppliers
-    # Map suppliers to IDs
-    cur.execute("SELECT id, name FROM suppliers")
-    supplier_map = {name: id for id, name in cur.fetchall()}
+    # Create Products linked to Customers
+    # Map customers to IDs
+    cur.execute("SELECT id, name FROM customers")
+    customer_map = {name: id for id, name in cur.fetchall()}
 
     products_data = [
-        ('Hammer', 'Supplier A'),
-        ('Wrench', 'Supplier A'),
-        ('Nails', 'Supplier B'),
-        ('Bolts', 'Supplier B'),
-        ('Screws', 'Supplier C'),
-        ('Drill Bit', 'Supplier C'),
+        ('Hammer', 'Customer A'),
+        ('Wrench', 'Customer A'),
+        ('Nails', 'Customer B'),
+        ('Bolts', 'Customer B'),
+        ('Screws', 'Customer C'),
+        ('Drill Bit', 'Customer C'),
         ('Grinding Wheel', 'Industrial Supplies Co'),
         ('Sandpaper', 'Industrial Supplies Co')
     ]
 
     for p_name, s_name in products_data:
-        if s_name in supplier_map:
-            s_id = supplier_map[s_name]
-            cur.execute("SELECT id FROM products WHERE name = %s AND supplier_id = %s", (p_name, s_id))
+        if s_name in customer_map:
+            s_id = customer_map[s_name]
+            cur.execute("SELECT id FROM products WHERE name = %s AND customer_id = %s", (p_name, s_id))
             if not cur.fetchone():
                 print(f"Creating product {p_name} for {s_name}...")
-                cur.execute("INSERT INTO products (name, supplier_id) VALUES (%s, %s)", (p_name, s_id))
+                cur.execute("INSERT INTO products (name, customer_id) VALUES (%s, %s)", (p_name, s_id))
 
     conn.commit()
     cur.close()

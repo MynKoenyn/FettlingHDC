@@ -1,0 +1,133 @@
+{% extends "stocktake/base.html" %}
+{% block title %}New Stocktake Session{% endblock %}
+
+{% block head_extra %}
+<style>
+  :root {
+    --ink:      #0f1923; --ink-soft:#4a5568; --ink-muted:#94a3b8;
+    --surface:  #ffffff; --surface-2:#f5f8fc; --surface-3:#edf2f9;
+    --brand:    #1a5cff; --brand-dk:#0f40cc; --brand-lt:#dce9ff;
+    --radius:   10px; --shadow-sm:0 1px 3px rgba(15,25,35,.08);
+  }
+  body { background:var(--surface-2); font-family:'DM Sans',sans-serif; color:var(--ink); }
+
+  .page-header {
+    background:var(--surface); border-bottom:1px solid var(--surface-3);
+    padding:1.2rem 2rem; display:flex; align-items:center;
+    justify-content:space-between; flex-wrap:wrap; gap:.75rem;
+  }
+  .page-header h1 { font-family:'DM Serif Display',serif; font-size:1.4rem; font-weight:400; margin:0; }
+  .breadcrumb-custom { font-size:.8rem; color:var(--ink-muted); display:flex; align-items:center; gap:.4rem; }
+  .breadcrumb-custom a { color:var(--brand); text-decoration:none; }
+
+  .form-wrap { max-width:520px; margin:2rem auto; padding:0 1rem; }
+  .form-card { background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow-sm); padding:2rem; }
+  .form-card h2 { font-family:'DM Serif Display',serif; font-size:1.2rem; font-weight:400;
+                  margin:0 0 1.5rem; color:var(--ink); }
+
+  .form-row { margin-bottom:1.2rem; }
+  .form-label { display:block; font-size:.75rem; font-weight:700; text-transform:uppercase;
+                letter-spacing:.06em; color:var(--ink-soft); margin-bottom:.4rem; }
+  .form-control-custom {
+    width:100%; padding:.65rem .9rem;
+    border:1.5px solid var(--surface-3); border-radius:var(--radius);
+    font-family:'DM Sans',sans-serif; font-size:.9rem; color:var(--ink);
+    background:var(--surface); box-sizing:border-box; outline:none;
+    transition:border-color .15s, box-shadow .15s;
+  }
+  .form-control-custom:focus { border-color:var(--brand); box-shadow:0 0 0 3px var(--brand-lt); }
+  .form-errors { margin-top:.35rem; }
+  .form-errors span { color:#e53e3e; font-size:.78rem; }
+
+  .section-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:.5rem; }
+  .section-opt input { display:none; }
+  .section-opt label {
+    display:block; text-align:center; padding:.55rem .3rem;
+    border:1.5px solid var(--surface-3); border-radius:8px;
+    cursor:pointer; font-weight:700; font-size:.9rem; color:var(--ink-soft);
+    transition:border-color .12s, background .12s, color .12s;
+  }
+  .section-opt input:checked + label {
+    border-color:var(--brand); background:var(--brand-lt); color:var(--brand-dk);
+  }
+  .section-opt label:hover { border-color:var(--brand); color:var(--brand); }
+
+  .btn-submit {
+    width:100%; padding:.8rem; background:var(--brand); color:#fff;
+    border:none; border-radius:var(--radius); font-family:'DM Sans',sans-serif;
+    font-size:.95rem; font-weight:700; cursor:pointer; margin-top:.5rem;
+    transition:background .15s;
+  }
+  .btn-submit:hover { background:var(--brand-dk); }
+  .btn-cancel {
+    display:block; text-align:center; margin-top:.75rem;
+    color:var(--ink-muted); font-size:.82rem; text-decoration:none;
+  }
+  .btn-cancel:hover { color:var(--brand); }
+</style>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <div class="breadcrumb-custom">
+      <a href="{{ url_for('stocktake.dashboard') }}">Stocktake</a>
+      <span>›</span>
+      <span>New Session</span>
+    </div>
+    <h1>Open Stocktake Session</h1>
+  </div>
+</div>
+
+<div class="form-wrap">
+  <div class="form-card">
+    <h2>Session Details</h2>
+    <form method="POST">
+      {{ form.hidden_tag() }}
+
+      <div class="form-row">
+        {{ form.date.label(class="form-label") }}
+        {{ form.date(class="form-control-custom") }}
+        {% if form.date.errors %}
+          <div class="form-errors">{% for e in form.date.errors %}<span>{{ e }}</span>{% endfor %}</div>
+        {% endif %}
+      </div>
+
+      <div class="form-row">
+        {{ form.department_id.label(class="form-label") }}
+        {{ form.department_id(class="form-control-custom") }}
+        {% if form.department_id.errors %}
+          <div class="form-errors">{% for e in form.department_id.errors %}<span>{{ e }}</span>{% endfor %}</div>
+        {% endif %}
+      </div>
+
+      <div class="form-row">
+        <span class="form-label">Section</span>
+        <div class="section-grid">
+          {% for val, label in form.section.choices %}
+          <div class="section-opt">
+            <input type="radio" name="section" id="sec_{{ val }}" value="{{ val }}"
+                   {% if form.section.data == val %}checked{% endif %}>
+            <label for="sec_{{ val }}">{{ label }}</label>
+          </div>
+          {% endfor %}
+        </div>
+        {% if form.section.errors %}
+          <div class="form-errors" style="margin-top:.35rem;">{% for e in form.section.errors %}<span>{{ e }}</span>{% endfor %}</div>
+        {% endif %}
+      </div>
+
+      <div class="form-row">
+        {{ form.notes.label(class="form-label") }}
+        {{ form.notes(class="form-control-custom", rows=2, placeholder="Optional notes for this session…") }}
+      </div>
+
+      <button type="submit" class="btn-submit">Open Session →</button>
+    </form>
+    <a href="{{ url_for('stocktake.dashboard') }}" class="btn-cancel">Cancel</a>
+  </div>
+</div>
+
+{% endblock %}

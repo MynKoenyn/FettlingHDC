@@ -1,0 +1,411 @@
+<!-- ============================================================
+     templates/asset/detail.html
+     ============================================================ -->
+{% extends 'asset/base.html' %}
+{% block title %}{{ asset.asset_code }}{% endblock %}
+{% block page_title %}{{ asset.asset_code }}{% endblock %}
+
+{% block topbar_actions %}
+<a href="{{ url_for('asset.edit_asset', asset_id=asset.id) }}" class="btn-outline-ar btn btn-sm">
+  <i class="bi bi-pencil me-1"></i>Edit
+</a>
+<a href="{{ url_for('asset.list_assets') }}" class="btn-outline-ar btn btn-sm">
+  ← Back to Register
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+
+  <!-- ── LEFT: Asset Info ── -->
+  <div class="col-lg-5">
+
+    <!-- Header card -->
+    <div class="ar-card mb-3">
+      <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+          <div class="mono" style="font-size:0.75rem;color:var(--ar-muted);">{{ asset.category.name if asset.category }}</div>
+          <h2 style="font-size:1.4rem;margin:0.1rem 0;">{{ asset.description }}</h2>
+        </div>
+        <span class="badge-status bs-{{ asset.status }}">{{ asset.status | replace('_',' ') }}</span>
+      </div>
+
+      <!-- Key figures -->
+      <div class="row g-2 mb-3">
+        <div class="col-4 text-center" style="border-right:1px solid var(--ar-border);">
+          <div class="stat-label">Cost</div>
+          <div style="font-size:1.1rem;font-family:'DM Serif Display',serif;color:var(--ar-gold);">
+            R{{ '{:,.2f}'.format(asset.cost or 0) }}
+          </div>
+        </div>
+        <div class="col-4 text-center" style="border-right:1px solid var(--ar-border);">
+          <div class="stat-label">Accum. Dep.</div>
+          <div style="font-size:1.1rem;font-family:'DM Serif Display',serif;color:var(--ar-muted);">
+            R{{ '{:,.2f}'.format(asset.accumulated_depreciation or 0) }}
+          </div>
+        </div>
+        <div class="col-4 text-center">
+          <div class="stat-label">NBV</div>
+          <div style="font-size:1.1rem;font-family:'DM Serif Display',serif;color:var(--ar-accent);">
+            R{{ '{:,.2f}'.format(asset.net_book_value or asset.cost or 0) }}
+          </div>
+        </div>
+      </div>
+
+      <!-- Depreciation progress -->
+      {% if asset.status not in ('auc', 'spare') and asset.cost %}
+      {% set dep_pct = (asset.accumulated_depreciation / asset.cost * 100) if asset.cost else 0 %}
+      <div class="dep-bar-wrap mb-1" style="height:10px;">
+        <div class="dep-bar-fill {% if dep_pct > 90 %}over{% elif dep_pct > 70 %}warn{% endif %}"
+             style="width:{{ [dep_pct,100]|min }}%"></div>
+      </div>
+      <div class="d-flex justify-content-between" style="font-size:0.72rem;color:var(--ar-muted);">
+        <span>{{ '{:.1f}'.format(dep_pct) }}% depreciated</span>
+        <span>R{{ '{:,.2f}'.format(asset.residual_value or 0) }} residual</span>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Details table -->
+    <div class="ar-card mb-3">
+      <div class="section-header">Asset Details</div>
+      <table style="width:100%;font-size:0.85rem;">
+        {% set rows = [
+          ('Asset Code',        asset.asset_code),
+          ('Serial / Tag No.',  asset.serial_no or '—'),
+          ('Location',          asset.location or '—'),
+          ('Depreciation Method', asset.depreciation_method or '—'),
+          ('Useful Life',       (asset.useful_life_years|string + ' years (' + asset.useful_life_months|string + ' months)') if asset.useful_life_years else '—'),
+          ('Monthly Dep.',      'R{:,.2f}'.format(asset.monthly_depreciation or 0)),
+          ('Purchase Date',     asset.purchase_date|string if asset.purchase_date else '—'),
+          ('Transfer Date',     asset.transfer_date|string if asset.transfer_date else '—'),
+          ('Capitalisation Date', asset.capitalisation_date|string if asset.capitalisation_date else '—'),
+          ('Last Dep. Run',     asset.last_dep_date|string if asset.last_dep_date else 'Not yet run'),
+        ] %}
+        {% for label, value in rows %}
+        <tr>
+          <td style="color:var(--ar-muted);padding:0.4rem 0;width:45%;">{{ label }}</td>
+          <td style="color:var(--ar-text);font-weight:500;">{{ value }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+
+    <!-- As-at calculator -->
+    <div class="ar-card mb-3" style="border-color:var(--ar-accent);">
+      <div class="section-header">As-At Calculator</div>
+      <p style="font-size:0.8rem;color:var(--ar-muted);">
+        Calculate accumulated depreciation as at any date — uses posted schedule if available,
+        otherwise calculates mathematically (SLM).
+      </p>
+      <form method="GET">
+        <div class="input-group mb-2">
+          <input type="date" name="as_at" class="form-control" value="{{ as_at_date or '' }}">
+          <button type="submit" class="btn-accent btn">Calculate</button>
+        </div>
+      </form>
+      {% if as_at_date %}
+      <div class="mt-2 p-3" style="background:var(--ar-dark);border-radius:8px;">
+        <div style="font-size:0.75rem;color:var(--ar-muted);margin-bottom:0.5rem;">
+          As at {{ as_at_date.strftime('%d %B %Y') }}
+        </div>
+        <div class="row g-2 text-center">
+          <div class="col-6">
+            <div class="stat-label">Accum. Dep.</div>
+            <div style="font-size:1.1rem;color:var(--ar-muted);font-family:'DM Serif Display',serif;">
+              R{{ '{:,.2f}'.format(as_at_accum or 0) }}
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="stat-label">NBV</div>
+            <div style="font-size:1.1rem;color:var(--ar-accent);font-family:'DM Serif Display',serif;">
+              R{{ '{:,.2f}'.format(as_at_nbv or 0) }}
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Actions (Transfer / Dispose / Impair) -->
+    {% if asset.status not in ('disposed',) %}
+    <div class="ar-card">
+      <div class="section-header">Actions</div>
+      <div class="d-flex flex-wrap gap-2">
+        {% if asset.status in ('auc', 'spare') %}
+        <button class="btn-accent btn btn-sm" data-bs-toggle="modal" data-bs-target="#transferModal">
+          <i class="bi bi-arrow-right-circle me-1"></i>Transfer to Active
+        </button>
+        {% endif %}
+        {% if asset.status == 'active' %}
+        <button class="btn btn-sm" style="background:rgba(224,92,92,0.15);color:var(--ar-danger);border:none;"
+                data-bs-toggle="modal" data-bs-target="#disposeModal">
+          <i class="bi bi-trash3 me-1"></i>Dispose
+        </button>
+        <button class="btn btn-sm" style="background:rgba(245,166,35,0.12);color:var(--ar-gold);border:none;"
+                data-bs-toggle="modal" data-bs-target="#impairModal">
+          <i class="bi bi-exclamation-diamond me-1"></i>Impairment
+        </button>
+        <button class="btn btn-sm btn-outline-ar" data-bs-toggle="modal" data-bs-target="#depRunSingleModal">
+          <i class="bi bi-play-circle me-1"></i>Run Dep. (Single)
+        </button>
+        <button class="btn btn-sm btn-outline-ar" data-bs-toggle="modal" data-bs-target="#catchupModal">
+          <i class="bi bi-clock-history me-1"></i>Catch-Up
+        </button>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+
+  <!-- ── RIGHT: Depreciation Schedule ── -->
+  <div class="col-lg-7">
+    <div class="ar-card p-0" style="overflow:hidden;">
+      <div style="padding:1.25rem 1.5rem;border-bottom:1px solid var(--ar-border);">
+        <div class="section-header mb-0">Depreciation Schedule</div>
+        <span style="font-size:0.75rem;color:var(--ar-muted);">
+          {{ schedule|length }} period(s) posted
+        </span>
+      </div>
+      {% if schedule %}
+      <div style="overflow-x:auto;max-height:520px;overflow-y:auto;">
+        <table class="ar-table">
+          <thead style="position:sticky;top:0;background:var(--ar-panel);z-index:1;">
+            <tr>
+              <th>Period</th>
+              <th class="text-end">Opening NBV</th>
+              <th class="text-end">Dep. Charge</th>
+              <th class="text-end">Closing NBV</th>
+              <th class="text-center">Posted</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% set total_dep = namespace(value=0) %}
+            {% for row in schedule %}
+            {% set total_dep.value = total_dep.value + (row.depreciation_charge | float) %}
+            <tr>
+              <td class="mono" style="font-size:0.82rem;">{{ '%02d'|format(row.period_month) }}/{{ row.period_year }}</td>
+              <td class="text-end mono" style="font-size:0.82rem;">R{{ '{:,.2f}'.format(row.opening_nbv or 0) }}</td>
+              <td class="text-end mono" style="font-size:0.82rem;color:var(--ar-muted);">
+                (R{{ '{:,.2f}'.format(row.depreciation_charge or 0) }})
+              </td>
+              <td class="text-end mono text-accent" style="font-size:0.82rem;">R{{ '{:,.2f}'.format(row.closing_nbv or 0) }}</td>
+              <td class="text-center">
+                {% if row.is_posted %}
+                <i class="bi bi-check-circle-fill" style="color:var(--ar-accent);font-size:0.85rem;"></i>
+                {% else %}
+                <i class="bi bi-clock" style="color:var(--ar-muted);font-size:0.85rem;"></i>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot style="border-top:2px solid var(--ar-border);">
+            <tr>
+              <td colspan="2" style="font-weight:600;padding:0.75rem;">Total Depreciation</td>
+              <td class="text-end mono" style="font-weight:600;color:var(--ar-muted);">
+                (R{{ '{:,.2f}'.format(total_dep.value) }})
+              </td>
+              <td colspan="2"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      {% else %}
+      <div style="padding:3rem;text-align:center;color:var(--ar-muted);">
+        <i class="bi bi-calendar-x" style="font-size:2.5rem;display:block;margin-bottom:0.75rem;"></i>
+        <div style="font-size:0.875rem;">No depreciation periods posted yet.</div>
+        {% if asset.status == 'active' %}
+        <div style="font-size:0.8rem;margin-top:0.5rem;">
+          Use <strong>Run Dep. (Single)</strong> or <strong>Catch-Up</strong> to post periods.
+        </div>
+        {% elif asset.status in ('auc','spare') %}
+        <div style="font-size:0.8rem;margin-top:0.5rem;color:var(--ar-gold);">
+          Transfer this asset to an active category first.
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Impairment history -->
+    {% set impairments = asset.impairments.all() %}
+    {% if impairments %}
+    <div class="ar-card mt-3">
+      <div class="section-header">Impairment History</div>
+      {% for imp in impairments %}
+      <div class="p-3 mb-2" style="background:var(--ar-dark);border-radius:8px;border-left:3px solid var(--ar-danger);">
+        <div class="d-flex justify-content-between">
+          <span style="font-size:0.8rem;color:var(--ar-muted);">{{ imp.impairment_date }}</span>
+          {% if imp.is_reversed %}
+          <span class="badge-status bs-active">Reversed</span>
+          {% endif %}
+        </div>
+        <div style="font-size:0.9rem;color:var(--ar-danger);font-weight:600;">
+          R{{ '{:,.2f}'.format(imp.impairment_amount or 0) }} impairment
+        </div>
+        <div style="font-size:0.8rem;color:var(--ar-muted);">
+          NBV: R{{ '{:,.2f}'.format(imp.pre_impairment_nbv or 0) }} →
+          R{{ '{:,.2f}'.format(imp.post_impairment_nbv or 0) }}
+        </div>
+        <div style="font-size:0.78rem;color:var(--ar-muted);margin-top:0.25rem;">{{ imp.reason }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ── MODALS ──────────────────────────────────────────────────────────────── -->
+
+<!-- Transfer Modal -->
+<div class="modal fade" id="transferModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" style="font-size:1rem;"><i class="bi bi-arrow-right-circle me-2 text-accent"></i>Transfer to Active</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{{ url_for('asset.transfer_asset', asset_id=asset.id) }}">
+        {{ transfer_form.hidden_tag() }}
+        {{ transfer_form.asset_id() }}
+        <div class="modal-body">
+          <div class="mb-3">{{ transfer_form.to_category_id.label(class='form-label') }}{{ transfer_form.to_category_id(class='form-select') }}</div>
+          <div class="mb-3">{{ transfer_form.transfer_date.label(class='form-label') }}{{ transfer_form.transfer_date(class='form-control') }}</div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">{{ transfer_form.useful_life_years.label(class='form-label') }}{{ transfer_form.useful_life_years(class='form-control') }}</div>
+            <div class="col-6">{{ transfer_form.residual_value.label(class='form-label') }}{{ transfer_form.residual_value(class='form-control') }}</div>
+          </div>
+          <div class="mb-3">{{ transfer_form.depreciation_method.label(class='form-label') }}{{ transfer_form.depreciation_method(class='form-select') }}</div>
+          <div class="mb-3">{{ transfer_form.notes.label(class='form-label') }}{{ transfer_form.notes(class='form-control') }}</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-outline-ar btn" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn-accent btn">Transfer Asset</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Dispose Modal -->
+<div class="modal fade" id="disposeModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" style="font-size:1rem;color:var(--ar-danger);"><i class="bi bi-trash3 me-2"></i>Dispose Asset</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{{ url_for('asset.dispose_asset', asset_id=asset.id) }}">
+        {{ disposal_form.hidden_tag() }}
+        {{ disposal_form.asset_id() }}
+        <div class="modal-body">
+          <div class="alert alert-warning mb-3">Current NBV: <strong>R{{ '{:,.2f}'.format(asset.net_book_value or 0) }}</strong></div>
+          <div class="mb-3">{{ disposal_form.disposal_date.label(class='form-label') }}{{ disposal_form.disposal_date(class='form-control') }}</div>
+          <div class="mb-3">{{ disposal_form.disposal_type.label(class='form-label') }}{{ disposal_form.disposal_type(class='form-select') }}</div>
+          <div class="mb-3">{{ disposal_form.proceeds.label(class='form-label') }}{{ disposal_form.proceeds(class='form-control') }}</div>
+          <div class="mb-3">{{ disposal_form.notes.label(class='form-label') }}{{ disposal_form.notes(class='form-control') }}</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-outline-ar btn" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger">Confirm Disposal</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Impairment Modal -->
+<div class="modal fade" id="impairModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" style="font-size:1rem;color:var(--ar-gold);"><i class="bi bi-exclamation-diamond me-2"></i>Post Impairment</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{{ url_for('asset.impair_asset', asset_id=asset.id) }}">
+        {{ impairment_form.hidden_tag() }}
+        {{ impairment_form.asset_id() }}
+        <div class="modal-body">
+          <div class="alert alert-warning mb-3">Current NBV: <strong>R{{ '{:,.2f}'.format(asset.net_book_value or 0) }}</strong></div>
+          <div class="mb-3">{{ impairment_form.impairment_date.label(class='form-label') }}{{ impairment_form.impairment_date(class='form-control') }}</div>
+          <div class="mb-3">{{ impairment_form.impairment_amount.label(class='form-label') }}{{ impairment_form.impairment_amount(class='form-control') }}</div>
+          <div class="mb-3">{{ impairment_form.reason.label(class='form-label') }}{{ impairment_form.reason(class='form-control') }}</div>
+          <div class="row g-2">
+            <div class="col-6">{{ impairment_form.revised_useful_life_months.label(class='form-label') }}{{ impairment_form.revised_useful_life_months(class='form-control') }}</div>
+            <div class="col-6">{{ impairment_form.revised_residual_value.label(class='form-label') }}{{ impairment_form.revised_residual_value(class='form-control') }}</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-outline-ar btn" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn-accent btn">Post Impairment</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Single Dep Run Modal -->
+<div class="modal fade" id="depRunSingleModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" style="font-size:1rem;"><i class="bi bi-play-circle me-2 text-accent"></i>Run Depreciation</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{{ url_for('asset.run_depreciation') }}">
+        {{ dep_run_form.hidden_tag() }}
+        <input type="hidden" name="asset_id" value="{{ asset.id }}">
+        <div class="modal-body">
+          <div class="mb-3">{{ dep_run_form.year.label(class='form-label') }}{{ dep_run_form.year(class='form-control') }}</div>
+          <div class="mb-3">{{ dep_run_form.month.label(class='form-label') }}{{ dep_run_form.month(class='form-select') }}</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-outline-ar btn" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn-accent btn">Post</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Catch-Up Modal -->
+<div class="modal fade" id="catchupModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" style="font-size:1rem;"><i class="bi bi-clock-history me-2" style="color:var(--ar-gold);"></i>Catch-Up Depreciation</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{{ url_for('asset.catchup_depreciation', asset_id=asset.id) }}">
+        {{ catchup_form.hidden_tag() }}
+        {{ catchup_form.asset_id() }}
+        <div class="modal-body">
+          <div class="alert alert-info mb-3" style="font-size:0.82rem;">
+            <i class="bi bi-info-circle me-1"></i>
+            This calculates and posts all missing depreciation periods from the asset's
+            depreciation start date up to the date you choose — in one action.
+            Use this for assets added to the register after the fact.
+          </div>
+          <div class="mb-3">
+            {{ catchup_form.as_at_date.label(class='form-label') }}
+            {{ catchup_form.as_at_date(class='form-control') }}
+          </div>
+          <div class="form-check mb-3">
+            {{ catchup_form.post_to_ledger(class='form-check-input') }}
+            <label class="form-check-label" style="font-size:0.85rem;color:var(--ar-text);">
+              Post to depreciation schedule (uncheck for preview only)
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-outline-ar btn" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn-accent btn">Run Catch-Up</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

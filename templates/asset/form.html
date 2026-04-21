@@ -1,0 +1,148 @@
+<!-- ============================================================
+     templates/asset/form.html  (Create & Edit Asset)
+     ============================================================ -->
+{% extends 'asset/base.html' %}
+{% block title %}{{ title }}{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <form method="POST" class="ar-card">
+      {{ form.hidden_tag() }}
+
+      <div class="section-header">Identity</div>
+      <div class="row g-3 mb-4">
+        <div class="col-12">
+          {{ form.description.label(class='form-label') }}
+          {{ form.description(class='form-control' + (' is-invalid' if form.description.errors else '')) }}
+          {% for e in form.description.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="col-sm-6">
+          {{ form.serial_no.label(class='form-label') }}
+          {{ form.serial_no(class='form-control') }}
+        </div>
+        <div class="col-sm-6">
+          {{ form.location.label(class='form-label') }}
+          {{ form.location(class='form-control') }}
+        </div>
+      </div>
+
+      <div class="section-header">Classification</div>
+      <div class="row g-3 mb-4">
+        <div class="col-sm-6">
+          {{ form.category_id.label(class='form-label') }}
+          {{ form.category_id(class='form-select' + (' is-invalid' if form.category_id.errors else ''), id='categorySelect') }}
+          {% for e in form.category_id.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="col-sm-6">
+          {{ form.status.label(class='form-label') }}
+          {{ form.status(class='form-select', id='statusSelect') }}
+          <div class="form-text">AUC and Spares will not depreciate until transferred.</div>
+        </div>
+        <div class="col-sm-6">
+          {{ form.depreciation_method.label(class='form-label') }}
+          {{ form.depreciation_method(class='form-select') }}
+        </div>
+      </div>
+
+      <div class="section-header">Financial</div>
+      <div class="row g-3 mb-4">
+        <div class="col-sm-4">
+          {{ form.cost.label(class='form-label') }}
+          <div class="input-group">
+            <span class="input-group-text" style="background:var(--ar-dark);border-color:var(--ar-border);color:var(--ar-muted);">R</span>
+            {{ form.cost(class='form-control' + (' is-invalid' if form.cost.errors else '')) }}
+          </div>
+          {% for e in form.cost.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="col-sm-4">
+          {{ form.residual_value.label(class='form-label') }}
+          <div class="input-group">
+            <span class="input-group-text" style="background:var(--ar-dark);border-color:var(--ar-border);color:var(--ar-muted);">R</span>
+            {{ form.residual_value(class='form-control') }}
+          </div>
+        </div>
+        <div class="col-sm-4">
+          {{ form.useful_life_years.label(class='form-label') }}
+          {{ form.useful_life_years(class='form-control', id='usefulLifeInput') }}
+          {% for e in form.useful_life_years.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+        </div>
+
+        <!-- Live depreciation preview -->
+        <div class="col-12">
+          <div id="depPreview" style="display:none;background:var(--ar-dark);border-radius:8px;padding:1rem;border:1px solid var(--ar-border);">
+            <div style="font-size:0.72rem;color:var(--ar-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.5rem;">Monthly Depreciation Preview</div>
+            <div style="font-size:1.4rem;font-family:'DM Serif Display',serif;color:var(--ar-accent);" id="depPreviewAmount">R0.00</div>
+            <div style="font-size:0.78rem;color:var(--ar-muted);">per month (SLM)</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-header">Dates</div>
+      <div class="row g-3 mb-4">
+        <div class="col-sm-4">
+          {{ form.purchase_date.label(class='form-label') }}
+          {{ form.purchase_date(class='form-control' + (' is-invalid' if form.purchase_date.errors else '')) }}
+          {% for e in form.purchase_date.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+        </div>
+        <div class="col-sm-4">
+          {{ form.capitalisation_date.label(class='form-label') }}
+          {{ form.capitalisation_date(class='form-control') }}
+          <div class="form-text">Leave blank to use purchase date.</div>
+        </div>
+        <div class="col-sm-4" id="transferDateGroup" style="display:none;">
+          {{ form.transfer_date.label(class='form-label') }}
+          {{ form.transfer_date(class='form-control') }}
+          <div class="form-text">{{ form.transfer_date.description }}</div>
+        </div>
+      </div>
+
+      <div class="d-flex gap-2 justify-content-end">
+        <a href="{{ url_for('asset.list_assets') }}" class="btn-outline-ar btn">Cancel</a>
+        <button type="submit" class="btn-accent btn">
+          <i class="bi bi-check2 me-1"></i>{{ 'Save Changes' if asset else 'Create Asset' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const statusSelect   = document.getElementById('statusSelect');
+  const transferGroup  = document.getElementById('transferDateGroup');
+  const costInput      = document.querySelector('[name=cost]');
+  const residualInput  = document.querySelector('[name=residual_value]');
+  const lifeInput      = document.getElementById('usefulLifeInput');
+  const depPreview     = document.getElementById('depPreview');
+  const depAmount      = document.getElementById('depPreviewAmount');
+
+  function toggleTransferDate() {
+    const v = statusSelect.value;
+    transferGroup.style.display = (v === 'auc' || v === 'spare') ? 'block' : 'none';
+  }
+
+  function updateDepPreview() {
+    const cost    = parseFloat(costInput.value) || 0;
+    const resid   = parseFloat(residualInput.value) || 0;
+    const years   = parseInt(lifeInput.value) || 0;
+    const months  = years * 12;
+    if (cost > 0 && months > 0 && statusSelect.value === 'active') {
+      const monthly = (cost - resid) / months;
+      depAmount.textContent = 'R' + monthly.toLocaleString('en-ZA', {minimumFractionDigits:2, maximumFractionDigits:2});
+      depPreview.style.display = 'block';
+    } else {
+      depPreview.style.display = 'none';
+    }
+  }
+
+  statusSelect.addEventListener('change', () => { toggleTransferDate(); updateDepPreview(); });
+  [costInput, residualInput, lifeInput].forEach(el => el && el.addEventListener('input', updateDepPreview));
+
+  toggleTransferDate();
+  updateDepPreview();
+</script>
+{% endblock %}
+

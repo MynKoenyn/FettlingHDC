@@ -1,0 +1,386 @@
+{% extends "stocktake/base.html" %}
+{% block title %}Stocktake Dashboard{% endblock %}
+
+{% block head_extra %}
+<style>
+  /* ── Design tokens ─────────────────────────── */
+  :root {
+    --ink:       #0f1923;
+    --ink-soft:  #4a5568;
+    --ink-muted: #94a3b8;
+    --surface:   #ffffff;
+    --surface-2: #f5f8fc;
+    --surface-3: #edf2f9;
+    --brand:     #1a5cff;
+    --brand-dk:  #0f40cc;
+    --brand-lt:  #dce9ff;
+    --success:   #0ea66e;
+    --success-lt:#d1fae5;
+    --danger:    #e53e3e;
+    --danger-lt: #fee2e2;
+    --warn:      #d97706;
+    --warn-lt:   #fef3c7;
+    --radius:    10px;
+    --shadow-sm: 0 1px 3px rgba(15,25,35,.08);
+    --shadow:    0 4px 16px rgba(15,25,35,.10);
+  }
+
+  body { background: var(--surface-2); color: var(--ink); font-family: 'DM Sans', sans-serif; }
+
+  /* ── Page header ───────────────────────────── */
+  .page-header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--surface-3);
+    padding: 1.5rem 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .page-header h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.6rem;
+    font-weight: 400;
+    color: var(--ink);
+    margin: 0;
+  }
+  .page-header .date-badge {
+    background: var(--brand-lt);
+    color: var(--brand-dk);
+    font-size: .78rem;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    padding: .35rem .85rem;
+    border-radius: 999px;
+  }
+  .btn-primary-custom {
+    background: var(--brand);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius);
+    padding: .55rem 1.3rem;
+    font-size: .88rem;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    transition: background .15s;
+  }
+  .btn-primary-custom:hover { background: var(--brand-dk); color: #fff; }
+
+  /* ── KPI strip ─────────────────────────────── */
+  .kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    padding: 1.5rem 2rem 0;
+  }
+  .kpi-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 1.2rem 1.4rem;
+    box-shadow: var(--shadow-sm);
+    border-top: 3px solid transparent;
+  }
+  .kpi-card.brand  { border-top-color: var(--brand); }
+  .kpi-card.ok     { border-top-color: var(--success); }
+  .kpi-card.warn   { border-top-color: var(--warn); }
+  .kpi-card.danger { border-top-color: var(--danger); }
+  .kpi-label { font-size: .72rem; font-weight: 600; text-transform: uppercase;
+               letter-spacing: .06em; color: var(--ink-muted); margin-bottom: .35rem; }
+  .kpi-value { font-size: 2rem; font-weight: 700; line-height: 1; color: var(--ink); }
+  .kpi-sub   { font-size: .78rem; color: var(--ink-soft); margin-top: .3rem; }
+
+  /* ── Grid layout ───────────────────────────── */
+  .content-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    padding: 1.25rem 2rem 2rem;
+  }
+  @media (max-width: 900px) { .content-grid { grid-template-columns: 1fr; } }
+  .card-full { grid-column: 1 / -1; }
+
+  /* ── Panel card ────────────────────────────── */
+  .panel {
+    background: var(--surface);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+  .panel-header {
+    padding: 1rem 1.4rem;
+    border-bottom: 1px solid var(--surface-3);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .panel-title {
+    font-size: .82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--ink-soft);
+    margin: 0;
+  }
+  .panel-body { padding: 0; }
+
+  /* ── Table ─────────────────────────────────── */
+  .data-table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+  .data-table th {
+    padding: .65rem 1.2rem;
+    text-align: left;
+    font-size: .7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--ink-muted);
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--surface-3);
+  }
+  .data-table td {
+    padding: .75rem 1.2rem;
+    border-bottom: 1px solid var(--surface-3);
+    color: var(--ink);
+    vertical-align: middle;
+  }
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table tr:hover td { background: var(--surface-2); }
+
+  /* ── Session tiles ─────────────────────────── */
+  .session-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: .75rem;
+    padding: 1.2rem;
+  }
+  .session-tile {
+    border: 1.5px solid var(--surface-3);
+    border-radius: var(--radius);
+    padding: 1rem 1.1rem;
+    text-decoration: none;
+    color: var(--ink);
+    transition: border-color .15s, box-shadow .15s;
+    display: block;
+  }
+  .session-tile:hover {
+    border-color: var(--brand);
+    box-shadow: 0 0 0 3px var(--brand-lt);
+    color: var(--ink);
+  }
+  .session-tile .dept { font-weight: 700; font-size: .9rem; }
+  .session-tile .meta { font-size: .75rem; color: var(--ink-soft); margin-top: .25rem; }
+  .session-tile .section-badge {
+    display: inline-block;
+    background: var(--brand-lt);
+    color: var(--brand-dk);
+    font-size: .7rem;
+    font-weight: 700;
+    padding: .15rem .55rem;
+    border-radius: 999px;
+    margin-top: .5rem;
+  }
+  .empty-state { padding: 2.5rem; text-align: center; color: var(--ink-muted); font-size: .875rem; }
+
+  /* ── Variance pill ─────────────────────────── */
+  .var-pill {
+    display: inline-block;
+    padding: .2rem .65rem;
+    border-radius: 999px;
+    font-size: .78rem;
+    font-weight: 700;
+  }
+  .var-pos  { background: var(--success-lt); color: var(--success); }
+  .var-neg  { background: var(--danger-lt);  color: var(--danger); }
+  .var-zero { background: var(--surface-3);  color: var(--ink-soft); }
+
+  /* ── Link subtle ───────────────────────────── */
+  a.subtle { color: var(--brand); font-size: .8rem; text-decoration: none; }
+  a.subtle:hover { text-decoration: underline; }
+</style>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Page header ── -->
+<div class="page-header">
+  <div style="display:flex;align-items:center;gap:1rem;">
+    <h1>Stocktake</h1>
+    <span class="date-badge">{{ today.strftime('%a, %d %b %Y') }}</span>
+  </div>
+  <div style="display:flex;gap:.75rem;flex-wrap:wrap;">
+    <a href="{{ url_for('stocktake.daily_list') }}" class="btn-primary-custom" style="background:var(--surface-3);color:var(--ink);">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+      Today's List
+    </a>
+    <a href="{{ url_for('stocktake.new_header') }}" class="btn-primary-custom">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+      New Session
+    </a>
+  </div>
+</div>
+
+<!-- ── KPI strip ── -->
+<div class="kpi-strip">
+  <div class="kpi-card brand">
+    <div class="kpi-label">Sessions Today</div>
+    <div class="kpi-value">{{ todays_headers|length }}</div>
+    <div class="kpi-sub">Across all departments</div>
+  </div>
+
+  <div class="kpi-card ok">
+    <div class="kpi-label">Products Counted</div>
+    <div class="kpi-value">{{ today_stats.products or 0 }}</div>
+    <div class="kpi-sub">Unique products counted</div>
+  </div>
+
+  <div class="kpi-card {{ 'danger' if (today_stats.variance or 0) < 0 else ('warn' if (today_stats.variance or 0) > 0 else 'ok') }}">
+    <div class="kpi-label">Net Variance</div>
+    <div class="kpi-value">{{ '%+.0f' % (today_stats.variance or 0) }}</div>
+    <div class="kpi-sub">Count vs Book (today)</div>
+  </div>
+
+  <div class="kpi-card ok">
+    <div class="kpi-label">Book Total</div>
+    <div class="kpi-value">{{ '%.0f' % (today_stats.book_total or 0) }}</div>
+    <div class="kpi-sub">System stock sum</div>
+  </div>
+</div>
+
+<!-- ── Main grid ── -->
+<div class="content-grid">
+
+  <!-- Today's sessions -->
+  <div class="panel card-full">
+    <div class="panel-header">
+      <h2 class="panel-title">Today's Sessions</h2>
+      <a href="{{ url_for('stocktake.new_header') }}" class="subtle">+ New session</a>
+    </div>
+    <div class="panel-body">
+      {% if todays_headers %}
+        <div class="session-grid">
+          {% for h in todays_headers %}
+          <a href="{{ url_for('stocktake.entry', header_id=h.id) }}" class="session-tile">
+            <div class="dept">{{ h.department.name }}</div>
+            <div class="meta">{{ h.department.division.code }}</div>
+            <span class="section-badge">Section {{ h.section.value }}</span>
+          </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state">
+          No sessions started yet today.<br>
+          <a href="{{ url_for('stocktake.new_header') }}" style="color:var(--brand);">Open the first one →</a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Department variance today -->
+  <div class="panel">
+    <div class="panel-header">
+      <h2 class="panel-title">Dept Variance – Today</h2>
+    </div>
+    <div class="panel-body">
+      {% if dept_variance %}
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Division</th>
+            <th>Department</th>
+            <th>Products</th> <!-- changed -->
+            <th>Variance</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in dept_variance %}
+          <tr>
+            <td><strong>{{ row.division }}</strong></td>
+            <td>{{ row.dept }}</td>
+            <td>{{ row.products }}</td> <!-- changed -->
+            <td>
+              {% set v = row.variance or 0 %}
+              <span class="var-pill {{ 'var-neg' if v < 0 else ('var-pos' if v > 0 else 'var-zero') }}">
+                {{ '%+.1f' % v }}
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+        <div class="empty-state">No counts yet today.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Top variances (30 days) -->
+  <div class="panel">
+    <div class="panel-header">
+      <h2 class="panel-title">Top Variances – 30 Days</h2>
+    </div>
+    <div class="panel-body">
+      {% if top_variances %}
+      <table class="data-table">
+        <thead>
+          <tr><th>Customer</th><th>Product</th><th>Variance</th></tr>
+        </thead>
+        <tbody>
+          {% for row in top_variances %}
+          <tr>
+            <td style="color:var(--ink-soft);font-size:.8rem;">{{ row.customer }}</td>
+            <td>{{ row.product }}</td>
+            <td>
+              {% set v = row.variance or 0 %}
+              <span class="var-pill {{ 'var-neg' if v < 0 else ('var-pos' if v > 0 else 'var-zero') }}">
+                {{ '%+.1f' % v }}
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+        <div class="empty-state">No data in the last 30 days.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Recent history -->
+  <div class="panel card-full">
+    <div class="panel-header">
+      <h2 class="panel-title">Recent History – Last 14 Days</h2>
+      <a href="{{ url_for('stocktake.daily_list') }}" class="subtle">View full list →</a>
+    </div>
+    <div class="panel-body">
+      {% if recent_headers %}
+      <table class="data-table">
+        <thead>
+          <tr><th>Date</th><th>Division</th><th>Department</th><th>Section</th><th>Action</th></tr>
+        </thead>
+        <tbody>
+          {% for h in recent_headers %}
+          <tr>
+            <td>{{ h.date.strftime('%d %b %Y') }}</td>
+            <td><strong>{{ h.department.division.code }}</strong></td>
+            <td>{{ h.department.name }}</td>
+            <td><span class="section-badge" style="background:var(--surface-3);color:var(--ink-soft);">{{ h.section.value }}</span></td>
+            <td>
+              <a href="{{ url_for('stocktake.entry', header_id=h.id) }}" class="subtle">Open →</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+        <div class="empty-state">No sessions in the last 14 days.</div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}

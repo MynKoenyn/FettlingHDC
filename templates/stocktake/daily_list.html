@@ -1,0 +1,412 @@
+{% extends "stocktake/base.html" %}
+{% block title %}Stocktake List – {{ selected_date.strftime('%d %b %Y') }}{% endblock %}
+
+{% block head_extra %}
+<style>
+  :root {
+    --ink:       #0f1923;
+    --ink-soft:  #4a5568;
+    --ink-muted: #94a3b8;
+    --surface:   #ffffff;
+    --surface-2: #f5f8fc;
+    --surface-3: #edf2f9;
+    --brand:     #1a5cff;
+    --brand-dk:  #0f40cc;
+    --brand-lt:  #dce9ff;
+    --success:   #0ea66e;
+    --success-lt:#d1fae5;
+    --danger:    #e53e3e;
+    --danger-lt: #fee2e2;
+    --warn:      #d97706;
+    --warn-lt:   #fef3c7;
+    --radius:    10px;
+    --shadow-sm: 0 1px 3px rgba(15,25,35,.08);
+  }
+  body { background:var(--surface-2); font-family:'DM Sans',sans-serif; color:var(--ink); }
+
+  /* ── Page header ── */
+  .page-header {
+    background:var(--surface); border-bottom:1px solid var(--surface-3);
+    padding:1.2rem 2rem; display:flex; align-items:center;
+    justify-content:space-between; flex-wrap:wrap; gap:.75rem;
+  }
+  .page-header h1 { font-family:'DM Serif Display',serif; font-size:1.4rem; font-weight:400; margin:0; }
+  .breadcrumb-custom { font-size:.8rem; color:var(--ink-muted); display:flex; align-items:center; gap:.4rem; }
+  .breadcrumb-custom a { color:var(--brand); text-decoration:none; }
+
+  /* ── Date nav ── */
+  .date-nav {
+    display:flex; align-items:center; gap:.75rem; padding:1rem 2rem;
+    background:var(--surface); border-bottom:1px solid var(--surface-3);
+  }
+  .date-nav label { font-size:.78rem; font-weight:700; text-transform:uppercase;
+                    letter-spacing:.06em; color:var(--ink-muted); }
+  #date-picker {
+    padding:.45rem .8rem; border:1.5px solid var(--surface-3); border-radius:var(--radius);
+    font-family:'DM Sans',sans-serif; font-size:.875rem; color:var(--ink);
+    outline:none; transition:border-color .15s;
+  }
+  #date-picker:focus { border-color:var(--brand); }
+  .btn-sm {
+    padding:.4rem .9rem; border-radius:var(--radius); font-size:.82rem; font-weight:600;
+    cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:.35rem;
+    border:1.5px solid var(--surface-3); background:var(--surface); color:var(--ink-soft);
+    transition:border-color .12s, color .12s;
+  }
+  .btn-sm:hover { border-color:var(--brand); color:var(--brand); }
+  .btn-sm.active { background:var(--brand); color:#fff; border-color:var(--brand); }
+
+  /* ── Content ── */
+  .content-wrap { padding:1.25rem 2rem 2rem; display:flex; flex-direction:column; gap:1.25rem; }
+
+  /* ── Session block ── */
+  .session-block {
+    background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow-sm); overflow:hidden;
+  }
+  .session-block-header {
+    padding:.9rem 1.3rem;
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.5rem;
+    border-bottom:1px solid var(--surface-3); background:var(--surface-2);align-items: center;
+  }
+  .session-title { display:flex; align-items:center; gap:.6rem;flex-wrap: wrap; }
+  .session-title h3 { font-size:.95rem; font-weight:700; margin:0; }
+  .chip {
+    display:inline-block; padding:.2rem .65rem; border-radius:999px;
+    font-size:.72rem; font-weight:700;
+  }
+  .chip-brand  { background:var(--brand-lt); color:var(--brand-dk); }
+  .chip-soft   { background:var(--surface-3); color:var(--ink-soft); }
+  .chip-ok     { background:var(--success-lt); color:var(--success); }
+  .chip-danger { background:var(--danger-lt);  color:var(--danger); }
+  .chip-warn   { background:var(--warn-lt);    color:var(--warn); }
+
+  .session-actions { display:flex; gap:.5rem; align-items:center; }
+  .btn-entry {
+    padding:.4rem 1rem; background:var(--brand); color:#fff;
+    border-radius:var(--radius); font-size:.8rem; font-weight:700;
+    text-decoration:none; transition:background .12s;
+  }
+  .btn-entry:hover { background:var(--brand-dk); color:#fff; }
+
+  /* ── Data table ── */
+  .data-table { width:100%; border-collapse:collapse; font-size:.875rem; }
+  .data-table th {
+    padding:.55rem 1rem; text-align:left;
+    font-size:.67rem; font-weight:700; text-transform:uppercase;
+    letter-spacing:.07em; color:var(--ink-muted);
+    background:var(--surface-2); border-bottom:1px solid var(--surface-3);
+  }
+  .data-table td { padding:.65rem 1rem; border-bottom:1px solid var(--surface-3); vertical-align:middle; }
+  .data-table tr:last-child td { border-bottom:none; }
+  .data-table tr:hover td { background:var(--surface-2); }
+  .data-table tfoot td {
+    padding:.65rem 1rem; background:var(--surface-3);
+    font-weight:700; font-size:.82rem;
+  }
+
+  .var-pill {
+    display:inline-block; padding:.18rem .55rem;
+    border-radius:999px; font-size:.75rem; font-weight:700;
+  }
+  .var-pos  { background:var(--success-lt); color:var(--success); }
+  .var-neg  { background:var(--danger-lt);  color:var(--danger); }
+  .var-zero { background:var(--surface-3);  color:var(--ink-muted); }
+
+  /* ── Summary bar ── */
+  .summary-bar {
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+    gap:.75rem; padding:1rem 2rem;
+  }
+  .summary-card {
+    background:var(--surface); border-radius:var(--radius);
+    padding:.9rem 1.1rem; box-shadow:var(--shadow-sm);
+  }
+  .summary-label { font-size:.68rem; font-weight:700; text-transform:uppercase;
+                   letter-spacing:.06em; color:var(--ink-muted); margin-bottom:.25rem; }
+  .summary-value { font-size:1.4rem; font-weight:700; color:var(--ink); }
+
+  .empty-state { padding:3rem; text-align:center; color:var(--ink-muted); font-size:.875rem; }
+
+  /* ── Session-specific table ── */
+.session-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .875rem;
+  table-layout: fixed;
+}
+
+.session-table th {
+  padding: .55rem 1rem;
+  text-align: left;
+  font-size: .67rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--ink-muted);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--surface-3);
+}
+
+.session-table td {
+  padding: .65rem 1rem;
+  border-bottom: 1px solid var(--surface-3);
+  vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-table tr:hover td {
+  background: var(--surface-2);
+}
+
+/* numeric alignment */
+.session-table td:nth-child(3),
+.session-table td:nth-child(4) {
+  text-align: right;
+}
+
+.session-table th:nth-child(3),
+.session-table th:nth-child(4) {
+  text-align: right;
+}
+
+.session-table tfoot td {
+  padding: .65rem 1rem;
+  background: var(--surface-3);
+  font-weight: 700;
+}
+</style>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Page header ── -->
+<div class="page-header">
+  <div>
+    <div class="breadcrumb-custom">
+      <a href="{{ url_for('stocktake.dashboard') }}">Stocktake</a>
+      <span>›</span>
+      <span>Daily List</span>
+    </div>
+    <h1>{{ selected_date.strftime('%A, %d %B %Y') }}</h1>
+  </div>
+  <a href="{{ url_for('stocktake.new_header') }}" style="background:var(--brand);color:#fff;border-radius:var(--radius);padding:.55rem 1.2rem;font-size:.875rem;font-weight:700;text-decoration:none;">
+    + New Session
+  </a>
+</div>
+
+<!-- ── Date navigator ── -->
+<div class="date-nav">
+  <label for="date-picker">Date</label> 
+  <input type="date" id="date-picker" value="{{ selected_date.isoformat() }}">
+  <a href="{{ url_for('stocktake.daily_list', date=today.isoformat()) }}"
+     class="btn-sm {{ 'active' if selected_date == today }}">Today</a>
+      <a href="{{ url_for('stocktake.daily_list', date=prev_date.isoformat()) }}">
+          Previous
+      </a>
+
+      <a href="{{ url_for('stocktake.daily_list', date=next_date.isoformat()) }}">
+          Next
+      </a>
+</div>
+
+{% if headers %}
+
+
+
+
+<!-- ── Summary bar ── -->
+{% set all_lines = namespace(count=0, book=0, counted=0) %}
+{% for h in headers %}
+  {% set s = header_stats[h.id] %}
+  {% set all_lines.count = all_lines.count + (s.lines or 0) %}
+  {% for line in h.lines %}
+    {% set all_lines.book    = all_lines.book    + line.current_stock %}
+    {% set all_lines.counted = all_lines.counted + line.count_value %}
+  {% endfor %}
+{% endfor %}
+
+<div class="summary-bar">
+  <div class="summary-card">
+    <div class="summary-label">Sessions</div>
+    <div class="summary-value">{{ headers|length }}</div>
+  </div>
+  <div class="summary-card">
+    <div class="summary-label">Lines Counted</div>
+    <div class="summary-value">{{ all_lines.count }}</div>
+  </div>
+  <div class="summary-card">
+    <div class="summary-label">Book Total</div>
+    <div class="summary-value">{{ '%.0f'|format(all_lines.book) }}</div>
+  </div>
+  <div class="summary-card">
+    <div class="summary-label">Count Total</div>
+    <div class="summary-value">{{ '%.0f'|format(all_lines.counted) }}</div>
+  </div>
+  {% set net = all_lines.counted - all_lines.book %}
+  <!--<div class="summary-card">
+    <div class="summary-label">Net Variance</div>
+    <div class="summary-value" style="color:{{ 'var(--danger)' if net < 0 else ('var(--success)' if net > 0 else 'var(--ink)') }}">
+      {{ '%+.0f'|format(net) }}
+    </div>
+  </div> -->
+</div>
+          <!-- ── PIVOT REPORT VIEW (NEW STRUCTURE) ── -->
+          {% if report %}
+
+          <div class="content-wrap">
+
+            <div class="session-block">
+
+              <!-- HEADER -->
+              <div class="session-block-header">
+                <div class="session-title">
+                  <h3>Grouped by Product</h3>
+                  <span class="chip chip-brand">Department Breakdown</span>
+                </div>
+              </div>
+
+              <!-- TABLE -->
+              <div style="overflow-x:auto;">
+                <table class="data-table">
+
+                  <thead>
+                    <tr>
+                      <th>Customer</th>
+                      <th>Product</th>
+
+                      <th>Fettling</th>
+                      <th>Paint Bay</th>
+                      <th>Knock Off</th>
+
+                      <th>Total Book</th>
+                      <th>Total Count</th>
+                      <th>Variance</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+
+                    {% for pid, d in report.items() %}
+
+                    <tr>
+                      <td style="color:var(--ink-soft);font-size:.8rem;">
+                        {{ d.customer }}
+                      </td>
+
+                      <td><strong>{{ d.product }}</strong></td>
+
+                      <!-- Department 1 -->
+                      <td>{{ d.departments.get(1, {}).get('count', 0) | int }}</td>
+
+                      <!-- Department 2 -->
+                      <td>{{d.departments.get(2, {}).get('count', 0) | int }}</td>
+
+                      <!-- Department 3 -->
+                      <td>{{d.departments.get(3, {}).get('count', 0) | int }}</td>
+
+                      <td>{{ d.total_book | int }}</td>
+                        <td>{{ d.total_count | int }}</td>
+
+                        <td>
+                          {% set v = d.variance | int %}
+                          <span class="var-pill {{ 'var-neg' if v < 0 else ('var-pos' if v > 0 else 'var-zero') }}">
+                            {{ v }}
+                          </span>
+                        </td>
+
+                    </tr>
+
+                    {% endfor %}
+
+                  </tbody>
+
+                </table>
+              </div>
+
+            </div>
+
+          </div>
+
+          {% endif %}
+<!-- ── Session blocks ── -->
+<div class="content-wrap">
+{% for h in headers %}
+  {% set stats = header_stats[h.id] %}
+  {% set var_val = stats.variance or 0 %}
+  <div class="session-block">
+    <div class="session-block-header">
+      <div class="session-title">
+        <h3>{{ h.department.name }}</h3>
+        <span class="chip chip-brand">{{ h.department.division.code }}</span>
+        <span class="chip chip-soft">Section {{ h.section.value }}</span>
+        <span class="chip chip-soft">{{ stats.lines or 0 }} line{{ 's' if (stats.lines or 0) != 1 }}</span>
+      </div>
+      <div class="session-actions">
+        <a href="{{ url_for('stocktake.entry', header_id=h.id) }}" class="btn-entry">
+          {{ 'Edit' if selected_date == today else 'View' }} →
+        </a>
+      </div>
+    </div>
+
+    {% if h.lines %}
+    <table class="session-table">
+      <thead>
+        <tr>
+          <th>Customer</th>
+          <th>Product</th>
+          <th>Book Stock</th>
+          <th>Count</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for line in h.lines %}
+        <tr>
+          <td style="color:var(--ink-soft);font-size:.8rem;">{{ line.customer.name }}</td>
+          <td><strong>{{ line.product.name }}</strong></td>
+          <td>{{ line.current_stock | int }}</td>
+          <td>{{ line.count_value | int }}</td>
+          <td style="font-size:.78rem;color:var(--ink-muted);">{{ line.line_notes or '' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="2">Totals</td>
+          <td></td>
+          <td>{{ h.lines|sum(attribute='count_value') | int }}</td>
+
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+    {% else %}
+      <div class="empty-state" style="padding:1.5rem;">No lines in this session yet.</div>
+    {% endif %}
+  </div>
+{% endfor %}
+</div>
+
+{% else %}
+<div class="content-wrap">
+  <div class="session-block">
+    <div class="empty-state">
+      No stocktake sessions found for {{ selected_date.strftime('%d %b %Y') }}.
+      <br><br>
+      <a href="{{ url_for('stocktake.new_header') }}" style="color:var(--brand);">
+        Start a session →
+      </a>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<script>
+document.getElementById('date-picker').addEventListener('change', function () {
+  window.location.href = `{{ url_for('stocktake.daily_list') }}?date=${this.value}`;
+});
+</script>
+{% endblock %}

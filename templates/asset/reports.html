@@ -1,0 +1,168 @@
+<!-- ============================================================
+     templates/asset/reports.html
+     ============================================================ -->
+{% extends 'asset/base.html' %}
+{% block title %}Depreciation Report{% endblock %}
+{% block page_title %}Depreciation Register{% endblock %}
+
+{% block topbar_actions %}
+<button onclick="window.print()" class="btn-outline-ar btn btn-sm">
+  <i class="bi bi-printer me-1"></i>Print / Export
+</button>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+@media print {
+  #sidebar, .topbar, form, .btn { display: none !important; }
+  #main { margin-left: 0 !important; }
+  body, .ar-card { background: white !important; color: black !important; }
+  .ar-table th, .ar-table td { color: black !important; border-color: #ccc !important; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Filters -->
+<form method="GET" class="ar-card mb-4">
+  <div class="row g-2 align-items-end">
+    <div class="col-sm-4">
+      {{ filter_form.as_at_date.label(class='form-label') }}
+      {{ filter_form.as_at_date(class='form-control') }}
+      <div class="form-text">{{ filter_form.as_at_date.description }}</div>
+    </div>
+    <div class="col-sm-3">
+      {{ filter_form.category_id.label(class='form-label') }}
+      {{ filter_form.category_id(class='form-select') }}
+    </div>
+    <div class="col-sm-3">
+      {{ filter_form.status.label(class='form-label') }}
+      {{ filter_form.status(class='form-select') }}
+    </div>
+    <div class="col-sm-2">
+      <button type="submit" class="btn-accent btn w-100">Apply</button>
+    </div>
+  </div>
+</form>
+
+<!-- Report Header -->
+<div class="ar-card mb-3" style="border-color:var(--ar-accent);">
+  <div class="d-flex justify-content-between align-items-center">
+    <div>
+      <h3 style="font-size:1.2rem;margin:0;">Fixed Asset Register</h3>
+      <div style="font-size:0.8rem;color:var(--ar-muted);">
+        Accumulated depreciation as at
+        <strong style="color:var(--ar-accent);">{{ as_at_date.strftime('%d %B %Y') }}</strong>
+      </div>
+    </div>
+    <div class="d-flex gap-4 text-end">
+      <div>
+        <div class="stat-label">Total Cost</div>
+        <div style="font-size:1.1rem;font-family:'DM Serif Display',serif;color:var(--ar-gold);">
+          R{{ '{:,.2f}'.format(total_cost) }}
+        </div>
+      </div>
+      <div>
+        <div class="stat-label">Accum. Dep.</div>
+        <div style="font-size:1.1rem;font-family:'DM Serif Display',serif;color:var(--ar-muted);">
+          R{{ '{:,.2f}'.format(total_accum) }}
+        </div>
+      </div>
+      <div>
+        <div class="stat-label">Net Book Value</div>
+        <div style="font-size:1.1rem;font-family:'DM Serif Display',serif;color:var(--ar-accent);">
+          R{{ '{:,.2f}'.format(total_nbv) }}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Register Table -->
+<div class="ar-card p-0" style="overflow:hidden;">
+  <div style="overflow-x:auto;">
+    <table class="ar-table">
+      <thead>
+        <tr>
+          <th>Asset Code</th>
+          <th>Description</th>
+          <th>Category</th>
+          <th>Status</th>
+          <th>Method</th>
+          <th>Useful Life</th>
+          <th class="text-end">Cost</th>
+          <th class="text-end">Residual</th>
+          <th class="text-end">Accum. Dep.</th>
+          <th class="text-end">NBV</th>
+          <th>Dep. %</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% set cat_totals = namespace(cost=0, accum=0, nbv=0, current_cat='') %}
+        {% for row in register_rows %}
+        {% set a = row.asset %}
+        {% set dep_pct = (row.accum_dep / a.cost * 100) if a.cost else 0 %}
+
+        {# Category grouping #}
+        {% if a.category.name != cat_totals.current_cat %}
+          {% if cat_totals.current_cat %}
+          {# subtotal row #}
+          {% endif %}
+          {% set cat_totals.current_cat = a.category.name %}
+          <tr style="background:rgba(0,198,162,0.04);">
+            <td colspan="11" style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--ar-muted);padding:0.5rem 0.75rem;font-weight:700;">
+              {{ a.category.name }}
+            </td>
+          </tr>
+        {% endif %}
+
+        <tr>
+          <td class="mono" style="font-size:0.78rem;color:var(--ar-accent);">
+            <a href="{{ url_for('asset.asset_detail', asset_id=a.id) }}" style="color:inherit;">{{ a.asset_code }}</a>
+          </td>
+          <td style="font-size:0.85rem;">{{ a.description }}</td>
+          <td style="font-size:0.78rem;color:var(--ar-muted);">{{ a.category.code }}</td>
+          <td><span class="badge-status bs-{{ a.status }}">{{ a.status | replace('_',' ') }}</span></td>
+          <td style="font-size:0.78rem;color:var(--ar-muted);">{{ a.depreciation_method or '—' }}</td>
+          <td style="font-size:0.78rem;color:var(--ar-muted);">
+            {{ a.useful_life_years }}yr / {{ a.useful_life_months }}mo if a.useful_life_years else '—'
+          </td>
+          <td class="text-end mono" style="font-size:0.82rem;">R{{ '{:,.2f}'.format(a.cost or 0) }}</td>
+          <td class="text-end mono" style="font-size:0.82rem;color:var(--ar-muted);">R{{ '{:,.2f}'.format(a.residual_value or 0) }}</td>
+          <td class="text-end mono" style="font-size:0.82rem;color:var(--ar-muted);">(R{{ '{:,.2f}'.format(row.accum_dep) }})</td>
+          <td class="text-end mono text-accent" style="font-size:0.82rem;">R{{ '{:,.2f}'.format(row.nbv) }}</td>
+          <td style="min-width:70px;">
+            {% if a.status not in ('auc','spare') %}
+            <div class="dep-bar-wrap">
+              <div class="dep-bar-fill {% if dep_pct > 90 %}over{% elif dep_pct > 70 %}warn{% endif %}"
+                   style="width:{{ [dep_pct,100]|min }}%"></div>
+            </div>
+            <div style="font-size:0.68rem;color:var(--ar-muted);">{{ '{:.0f}'.format(dep_pct) }}%</div>
+            {% else %}<span style="color:var(--ar-muted);font-size:0.75rem;">—</span>{% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="11" style="text-align:center;color:var(--ar-muted);padding:2rem;">
+            No assets match the current filters.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot style="border-top:2px solid var(--ar-border);">
+        <tr>
+          <td colspan="6" style="font-weight:700;padding:0.75rem;font-size:0.85rem;">TOTALS</td>
+          <td class="text-end mono" style="font-weight:700;">R{{ '{:,.2f}'.format(total_cost) }}</td>
+          <td></td>
+          <td class="text-end mono" style="font-weight:700;color:var(--ar-muted);">(R{{ '{:,.2f}'.format(total_accum) }})</td>
+          <td class="text-end mono text-accent" style="font-weight:700;">R{{ '{:,.2f}'.format(total_nbv) }}</td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+

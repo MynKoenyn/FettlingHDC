@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Fettling System{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<header>
+    <div class="nav-container">
+        <h1>{% block header %}Fettling Dashboard{% endblock %}</h1>
+
+        <nav>
+            <a href="{{ url_for('dashboard') }}">Home</a>
+            <a href="{{ url_for('fettling.dashboard') }}">Dashboard</a>
+            <a href="{{ url_for('fettling.report') }}">Reports</a>
+            <a href="{{ url_for('logout') }}">Logout</a>
+        </nav>
+    </div>
+</header>
+
+<main class="container">
+    {% block content %}{% endblock %}
+</main>
+
+</body>
+</html>

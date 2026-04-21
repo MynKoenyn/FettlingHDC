@@ -1,0 +1,228 @@
+{% extends 'asset/base.html' %}
+
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block topbar_actions %}
+<button class="btn-accent btn" data-bs-toggle="modal" data-bs-target="#depRunModal">
+  <i class="bi bi-play-circle me-1"></i> Run Depreciation
+</button>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Last Run Banner ─────────────────────────────────────────────────────── -->
+{% if last_run %}
+<div class="alert alert-info d-flex align-items-center gap-2 mb-4">
+  <i class="bi bi-check2-circle" style="font-size:1.1rem;"></i>
+  <span>
+    Last depreciation run:
+    <strong>{{ '%02d'|format(last_run.period_month) }}/{{ last_run.period_year }}</strong>
+    — posted {{ last_run.run_date.strftime('%d %b %Y at %H:%M') if last_run.run_date else '' }}
+  </span>
+</div>
+{% else %}
+<div class="alert alert-warning d-flex align-items-center gap-2 mb-4">
+  <i class="bi bi-exclamation-circle" style="font-size:1.1rem;"></i>
+  <span>No depreciation periods have been posted yet. Run your first period above.</span>
+</div>
+{% endif %}
+
+<!-- ── Stat Cards ─────────────────────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-xl-3">
+    <div class="stat-card">
+      <div class="stat-label">Total Assets</div>
+      <div class="stat-value">{{ total_assets }}</div>
+      <div class="stat-sub">{{ disposed_count }} disposed</div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="stat-card gold">
+      <div class="stat-label">Gross Asset Value</div>
+      <div class="stat-value">R{{ '{:,.0f}'.format(total_cost) }}</div>
+      <div class="stat-sub">At cost</div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="stat-card muted">
+      <div class="stat-label">Accumulated Depreciation</div>
+      <div class="stat-value">R{{ '{:,.0f}'.format(total_accum) }}</div>
+      <div class="stat-sub">
+        {% if total_cost > 0 %}
+          {{ '{:.1f}'.format(total_accum / total_cost * 100) }}% of cost base
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="stat-card">
+      <div class="stat-label">Net Book Value</div>
+      <div class="stat-value text-accent">R{{ '{:,.0f}'.format(total_nbv) }}</div>
+      <div class="stat-sub">Carrying amount</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Secondary cards ───────────────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="ar-card text-center py-3">
+      <div style="font-size:2rem;color:var(--ar-gold);"><i class="bi bi-tools"></i></div>
+      <div style="font-size:1.4rem;font-family:'DM Serif Display',serif;color:var(--ar-light);">{{ auc_count }}</div>
+      <div class="stat-sub">Assets Under Construction</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="ar-card text-center py-3">
+      <div style="font-size:2rem;color:var(--ar-muted);"><i class="bi bi-archive"></i></div>
+      <div style="font-size:1.4rem;font-family:'DM Serif Display',serif;color:var(--ar-light);">{{ spares_count }}</div>
+      <div class="stat-sub">Spares</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="ar-card text-center py-3">
+      <div style="font-size:2rem;color:var(--ar-danger);"><i class="bi bi-exclamation-diamond"></i></div>
+      <div style="font-size:1.4rem;font-family:'DM Serif Display',serif;color:var(--ar-light);">{{ impaired_count }}</div>
+      <div class="stat-sub">Impaired</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="ar-card text-center py-3">
+      <div style="font-size:2rem;color:#8888aa;"><i class="bi bi-slash-circle"></i></div>
+      <div style="font-size:1.4rem;font-family:'DM Serif Display',serif;color:var(--ar-light);">{{ fully_dep }}</div>
+      <div class="stat-sub">Fully Depreciated</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── By Category + Recent Activity ───────────────────────────────────────── -->
+<div class="row g-3">
+  <!-- Category breakdown -->
+  <div class="col-lg-7">
+    <div class="ar-card">
+      <div class="section-header">By Category</div>
+      {% if category_summary %}
+      <table class="ar-table">
+        <thead>
+          <tr>
+            <th>Category</th>
+            <th class="text-end">Assets</th>
+            <th class="text-end">Cost</th>
+            <th class="text-end">NBV</th>
+            <th style="width:120px">Depreciated</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in category_summary %}
+          {% set dep_pct = ((row.total_cost - row.total_nbv) / row.total_cost * 100) if row.total_cost else 0 %}
+          <tr>
+            <td>
+              <a href="{{ url_for('asset.list_assets', category=row.code) }}"
+                 style="color:var(--ar-text);text-decoration:none;">{{ row.name }}</a>
+            </td>
+            <td class="text-end mono" style="color:var(--ar-muted);">{{ row.count }}</td>
+            <td class="text-end mono">R{{ '{:,.0f}'.format(row.total_cost or 0) }}</td>
+            <td class="text-end mono text-accent">R{{ '{:,.0f}'.format(row.total_nbv or 0) }}</td>
+            <td>
+              <div class="dep-bar-wrap">
+                <div class="dep-bar-fill {% if dep_pct > 90 %}over{% elif dep_pct > 70 %}warn{% endif %}"
+                     style="width:{{ [dep_pct,100]|min }}%"></div>
+              </div>
+              <div style="font-size:0.7rem;color:var(--ar-muted);margin-top:2px;">{{ '{:.0f}'.format(dep_pct) }}%</div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+        <p class="text-muted-ar" style="font-size:0.875rem;">No assets yet.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Recent activity -->
+  <div class="col-lg-5">
+    <div class="ar-card mb-3">
+      <div class="section-header">Recent Disposals</div>
+      {% if recent_disposals %}
+        {% for d in recent_disposals %}
+        <div class="d-flex justify-content-between align-items-center py-2"
+             style="border-bottom:1px solid var(--ar-border);">
+          <div>
+            <div style="font-size:0.875rem;color:var(--ar-text);">{{ d.asset.asset_code }}</div>
+            <div style="font-size:0.75rem;color:var(--ar-muted);">{{ d.disposal_date }} · {{ d.disposal_type }}</div>
+          </div>
+          <div class="text-end">
+            <div class="mono" style="font-size:0.875rem;color:{% if d.gain_loss >= 0 %}var(--ar-accent){% else %}var(--ar-danger){% endif %}">
+              R{{ '{:,.0f}'.format(d.gain_loss or 0) }}
+            </div>
+            <div style="font-size:0.7rem;color:var(--ar-muted);">{% if d.gain_loss >= 0 %}profit{% else %}loss{% endif %}</div>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <p style="font-size:0.82rem;color:var(--ar-muted);">No disposals recorded.</p>
+      {% endif %}
+    </div>
+
+    <div class="ar-card">
+      <div class="section-header">Recent Transfers</div>
+      {% if recent_transfers %}
+        {% for t in recent_transfers %}
+        <div class="d-flex justify-content-between align-items-center py-2"
+             style="border-bottom:1px solid var(--ar-border);">
+          <div>
+            <div style="font-size:0.875rem;color:var(--ar-text);">{{ t.asset.asset_code }}</div>
+            <div style="font-size:0.75rem;color:var(--ar-muted);">
+              {{ t.from_category.code }} → {{ t.to_category.code }} · {{ t.transfer_date }}
+            </div>
+          </div>
+          <span class="badge-status bs-active">Transferred</span>
+        </div>
+        {% endfor %}
+      {% else %}
+        <p style="font-size:0.82rem;color:var(--ar-muted);">No transfers yet.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- ── Depreciation Run Modal ─────────────────────────────────────────────── -->
+<div class="modal fade" id="depRunModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" style="font-size:1rem;">
+          <i class="bi bi-play-circle me-2 text-accent"></i>Run Depreciation
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{{ url_for('asset.run_depreciation') }}">
+        {{ dep_run_form.hidden_tag() }}
+        <div class="modal-body">
+          <p style="font-size:0.82rem;color:var(--ar-muted);">
+            This will post depreciation for ALL active assets for the selected period.
+            Cannot be undone. Duplicate periods are blocked automatically.
+          </p>
+          <div class="mb-3">
+            {{ dep_run_form.year.label(class='form-label') }}
+            {{ dep_run_form.year(class='form-control') }}
+          </div>
+          <div class="mb-3">
+            {{ dep_run_form.month.label(class='form-label') }}
+            {{ dep_run_form.month(class='form-select') }}
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-outline-ar btn" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn-accent btn">
+            <i class="bi bi-play-fill me-1"></i>Post Depreciation
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

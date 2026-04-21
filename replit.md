@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is a **Fettling** application — an inventory/supply chain data entry system for tracking suppliers, products, and daily quantity entries. The app uses a Python Flask backend serving server-rendered HTML templates (Jinja2) with a PostgreSQL database. The project was scaffolded from a Replit full-stack template (React + Express + Drizzle), but the actual application logic runs entirely through Python/Flask. The Node.js entry point (`server/index.ts`) simply spawns the Python seed script and then the Flask app.
+This is a **Fettling** application — an inventory/supply chain data entry system for tracking customers, products, and daily quantity entries. The app uses a Python Flask backend serving server-rendered HTML templates (Jinja2) with a PostgreSQL database. The project was scaffolded from a Replit full-stack template (React + Express + Drizzle), but the actual application logic runs entirely through Python/Flask. The Node.js entry point (`server/index.ts`) simply spawns the Python seed script and then the Flask app.
 
 ## User Preferences
 
@@ -19,7 +19,7 @@ Preferred communication style: Simple, everyday language.
 - **PostgreSQL** via `psycopg2` (Python driver) for the Flask app
 - **Drizzle ORM** schema exists in `shared/schema.ts` (only defines a basic users table) but is not used by the Flask app
 - Database tables are created in `seed.py` and queried directly with raw SQL in `app.py`
-- Key tables: `users`, `suppliers`, `products`, `fettling_entries` (daily quantity entries linking products/suppliers to dates)
+- Key tables: `users`, `customers`, `products`, `fettling_entries` (daily quantity entries linking products/customers to dates)
 
 ### Authentication
 - Simple session-based auth using Flask sessions
@@ -29,10 +29,10 @@ Preferred communication style: Simple, everyday language.
 ### Pages / Routes (Flask)
 - `/login` — Login form
 - `/dashboard` — Shows recent activity (daily entry summaries)
-- `/entry` — Daily data entry form (up to 50 line items per submission) with supplier → product filtering
-- `/suppliers` — CRUD for suppliers
-- `/products` — CRUD for products (linked to suppliers)
-- `/api/products/<supplier_id>` — JSON API endpoint for filtering products by supplier (used by JavaScript in the entry form)
+- `/entry` — Daily data entry form (up to 50 line items per submission) with customer → product filtering
+- `/customers` — CRUD for customers
+- `/products` — CRUD for products (linked to customers)
+- `/api/products/<customer_id>` — JSON API endpoint for filtering products by customer (used by JavaScript in the entry form)
 
 ### Key Design Decisions
 1. **Python Flask over the React/Express stack**: The app was built as a traditional server-rendered web app. The React frontend (`client/`) and Express server (`server/routes.ts`, `server/storage.ts`) are leftover scaffolding and not actively used.

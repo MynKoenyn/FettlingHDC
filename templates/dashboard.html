@@ -1,53 +1,68 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-    <header>
-        <div class="nav-container">
-            <h1>Dashboard</h1>
-            <nav>
-                <a href="{{ url_for('report') }}">Reports</a>
-                <a href="{{ url_for('suppliers') }}">Suppliers</a>
-                <a href="{{ url_for('products_crud') }}">Products</a>
-                <a href="{{ url_for('logout') }}">Logout</a>
-            </nav>
-        </div>
-    </header>
+{% extends "base.html" %}
 
-    <div class="container">
-        <div class="card" style="margin-bottom: 2rem;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h2>Welcome, {{ session['username'] }}</h2>
-                <a href="{{ url_for('entry') }}" class="btn btn-primary">New Daily Entry</a>
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+
+<div class="container">
+
+    <!-- Welcome -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h2>Welcome, {{ current_user.username }}</h2>
+            <p class="text-dark">Use the links below to navigate through the application.</p>
+        </div>
+    </div>
+
+    <!-- Navigation Cards -->
+    <div class="row g-4">
+
+            <div class="col-md-3">
+                <a href="{{ url_for('fettling.dashboard') }}" class="nav-card-link">
+                    <div class="card h-100 nav-card">
+                        <div class="card-body">
+                            <h5><i class="fas fa-tools me-2"></i>Fettling</h5>
+                            <p>Manage fettling production data.</p>
+                        </div>
+                    </div>
+                </a>
             </div>
-        </div>
 
-        <div class="card">
-            <h2>Recent Activity</h2>
-            <table>
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th>Total Quantity</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for row in recent_activity %}
-            <tr>
-                <td>{{ row[0] }}</td>
-                <td>{{ row[1] }}</td>
-            </tr>
-            {% else %}
-            <tr>
-                <td colspan="2">No recent entries found.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</body>
-</html>
+            <div class="col-md-3">
+                <a href="{{ url_for('daily_production.dashboard') }}" class="nav-card-link">
+                    <div class="card h-100 nav-card">
+                        <div class="card-body">
+                            <h5><i class="fas fa-industry me-2"></i>Daily Production</h5>
+                            <p>Manage daily production entries.</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+
+        <div class="col-md-3">
+                <a href="{{ url_for('fettling.dashboard') }}" class="nav-card-link">
+                    <div class="card h-100 nav-card">
+                        <div class="card-body">
+                            <h5><i class="fas fa-tools me-2"></i>Fettling</h5>
+                            <p>Manage fettling production data.</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+
+            <div class="col-md-3">
+                <a href="{{ url_for('daily_production.dashboard') }}" class="nav-card-link">
+                    <div class="card h-100 nav-card">
+                        <div class="card-body">
+                            <h5><i class="fas fa-industry me-2"></i>Daily Production</h5>
+                            <p>Manage daily production entries.</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

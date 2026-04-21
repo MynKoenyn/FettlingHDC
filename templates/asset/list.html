@@ -1,0 +1,153 @@
+<!-- ============================================================
+     templates/asset/list.html
+     ============================================================ -->
+{% extends 'asset/base.html' %}
+{% block title %}Asset Register{% endblock %}
+{% block page_title %}Asset Register{% endblock %}
+
+{% block topbar_actions %}
+<a href="{{ url_for('asset.create_asset') }}" class="btn-accent btn">
+  <i class="bi bi-plus me-1"></i>Add Asset
+</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Filters ──────────────────────────────────────────────────────────── -->
+<form method="GET" class="ar-card mb-4">
+  <div class="row g-2 align-items-end">
+    <div class="col-sm-4 col-md-5">
+      <label class="form-label">Search</label>
+      <div class="input-group">
+        <span class="input-group-text" style="background:var(--ar-dark);border-color:var(--ar-border);color:var(--ar-muted);">
+          <i class="bi bi-search"></i>
+        </span>
+        <input type="text" name="q" value="{{ search }}" class="form-control"
+               placeholder="Code, description, serial…">
+      </div>
+    </div>
+    <div class="col-sm-4 col-md-3">
+      <label class="form-label">Category</label>
+      <select name="category" class="form-select">
+        <option value="">All Categories</option>
+        {% for cat in categories %}
+        <option value="{{ cat.code }}" {% if current_category == cat.code %}selected{% endif %}>
+          {{ cat.code }} — {{ cat.name }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-sm-4 col-md-2">
+      <label class="form-label">Status</label>
+      <select name="status" class="form-select">
+        <option value="">All</option>
+        <option value="active"            {% if current_status == 'active' %}selected{% endif %}>Active</option>
+        <option value="auc"               {% if current_status == 'auc' %}selected{% endif %}>AUC</option>
+        <option value="spare"             {% if current_status == 'spare' %}selected{% endif %}>Spare</option>
+        <option value="disposed"          {% if current_status == 'disposed' %}selected{% endif %}>Disposed</option>
+        <option value="impaired"          {% if current_status == 'impaired' %}selected{% endif %}>Impaired</option>
+        <option value="fully_depreciated" {% if current_status == 'fully_depreciated' %}selected{% endif %}>Fully Dep.</option>
+      </select>
+    </div>
+    <div class="col-md-2">
+      <button type="submit" class="btn-accent btn w-100">Filter</button>
+    </div>
+  </div>
+</form>
+
+<!-- ── Table ──────────────────────────────────────────────────────────────── -->
+<div class="ar-card p-0" style="overflow:hidden;">
+  <div style="padding:1.25rem 1.5rem;border-bottom:1px solid var(--ar-border);display:flex;align-items:center;justify-content:space-between;">
+    <span style="font-size:0.8rem;color:var(--ar-muted);">
+      {{ assets.total }} asset{{ 's' if assets.total != 1 }}
+    </span>
+    <a href="{{ url_for('asset.reports') }}" style="font-size:0.8rem;color:var(--ar-accent);">
+      <i class="bi bi-file-earmark-bar-graph me-1"></i>Full Depreciation Report
+    </a>
+  </div>
+
+  <div style="overflow-x:auto;">
+    <table class="ar-table">
+      <thead>
+        <tr>
+          <th>Asset Code</th>
+          <th>Description</th>
+          <th>Category</th>
+          <th>Status</th>
+          <th class="text-end">Cost</th>
+          <th class="text-end">Accum. Dep.</th>
+          <th class="text-end">NBV</th>
+          <th>Dep. %</th>
+          <th>Purchase Date</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for asset in assets.items %}
+        {% set dep_pct = (asset.accumulated_depreciation / asset.cost * 100) if asset.cost else 0 %}
+        <tr>
+          <td class="mono" style="color:var(--ar-accent);font-size:0.8rem;">{{ asset.asset_code }}</td>
+          <td>
+            <a href="{{ url_for('asset.asset_detail', asset_id=asset.id) }}"
+               style="color:var(--ar-text);text-decoration:none;font-weight:500;">
+              {{ asset.description }}
+            </a>
+            {% if asset.serial_no %}
+              <div style="font-size:0.72rem;color:var(--ar-muted);">S/N: {{ asset.serial_no }}</div>
+            {% endif %}
+          </td>
+          <td style="color:var(--ar-muted);font-size:0.82rem;">{{ asset.category.name if asset.category }}</td>
+          <td>
+            <span class="badge-status bs-{{ asset.status }}">{{ asset.status | replace('_', ' ') }}</span>
+          </td>
+          <td class="text-end mono">R{{ '{:,.2f}'.format(asset.cost or 0) }}</td>
+          <td class="text-end mono" style="color:var(--ar-muted);">R{{ '{:,.2f}'.format(asset.accumulated_depreciation or 0) }}</td>
+          <td class="text-end mono text-accent">R{{ '{:,.2f}'.format(asset.net_book_value or asset.cost or 0) }}</td>
+          <td style="min-width:80px;">
+            {% if asset.status not in ('auc', 'spare') %}
+            <div class="dep-bar-wrap">
+              <div class="dep-bar-fill {% if dep_pct > 90 %}over{% elif dep_pct > 70 %}warn{% endif %}"
+                   style="width:{{ [dep_pct,100]|min }}%"></div>
+            </div>
+            <div style="font-size:0.68rem;color:var(--ar-muted);">{{ '{:.0f}'.format(dep_pct) }}%</div>
+            {% else %}
+            <span style="font-size:0.72rem;color:var(--ar-muted);">—</span>
+            {% endif %}
+          </td>
+          <td style="font-size:0.8rem;color:var(--ar-muted);">{{ asset.purchase_date }}</td>
+          <td>
+            <a href="{{ url_for('asset.asset_detail', asset_id=asset.id) }}"
+               class="btn-outline-ar btn btn-sm">View</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="10" style="text-align:center;color:var(--ar-muted);padding:3rem;">
+            <i class="bi bi-inbox" style="font-size:2rem;display:block;margin-bottom:0.5rem;"></i>
+            No assets found.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  {% if assets.pages > 1 %}
+  <div style="padding:1rem 1.5rem;border-top:1px solid var(--ar-border);display:flex;align-items:center;gap:0.5rem;">
+    {% if assets.has_prev %}
+    <a href="{{ url_for('asset.list_assets', page=assets.prev_num, category=current_category, status=current_status, q=search) }}"
+       class="btn-outline-ar btn btn-sm">← Prev</a>
+    {% endif %}
+    <span style="font-size:0.8rem;color:var(--ar-muted);">
+      Page {{ assets.page }} of {{ assets.pages }}
+    </span>
+    {% if assets.has_next %}
+    <a href="{{ url_for('asset.list_assets', page=assets.next_num, category=current_category, status=current_status, q=search) }}"
+       class="btn-outline-ar btn btn-sm">Next →</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}

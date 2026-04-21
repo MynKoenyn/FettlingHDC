@@ -1,0 +1,527 @@
+{% extends "stocktake/base.html" %}
+{% block title %}Stocktake Entry – {{ header.department.name }} / {{ header.section.value }}{% endblock %}
+
+{% block head_extra %}
+<style>
+  :root {
+    --ink:       #0f1923;
+    --ink-soft:  #4a5568;
+    --ink-muted: #94a3b8;
+    --surface:   #ffffff;
+    --surface-2: #f5f8fc;
+    --surface-3: #edf2f9;
+    --brand:     #1a5cff;
+    --brand-dk:  #0f40cc;
+    --brand-lt:  #dce9ff;
+    --success:   #0ea66e;
+    --success-lt:#d1fae5;
+    --danger:    #e53e3e;
+    --danger-lt: #fee2e2;
+    --warn:      #d97706;
+    --radius:    10px;
+    --shadow-sm: 0 1px 3px rgba(15,25,35,.08);
+  }
+
+  body { background: var(--surface-2); font-family: 'DM Sans', sans-serif; color: var(--ink); }
+
+  /* ── Page header ── */
+  .page-header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--surface-3);
+    padding: 1.2rem 2rem;
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .75rem;
+  }
+  .page-header h1 { font-family:'DM Serif Display',serif; font-size:1.4rem; font-weight:400; margin:0; }
+  .breadcrumb-custom { font-size:.8rem; color:var(--ink-muted); display:flex; align-items:center; gap:.4rem; }
+  .breadcrumb-custom a { color:var(--brand); text-decoration:none; }
+  .session-meta {
+    display: flex; gap: .5rem; flex-wrap: wrap;
+  }
+  .meta-chip {
+    background: var(--surface-3);
+    color: var(--ink-soft);
+    font-size: .75rem;
+    font-weight: 600;
+    padding: .25rem .7rem;
+    border-radius: 999px;
+  }
+  .meta-chip.brand { background: var(--brand-lt); color: var(--brand-dk); }
+
+  /* ── Layout ── */
+  .entry-layout {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 1.25rem;
+    padding: 1.25rem 2rem 2rem;
+    align-items: start;
+  }
+  @media(max-width:860px){ .entry-layout { grid-template-columns:1fr; } }
+
+  /* ── Scan card ── */
+  .scan-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    position: sticky;
+    top: 1.25rem;
+  }
+  .scan-card-header {
+    background: var(--brand);
+    padding: 1rem 1.3rem;
+    display: flex; align-items: center; gap: .6rem;
+  }
+  .scan-card-header h2 { color:#fff; font-size:.9rem; font-weight:700; margin:0; text-transform:uppercase; letter-spacing:.06em; }
+  .scan-icon { width:22px; height:22px; color:#fff; opacity:.85; }
+
+  /* Scan input zone */
+  .scan-zone { padding: 1.25rem; border-bottom: 1px solid var(--surface-3); }
+  .scan-input-wrap { position:relative; }
+  #barcode {
+    width: 100%;
+    padding: .9rem 1rem .9rem 2.8rem;
+    border: 2px solid var(--brand);
+    border-radius: var(--radius);
+    font-size: 1rem;
+    font-family: 'DM Sans', sans-serif;
+    outline: none;
+    background: var(--brand-lt);
+    color: var(--ink);
+    box-sizing: border-box;
+    transition: box-shadow .15s;
+  }
+  #barcode:focus { box-shadow: 0 0 0 4px rgba(26,92,255,.18); }
+  #barcode::placeholder { color: var(--ink-muted); }
+  .scan-icon-inline {
+    position:absolute; left:.85rem; top:50%; transform:translateY(-50%);
+    width:16px; height:16px; color:var(--brand); pointer-events:none;
+  }
+
+  /* Typeahead dropdown */
+  #suggestions {
+    position:absolute; top:100%; left:0; right:0; background:var(--surface);
+    border:1.5px solid var(--surface-3); border-top:none; border-radius:0 0 var(--radius) var(--radius);
+    z-index:100; max-height:220px; overflow-y:auto; box-shadow:var(--shadow-sm);
+    display:none;
+  }
+  .suggestion-item {
+    padding: .65rem 1rem;
+    cursor: pointer;
+    font-size:.875rem;
+    border-bottom:1px solid var(--surface-3);
+    transition: background .1s;
+  }
+  .suggestion-item:last-child { border-bottom:none; }
+  .suggestion-item:hover, .suggestion-item.active { background:var(--brand-lt); }
+  .suggestion-item .prod-name { font-weight:600; }
+  .suggestion-item .cust-name { font-size:.75rem; color:var(--ink-muted); }
+
+  /* Product preview */
+  #product-preview {
+    margin-top:.75rem;
+    background:var(--success-lt);
+    border:1.5px solid var(--success);
+    border-radius:var(--radius);
+    padding:.75rem 1rem;
+    display:none;
+    animation: fadeIn .2s ease;
+  }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:none} }
+  #product-preview .prod-selected-name { font-weight:700; font-size:.95rem; color:var(--ink); }
+  #product-preview .prod-selected-cust { font-size:.78rem; color:var(--ink-soft); margin-top:.15rem; }
+  #clear-product {
+    float:right; background:none; border:none; cursor:pointer;
+    color:var(--ink-muted); font-size:1.1rem; line-height:1; padding:0;
+  }
+  #clear-product:hover { color:var(--danger); }
+
+  /* Form fields */
+  .form-section { padding: 1.25rem; }
+  .form-row { margin-bottom: 1rem; }
+  .form-label { display:block; font-size:.75rem; font-weight:700; text-transform:uppercase;
+                letter-spacing:.06em; color:var(--ink-soft); margin-bottom:.4rem; }
+  .form-control-custom {
+    width:100%; padding:.65rem .9rem;
+    border:1.5px solid var(--surface-3);
+    border-radius:var(--radius); font-family:'DM Sans',sans-serif;
+    font-size:.9rem; color:var(--ink); background:var(--surface);
+    box-sizing:border-box; outline:none; transition:border-color .15s, box-shadow .15s;
+  }
+  .form-control-custom:focus { border-color:var(--brand); box-shadow:0 0 0 3px var(--brand-lt); }
+  .form-control-custom.highlight { border-color:var(--brand); background:var(--brand-lt); }
+  .count-large {
+    font-size: 1.5rem !important;
+    font-weight: 700 !important;
+    text-align: right;
+  }
+
+  /* Submit btn */
+  .btn-add {
+    width:100%; padding:.8rem; background:var(--brand); color:#fff;
+    border:none; border-radius:var(--radius); font-family:'DM Sans',sans-serif;
+    font-size:.95rem; font-weight:700; cursor:pointer; transition:background .15s;
+    display:flex; align-items:center; justify-content:center; gap:.5rem;
+  }
+  .btn-add:hover { background:var(--brand-dk); }
+  .btn-add:disabled { background:var(--ink-muted); cursor:not-allowed; }
+
+  /* ── Lines table panel ── */
+  .lines-panel {
+    background:var(--surface);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow-sm);
+    overflow:hidden;
+  }
+  .lines-panel-header {
+    padding:.9rem 1.4rem;
+    border-bottom:1px solid var(--surface-3);
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .lines-panel-header h2 { font-size:.82rem; font-weight:700; text-transform:uppercase;
+                            letter-spacing:.07em; color:var(--ink-soft); margin:0; }
+  .line-count-badge {
+    background:var(--brand-lt); color:var(--brand-dk);
+    font-size:.72rem; font-weight:700;
+    padding:.2rem .6rem; border-radius:999px;
+  }
+
+  .data-table { width:100%; border-collapse:collapse; font-size:.875rem; }
+  .data-table th {
+    padding:.6rem 1rem; text-align:left;
+    font-size:.68rem; font-weight:700; text-transform:uppercase;
+    letter-spacing:.07em; color:var(--ink-muted);
+    background:var(--surface-2); border-bottom:1px solid var(--surface-3);
+  }
+  .data-table td {
+    padding:.7rem 1rem; border-bottom:1px solid var(--surface-3);
+    vertical-align:middle;
+  }
+  .data-table tr:last-child td { border-bottom:none; }
+  .data-table tr:hover td { background:var(--surface-2); }
+
+  .var-pill {
+    display:inline-block; padding:.2rem .6rem;
+    border-radius:999px; font-size:.75rem; font-weight:700;
+  }
+  .var-pos  { background:var(--success-lt); color:var(--success); }
+  .var-neg  { background:var(--danger-lt);  color:var(--danger); }
+  .var-zero { background:var(--surface-3);  color:var(--ink-muted); }
+
+  .btn-del {
+    background:none; border:none; cursor:pointer;
+    color:var(--ink-muted); padding:.2rem .4rem;
+    border-radius:6px; transition:color .12s, background .12s;
+  }
+  .btn-del:hover { color:var(--danger); background:var(--danger-lt); }
+
+  .empty-state { padding:3rem; text-align:center; color:var(--ink-muted); font-size:.875rem; }
+
+  /* Flash messages */
+  .flash-wrap { padding:.75rem 2rem 0; }
+  .flash { padding:.75rem 1.1rem; border-radius:var(--radius); font-size:.875rem; margin-bottom:.5rem;
+           display:flex; align-items:center; gap:.5rem; }
+  .flash.success { background:var(--success-lt); color:var(--success); }
+  .flash.warning { background:var(--warn-lt); color:var(--warn); }
+  .flash.info    { background:var(--brand-lt); color:var(--brand-dk); }
+  .flash.danger  { background:var(--danger-lt); color:var(--danger); }
+</style>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Page header ── -->
+<div class="page-header">
+  <div>
+    <div class="breadcrumb-custom">
+      <a href="{{ url_for('stocktake.dashboard') }}">Stocktake</a>
+      <span>›</span>
+      <span>Entry</span>
+    </div>
+    <h1>{{ header.department.name }} — Section {{ header.section.value }}</h1>
+  </div>
+  <div class="session-meta">
+    <span class="meta-chip brand">{{ header.department.division.code }}</span>
+    <span class="meta-chip">{{ header.date.strftime('%d %b %Y') }}</span>
+    <span class="meta-chip">{{ lines|length }} line{{ 's' if lines|length != 1 }}</span>
+    <a href="{{ url_for('stocktake.daily_list', date=header.date.isoformat()) }}"
+       style="color:var(--brand);font-size:.8rem;text-decoration:none;margin-left:.25rem;">
+      View day list →
+    </a>
+  </div>
+</div>
+
+<!-- ── Flash messages ── -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="flash-wrap">
+      {% for cat, msg in messages %}
+        <div class="flash {{ cat }}">{{ msg }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+<!-- ── Main layout ── -->
+<div class="entry-layout">
+
+  <!-- ── LEFT: Scan + entry form ── -->
+  <div class="scan-card">
+    <div class="scan-card-header">
+      <svg class="scan-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M3 9V6a1 1 0 011-1h3M3 15v3a1 1 0 001 1h3M21 9V6a1 1 0 00-1-1h-3M21 15v3a1 1 0 01-1 1h-3M7 8v8M10 8v8M13 8v8M16 8v8"/>
+      </svg>
+      <h2>Scan &amp; Count</h2>
+    </div>
+
+    <!-- Barcode scan zone (outside the form, handled by JS) -->
+    <div class="scan-zone">
+      <div class="scan-input-wrap">
+        <svg class="scan-icon-inline" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+        <input type="text" id="barcode" autocomplete="off"
+               placeholder="Scan barcode or type product name…" autofocus>
+        <div id="suggestions"></div>
+      </div>
+      <div id="product-preview">
+        <button type="button" id="clear-product" title="Clear selection">✕</button>
+        <div class="prod-selected-name" id="preview-name">—</div>
+        <div class="prod-selected-cust" id="preview-cust">—</div>
+      </div>
+    </div>
+
+    <!-- The actual POST form -->
+    <form method="POST" action="{{ url_for('stocktake.entry', header_id=header.id) }}" id="entry-form">
+      {{ form.hidden_tag() }}
+      <div class="form-section">
+        <div class="form-row">
+          <label class="form-label" for="count_value">Count Value ✱</label>
+          {{ form.count_value(class="form-control-custom count-large", id="count_value",
+                              placeholder="0", step="1", autofocus=false) }}
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="line_notes">Notes (optional)</label>
+          {{ form.line_notes(class="form-control-custom", id="line_notes", placeholder="Any remarks…") }}
+        </div>
+        <button type="submit" class="btn-add" id="submit-btn" disabled>
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path d="M12 5v14M5 12h14"/>
+          </svg>
+          Add Line
+        </button>
+      </div>
+    </form>
+  </div><!-- /scan-card -->
+
+  <!-- ── RIGHT: Lines list ── -->
+  <div class="lines-panel">
+    <div class="lines-panel-header">
+      <h2>Counted Lines</h2>
+      <span class="line-count-badge">{{ lines|length }} item{{ 's' if lines|length != 1 }}</span>
+    </div>
+
+    {% if lines %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Customer</th>
+          <th>Product</th>
+          <th>Count</th>
+          <th>Notes</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for line in lines %}
+        <tr>
+          <td style="color:var(--ink-muted);font-size:.75rem;">{{ loop.revindex }}</td>
+          <td style="font-size:.8rem;color:var(--ink-soft);">{{ line.customer.name }}</td>
+          <td><strong>{{ line.product.name }}</strong></td>
+          <td>{{ '%.3f'|format(line.count_value) }}</td>
+          <td style="font-size:.78rem;color:var(--ink-muted);">{{ line.line_notes or '' }}</td>
+          <td>
+            <form method="POST" action="{{ url_for('stocktake.delete_line', line_id=line.id) }}"
+                  onsubmit="return confirm('Remove this line?')">
+              {{ delete_form.hidden_tag() }}
+              <button type="submit" class="btn-del" title="Delete">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path d="M3 6h18M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2"/>
+                </svg>
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr style="background:var(--surface-2);">
+          <td colspan="3" style="padding:.7rem 1rem;font-weight:700;font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);">Totals</td>
+          <td style="padding:.7rem 1rem;font-weight:700;">{{ '%.3f'|format(lines|sum(attribute='count_value')) }}</td>
+          <td colspan="2"></td>
+        </tr>
+      </tfoot>
+    </table>
+    {% else %}
+      <div class="empty-state">
+        <svg width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="margin:0 auto .75rem;display:block;opacity:.3">
+          <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+        </svg>
+        No lines yet. Scan your first product to begin.
+      </div>
+    {% endif %}
+  </div><!-- /lines-panel -->
+
+</div><!-- /entry-layout -->
+
+<script>
+(function () {
+  const barcodeInput  = document.getElementById('barcode');
+  const suggestBox    = document.getElementById('suggestions');
+  const preview       = document.getElementById('product-preview');
+  const previewName   = document.getElementById('preview-name');
+  const previewCust   = document.getElementById('preview-cust');
+  const customerIdFld = document.getElementById('customer_id');
+  const productIdFld  = document.getElementById('product_id');
+  const submitBtn     = document.getElementById('submit-btn');
+  const countInput    = document.getElementById('count_value');
+
+
+  let debounceTimer = null;
+  let activeIdx = -1;
+  let currentResults = [];
+
+  // ── Barcode / search input ──────────────────
+  barcodeInput.addEventListener('input', function () {
+    clearTimeout(debounceTimer);
+    const q = this.value.trim();
+    if (!q) { hideSuggestions(); return; }
+    debounceTimer = setTimeout(() => fetchSuggestions(q), 200);
+  });
+
+  // Keyboard nav in dropdown
+  barcodeInput.addEventListener('keydown', function (e) {
+    const items = suggestBox.querySelectorAll('.suggestion-item');
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      activeIdx = Math.min(activeIdx + 1, items.length - 1);
+      highlightItem(items);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      activeIdx = Math.max(activeIdx - 1, 0);
+      highlightItem(items);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (activeIdx >= 0 && items[activeIdx]) {
+        selectProduct(currentResults[activeIdx]);
+      } else if (currentResults.length === 1) {
+        // Single result — auto-select on Enter / barcode scan
+        selectProduct(currentResults[0]);
+      }
+    } else if (e.key === 'Escape') {
+      hideSuggestions();
+    }
+  });
+
+  function highlightItem(items) {
+    items.forEach((el, i) => el.classList.toggle('active', i === activeIdx));
+  }
+
+  // ── Fetch from Flask API ────────────────────
+  function fetchSuggestions(q) {
+    fetch(`{{ url_for('stocktake.product_lookup') }}?q=${encodeURIComponent(q)}`)
+      .then(r => r.json())
+      .then(data => {
+        currentResults = data;
+        activeIdx = -1;
+        if (!data.length) { hideSuggestions(); return; }
+
+        // If exactly one match and the query looks like a full barcode scan
+        // (triggered by scanner which ends with \n — arrives as single flush)
+        if (data.length === 1 && q.length > 5) {
+          selectProduct(data[0]);
+          return;
+        }
+
+        renderSuggestions(data);
+      })
+      .catch(() => hideSuggestions());
+  }
+
+  function renderSuggestions(data) {
+    suggestBox.innerHTML = '';
+    data.forEach((item, i) => {
+      const el = document.createElement('div');
+      el.className = 'suggestion-item';
+      el.innerHTML = `<div class="prod-name">${escHtml(item.product_name)}</div>
+                      <div class="cust-name">${escHtml(item.customer_name)}</div>`;
+      el.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        selectProduct(item);
+      });
+      suggestBox.appendChild(el);
+    });
+    suggestBox.style.display = 'block';
+  }
+
+  function hideSuggestions() {
+    suggestBox.style.display = 'none';
+    suggestBox.innerHTML = '';
+    currentResults = [];
+    activeIdx = -1;
+  }
+
+  // ── Select a product ────────────────────────
+  function selectProduct(item) {
+    customerIdFld.value = item.customer_id;
+    productIdFld.value  = item.product_id;
+    previewName.textContent = item.product_name;
+    previewCust.textContent = item.customer_name;
+    preview.style.display = 'block';
+    barcodeInput.value = '';
+    hideSuggestions();
+    checkSubmitReady();
+    // Populate book stock if product has a default (future enhancement)
+    // Focus count field for quick entry
+    countInput.focus();
+    countInput.select();
+  }
+
+  // ── Clear selection ─────────────────────────
+  document.getElementById('clear-product').addEventListener('click', function () {
+    customerIdFld.value = '';
+    productIdFld.value  = '';
+    preview.style.display = 'none';
+    barcodeInput.value = '';
+    barcodeInput.focus();
+    checkSubmitReady();
+  });
+
+  // ── Enable submit only when product selected + count entered ──
+  [countInput].forEach(el => el.addEventListener('input', checkSubmitReady));
+
+  function checkSubmitReady() {
+  const hasProduct = productIdFld.value !== '';
+  const hasCount = countInput.value !== '' && !isNaN(countInput.value);
+
+  submitBtn.disabled = !(hasProduct && hasCount);
+  }
+
+  // ── After submit: re-focus barcode ─────────
+  document.getElementById('entry-form').addEventListener('submit', function () {
+    // Small delay so browser processes submit, then page reloads & autofocus fires
+  });
+
+  // ── Close suggestions on outside click ─────
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('.scan-input-wrap')) hideSuggestions();
+  });
+
+  // ── Utility ─────────────────────────────────
+  function escHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+})();
+</script>
+{% endblock %}

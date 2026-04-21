@@ -1,0 +1,46 @@
+{% extends "fettling/base_fettling.html" %}
+
+{% block content %}
+<div class="card nav-card" style=" width: 1400px; margin : 2rem auto;">
+    <div class="card-inner">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+        <h2>Welcome, {{ session['username'] }}</h2>
+        <a href="{{ url_for('fettling.entry') }}" class="btn btn-primary">New Daily Entry</a>
+    </div>
+    </div>
+</div>
+
+<div class="card" style="width: 1400px; margin: 2rem auto;">
+    <div class="card-inner">
+    <h2 style="color:#3b82f6;">Recent Activity</h2>
+    <div class="table">
+        <table style="background-color:white;">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Product</th>
+                    <th>Customer</th>
+                    <th>Quantity</th>
+                    <th>User</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in recent_activity %}
+                <tr>
+                    <td>{{ row.date.strftime("%d/%m/%Y") }}</td>
+                    <td>{{ row.product }}</td>
+                    <td>{{ row.customer }}</td>
+                    <td>{{ row.quantity }}</td>
+                    <td>{{ row.user }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5">No recent entries found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    </div>
+</div>
+{% endblock %}
