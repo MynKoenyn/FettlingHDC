@@ -9,7 +9,9 @@
         endpoint    — string endpoint name for url_for (e.g. 'asset.list_assets')
         args        — dict of extra querystring args to preserve (optional, default {})
 #}
-{% set args = args or {} %}
+{#  dict(args) with any 'page' key stripped — callers that build args from
+    request.args.to_dict() would otherwise pass page twice to url_for.  #}
+{% set args = dict((args or {}).items() | rejectattr('0', 'equalto', 'page')) %}
 {% if pagination.pages > 1 %}
 <div class="app-pagination">
     <span class="info">{{ pagination.total }} result{{ 's' if pagination.total != 1 }} · page {{ pagination.page }} of {{ pagination.pages }}</span>

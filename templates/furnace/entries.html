@@ -1,0 +1,252 @@
+{% extends "furnace/base_furnace.html" %}
+
+{% block title %}Furnace Entries - Furnace Management System{% endblock %}
+
+{% block furnace_content %}
+<div class="row mb-4">
+    <div class="col">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1><i class="fas fa-plus-circle me-2"></i>Furnace Entries</h1>
+                <p class="text-muted">Create and manage furnace operation entries</p>
+            </div>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newEntryModal">
+                New Entry
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5><i class="fas fa-filter me-2"></i>Filters</h5>
+    </div>
+    <div class="card-body">
+        <form method="GET">
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    {{ form.furnace_id.label(class="form-label") }}
+                    {{ form.furnace_id(class="form-select") }}
+                </div>
+                
+                <div class="col-md-3 mb-3">
+                    {{ form.metal_grade_id.label(class="form-label") }}
+                    {{ form.metal_grade_id(class="form-select") }}
+                </div>
+                
+                <div class="col-md-3 mb-3">
+                    {{ form.date_from.label(class="form-label") }}
+                    {{ form.date_from(class="form-control") }}
+                </div>
+                
+                <div class="col-md-3 mb-3">
+                    {{ form.date_to.label(class="form-label") }}
+                    {{ form.date_to(class="form-control") }}
+                </div>
+            </div>
+            
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-outline-primary">
+                    <i class="fas fa-search me-1"></i>Apply Filters
+                </button>
+                <a href="{{ url_for('furnace.entries') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times me-1"></i>Clear Filters
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Entries List -->
+<div class="card">
+    <div class="card-body">
+        {% if entries.items %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Heat Number</th>
+                            <th>Date</th>
+                            <th>Furnace</th>
+                            <th>Metal Grade</th>
+                            <th>Technician</th>
+                            <th>Operator</th>
+                            <th>Total Materials</th>
+                            <th>Melt Time</th>
+                            <th>Corrections</th>
+                            <th>Furnace Emptying</th>
+                            <th>Full Melt</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in entries.items %}
+                        <tr>
+                            <td class="heat-number">{{ entry.heat_number }}</td>
+                            <td>{{ entry.date.strftime('%d-%m-%Y') }}</td>
+                            <td>{{ entry.furnace_ref.name }}</td>
+                            <td>{{ entry.metal_grade_ref.name }}</td>
+                            <td>
+                                <small>{{ entry.melt_technician.name }}</small><br>
+                                <small class="text-muted">({{ entry.melt_technician.clockno }})</small>
+                            </td>
+                            <td>
+                                <small>{{ entry.furnace_operator.name }}</small><br>
+                                <small class="text-muted">({{ entry.furnace_operator.clockno }})</small>
+                            </td>
+                            <td>{{ "%.2f"|format(entry.total_materials) }} kg</td>
+                            <td><small>{{ entry.melt_time }}</small></td>
+                            <td><small>{{ entry.corrections_time }}</small></td>
+                            <td><small>{{ entry.furnace_emptying_time }}</small></td>
+                            <td><small>{{ entry.full_melt_time }}</small></td>
+                            <td>
+                                {% if entry.status == "In Progress" %}
+                                    <span class="badge bg-danger">{{ entry.status }}</span>
+                                {% elif entry.status == "Completed" %}
+                                    <span class="badge bg-primary">{{ entry.status }}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ entry.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="action-buttons">
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('furnace.entry_detail', id=entry.id) }}" 
+                                       class="btn btn-outline-primary" 
+                                       title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                     <!-- Edit button only if status is In Progress -->
+                                {% if entry.status == "In Progress" %}
+                                <a href="{{ url_for('furnace.edit_entry', id=entry.id) }}" 
+                                class="btn btn-outline-secondary" 
+                                title="Edit Entry">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                {% endif %}
+                                <a href="{{ url_for('furnace.lab_linker', entry_id=entry.id) }}" 
+                                class="btn btn-outline-success" 
+                                title="Link Lab Results">
+                                    <i class="fas fa-flask"></i> Link Melts to Results
+                                </a>
+
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Summary -->
+            <div class="row mt-4">
+                <div class="col">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="text-muted">
+                            {{ entries.total }} entr{{ 'y' if entries.total == 1 else 'ies' }} matching these filters
+                        </div>
+                        <div>
+                            <span class="badge bg-info">Total Materials: {{ "%.2f"|format(total_materials) }} kg</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% set pagination = entries %}
+            {% set endpoint = 'furnace.entries' %}
+            {% set args = request.args.to_dict() %}
+            {% include "_pagination.html" with context %}
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-plus-circle fa-3x text-muted mb-3"></i>
+                <h4>No Entries Found</h4>
+                {% if request.args %}
+                    <p class="text-muted">No entries match your current filters. Try adjusting your search criteria.</p>
+                    <a href="{{ url_for('furnace.entries') }}" class="btn btn-outline-secondary me-2">
+                        <i class="fas fa-times me-1"></i>Clear Filters
+                    </a>
+                {% else %}
+                    <p class="text-muted">Get started by creating your first furnace entry.</p>
+                {% endif %}
+                <a href="{{ url_for('furnace.new_entry') }}" class="btn btn-primary">
+                    <i class="fas fa-plus me-1"></i>Create First Entry
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+<!-- ========================= -->
+<!-- New Entry Modal -->
+<!-- ========================= -->
+<!-- New Entry Modal -->
+<div class="modal fade" id="newEntryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <form method="POST" action="{{ url_for('furnace.new_entry') }}">
+                <!-- CSRF Token for Flask-WTF -->
+                {{ form.csrf_token }}
+
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-fire me-2"></i>Select Furnace
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-dark fw-bold mb-3">
+                        Please select the furnace for the new entry.
+                    </p>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Furnace</label>
+                        <select id="furnace_id" name="furnace_id" class="form-select" required onchange="updateLiningNumber()">
+                            <option value="">-- Select Furnace --</option>
+                            {% for furnace in furnaces %}
+                                <option value="{{ furnace.id }}">
+                                    {{ furnace.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+
+                        <!-- Hidden field to store lining number -->
+                        <input type="hidden" id="lining_number_field" name="lining_number" value="">
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-check me-1"></i>Proceed
+                    </button>
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+</div>
+
+<!-- JS to fetch lining number from selected furnace -->
+<script>
+function updateLiningNumber() {
+    const furnaceSelect = document.getElementById('furnace_id');
+    const liningField = document.getElementById('lining_number_field');
+
+    if (furnaceSelect.value && furnaceSelect.value !== '0') {
+        fetch(`/furnace/api/furnace/${furnaceSelect.value}`)
+            .then(res => res.json())
+            .then(data => {
+                // Populate hidden lining field; default to 0 if missing
+                liningField.value = data.current_lining_number || 0;
+            })
+            .catch(err => console.error('Error fetching furnace data:', err));
+    } else {
+        liningField.value = 0;
+    }
+}
+</script>
+
+{% endblock %}
+

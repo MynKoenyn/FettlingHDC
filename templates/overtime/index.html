@@ -1,0 +1,157 @@
+{% extends 'overtime/base.html' %}
+{% block title %}Overtime{% endblock %}
+{% block page_title %}Overtime{% endblock %}
+
+{% block topbar_actions %}
+  {% if can('overtime', 'actual') %}
+  <a href="{{ url_for('overtime.new_actual') }}" class="ot-btn ot-btn-outline">
+    <i class="bi bi-clipboard-check"></i> New Actual
+  </a>
+  {% endif %}
+  {% if has_perm('overtime', 'request') %}
+  <a href="{{ url_for('overtime.new_request') }}" class="ot-btn ot-btn-primary">
+    <i class="bi bi-plus-lg"></i> New Request
+  </a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Stats ── -->
+<div class="stat-row">
+  <div class="stat-chip warning">
+    <div class="val">{{ requests | selectattr('entry_type', 'equalto', 'request') | selectattr('status', 'equalto', 'pending') | list | length }}</div>
+    <div class="lbl">Pending</div>
+  </div>
+  <div class="stat-chip success">
+    <div class="val">{{ requests | selectattr('is_approved') | list | length }}</div>
+    <div class="lbl">Approved</div>
+  </div>
+  <div class="stat-chip" style="border-top-color:#0ea5e9;">
+    <div class="val">{{ requests | selectattr('has_actual') | list | length }}</div>
+    <div class="lbl">With Actual</div>
+  </div>
+  <div class="stat-chip">
+    <div class="val">{{ requests | length }}</div>
+    <div class="lbl">Total</div>
+  </div>
+</div>
+
+<!-- ── Table ── -->
+<div class="ot-card">
+  <div class="ot-card-header">
+    <span class="ot-card-title">
+      {% if has_perm('overtime', 'approve') or has_perm('overtime', 'admin') %}
+        All Overtime
+      {% else %}
+        My Submitted Overtime
+      {% endif %}
+    </span>
+    <a href="{{ url_for('overtime.actual_report') }}" class="ot-btn ot-btn-outline ot-btn-sm">
+      <i class="bi bi-bar-chart"></i> Actual vs Requested
+    </a>
+  </div>
+
+  {% if requests %}
+  <div style="overflow-x:auto;">
+    <table class="ot-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Personnel</th>
+          <th>Dept</th>
+          <th>Date</th>
+          <th>Kind</th>
+          <th style="text-align:right;">Requested</th>
+          <th style="text-align:right;">Actual</th>
+          {% if show_money %}<th style="text-align:right;">Amount</th>{% endif %}
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ot in requests_page.items %}
+        <tr>
+          <td style="color:var(--ot-muted);font-size:.78rem;">{{ ot.id }}</td>
+          <td><strong>{{ ot.personnel.name }} {{ ot.personnel.surname }}</strong><br>
+              <span style="font-size:.75rem;color:var(--ot-muted);">{{ ot.personnel.clockno }}</span>
+          </td>
+          <td style="font-size:.82rem;">{{ ot.department.name if ot.department else '—' }}</td>
+          <td style="font-size:.82rem;">{{ ot.overtime_date.strftime('%d %b %Y') }}</td>
+
+          <!-- Kind -->
+          <td>
+            {% if ot.entry_type == 'actual' %}
+              <span class="ot-badge" style="background:#e0f2fe;color:#075985;">Actual only</span>
+            {% else %}
+              <span class="ot-badge" style="background:var(--ot-primary-lt);color:var(--ot-primary-dk);">Request</span>
+            {% endif %}
+          </td>
+
+          <!-- Requested hours -->
+          <td style="text-align:right;font-weight:700;">
+            {% if ot.has_request %}{{ ot.hours }}h{% else %}<span style="color:var(--ot-muted);">—</span>{% endif %}
+          </td>
+
+          <!-- Actual hours -->
+          <td style="text-align:right;font-weight:700;">
+            {% if ot.has_actual %}
+              {{ ot.actual_hours }}h
+              {% if ot.variance_hours is not none and ot.variance_hours != 0 %}
+                <span style="font-size:.72rem;font-weight:600;color:{{ 'var(--ot-danger)' if ot.variance_hours < 0 else 'var(--ot-success)' }};">
+                  ({{ '+' if ot.variance_hours > 0 }}{{ ot.variance_hours }})
+                </span>
+              {% endif %}
+            {% else %}
+              <span style="color:var(--ot-muted);">—</span>
+            {% endif %}
+          </td>
+
+          <!-- Amount -->
+          {% if show_money %}
+          <td style="text-align:right;">
+            {% if ot.has_actual and ot.actual_amount is not none %}
+              <strong>R {{ "%.2f"|format(ot.actual_amount|float) }}</strong>
+              <span style="font-size:.68rem;color:var(--ot-muted);display:block;">actual</span>
+            {% elif ot.overtime_amount is not none %}
+              R {{ "%.2f"|format(ot.overtime_amount|float) }}
+              <span style="font-size:.68rem;color:var(--ot-muted);display:block;">requested</span>
+            {% else %}
+              <span style="color:var(--ot-muted);">—</span>
+            {% endif %}
+          </td>
+          {% endif %}
+
+          <!-- Status -->
+          <td>
+            {% if ot.entry_type == 'actual' %}
+              <span class="ot-badge" style="background:#e0f2fe;color:#075985;">captured</span>
+            {% else %}
+              <span class="ot-badge {{ ot.status }}">{{ ot.status }}</span>
+            {% endif %}
+          </td>
+
+          <td>
+            <a href="{{ url_for('overtime.view_request', request_id=ot.id) }}"
+               class="ot-btn ot-btn-outline ot-btn-sm">
+              {% if can_capture and not ot.has_actual %}Add actual{% else %}View{% endif %}
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% set pagination = requests_page %}
+  {% set endpoint = 'overtime.index' %}
+  {% set args = {} %}
+  {% include "_pagination.html" with context %}
+  {% else %}
+  <div class="empty-state">
+    <i class="bi bi-inbox" style="font-size:2.5rem;display:block;margin-bottom:.75rem;opacity:.3;"></i>
+    No overtime found.
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}

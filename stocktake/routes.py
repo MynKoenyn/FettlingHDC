@@ -742,9 +742,14 @@ def value_report():
     departments = _dept_choices()
     customers = Customer.query.order_by(Customer.name).all()
 
+    from pagination_utils import ManualPagination
+    page = request.args.get("page", 1, type=int)
+    rows_page = ManualPagination(report_rows, page=page, per_page=50)
+
     return render_template(
         "stocktake/report.html",
         rows=report_rows,
+        rows_page=rows_page,
         totals=totals,
         bin_rows=bin_rows,
         bin_total_value=bin_total_value,

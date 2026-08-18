@@ -1,0 +1,304 @@
+{% extends "stocktake/base.html" %}
+{% block title %}Stocktake Value Report{% endblock %}
+
+{% block head_extra %}
+<style>
+  :root {
+    --ink:       #0f1923;
+    --ink-soft:  #4a5568;
+    --ink-muted: #94a3b8;
+    --surface:   #ffffff;
+    --surface-2: #f5f8fc;
+    --surface-3: #edf2f9;
+    --brand:     #1a5cff;
+    --brand-dk:  #0f40cc;
+    --brand-lt:  #dce9ff;
+    --success:   #0ea66e;
+    --success-lt:#d1fae5;
+    --danger:    #e53e3e;
+    --danger-lt: #fee2e2;
+    --radius:    10px;
+    --shadow-sm: 0 1px 3px rgba(15,25,35,.08);
+  }
+  body { background:var(--surface-2); font-family:'DM Sans',sans-serif; color:var(--ink); }
+
+  .page-header {
+    background:var(--surface); border-bottom:1px solid var(--surface-3);
+    padding:1.2rem 2rem; display:flex; align-items:center;
+    justify-content:space-between; flex-wrap:wrap; gap:.75rem;
+  }
+  .page-header h1 { font-family:'DM Serif Display',serif; font-size:1.4rem; font-weight:400; margin:0; }
+  .breadcrumb-custom { font-size:.8rem; color:var(--ink-muted); display:flex; align-items:center; gap:.4rem; }
+  .breadcrumb-custom a { color:var(--brand); text-decoration:none; }
+
+  .content-wrap { padding:1.25rem 2rem 2rem; display:flex; flex-direction:column; gap:1.25rem; }
+
+  /* ── Filter bar ── */
+  .filter-bar {
+    background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow-sm);
+    padding:1rem 1.3rem; display:flex; flex-wrap:wrap; gap:.9rem; align-items:end;
+  }
+  .filter-field { display:flex; flex-direction:column; gap:.3rem; }
+  .filter-field label {
+    font-size:.68rem; font-weight:700; text-transform:uppercase;
+    letter-spacing:.06em; color:var(--ink-muted);
+  }
+  .filter-field input, .filter-field select {
+    padding:.45rem .7rem; border:1.5px solid var(--surface-3); border-radius:var(--radius);
+    font-family:'DM Sans',sans-serif; font-size:.85rem; color:var(--ink); outline:none;
+    min-width:170px;
+  }
+  .filter-field input:focus, .filter-field select:focus { border-color:var(--brand); }
+  .filter-actions { display:flex; gap:.5rem; }
+  .btn-apply {
+    padding:.5rem 1.1rem; background:var(--brand); color:#fff; border:none;
+    border-radius:var(--radius); font-size:.85rem; font-weight:700; cursor:pointer;
+  }
+  .btn-apply:hover { background:var(--brand-dk); }
+  .btn-clear {
+    padding:.5rem 1.1rem; background:var(--surface); color:var(--ink-soft);
+    border:1.5px solid var(--surface-3); border-radius:var(--radius);
+    font-size:.85rem; font-weight:600; text-decoration:none; display:inline-flex; align-items:center;
+  }
+  .btn-clear:hover { border-color:var(--brand); color:var(--brand); }
+
+  /* ── Summary bar ── */
+  .summary-bar {
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+    gap:.75rem;
+  }
+  .summary-card {
+    background:var(--surface); border-radius:var(--radius);
+    padding:.9rem 1.1rem; box-shadow:var(--shadow-sm);
+  }
+  .summary-label { font-size:.68rem; font-weight:700; text-transform:uppercase;
+                   letter-spacing:.06em; color:var(--ink-muted); margin-bottom:.25rem; }
+  .summary-value { font-size:1.4rem; font-weight:700; color:var(--ink); }
+
+  /* ── Table ── */
+  .session-block { background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow-sm); overflow:hidden; }
+  .data-table { width:100%; border-collapse:collapse; font-size:.875rem; }
+  .data-table th {
+    padding:.55rem 1rem; text-align:left;
+    font-size:.67rem; font-weight:700; text-transform:uppercase;
+    letter-spacing:.07em; color:var(--ink-muted);
+    background:var(--surface-2); border-bottom:1px solid var(--surface-3);
+  }
+  .data-table td { padding:.65rem 1rem; border-bottom:1px solid var(--surface-3); vertical-align:middle; }
+  .data-table tr:last-child td { border-bottom:none; }
+  .data-table tr:hover td { background:var(--surface-2); }
+  .data-table tfoot td { padding:.65rem 1rem; background:var(--surface-3); font-weight:700; font-size:.82rem; }
+  .data-table td:nth-child(3), .data-table td:nth-child(4),
+  .data-table td:nth-child(5), .data-table td:nth-child(6) { text-align:right; }
+  .data-table th:nth-child(3), .data-table th:nth-child(4),
+  .data-table th:nth-child(5), .data-table th:nth-child(6) { text-align:right; }
+
+  .var-pill { display:inline-block; padding:.18rem .55rem; border-radius:999px; font-size:.75rem; font-weight:700; }
+  .var-pos  { background:var(--success-lt); color:var(--success); }
+  .var-neg  { background:var(--danger-lt);  color:var(--danger); }
+  .var-zero { background:var(--surface-3);  color:var(--ink-muted); }
+
+  .empty-state { padding:3rem; text-align:center; color:var(--ink-muted); font-size:.875rem; }
+</style>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <div class="breadcrumb-custom">
+      <a href="{{ url_for('stocktake.dashboard') }}">Stocktake</a>
+      <span>›</span>
+      <span>Value Report</span>
+    </div>
+    <h1>Stocktake Value Report</h1>
+  </div>
+</div>
+
+<div class="content-wrap">
+
+  <!-- ── Filters ── -->
+  <form class="filter-bar" method="get">
+    <div class="filter-field">
+      <label for="date_from">From</label>
+      <input type="date" id="date_from" name="date_from" value="{{ date_from.isoformat() }}">
+    </div>
+    <div class="filter-field">
+      <label for="date_to">To</label>
+      <input type="date" id="date_to" name="date_to" value="{{ date_to.isoformat() }}">
+    </div>
+    <div class="filter-field">
+      <label for="department_id">Department</label>
+      <select id="department_id" name="department_id">
+        <option value="">All departments</option>
+        {% for id, label in departments %}
+        <option value="{{ id }}" {{ 'selected' if department_id == id }}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="filter-field">
+      <label for="customer_id">Customer</label>
+      <select id="customer_id" name="customer_id">
+        <option value="">All customers</option>
+        {% for c in customers %}
+        <option value="{{ c.id }}" {{ 'selected' if customer_id == c.id }}>{{ c.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="filter-field">
+      <label for="product">Product</label>
+      <input type="text" id="product" name="product" placeholder="Code or name" value="{{ product_q }}">
+    </div>
+    <div class="filter-actions">
+      <button type="submit" class="btn-apply">Apply</button>
+      <a href="{{ url_for('stocktake.value_report') }}" class="btn-clear">Clear</a>
+    </div>
+  </form>
+
+  <!-- ── Summary ── -->
+  <div class="summary-bar">
+    <div class="summary-card">
+      <div class="summary-label">Products</div>
+      <div class="summary-value">{{ rows|length }}</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-label">Book Total</div>
+      <div class="summary-value">{{ '%.0f'|format(totals.book) }}</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-label">Count Total</div>
+      <div class="summary-value">{{ '%.0f'|format(totals.count) }}</div>
+    </div>
+    {% if can('stocktake', 'value') %}
+    <div class="summary-card">
+      <div class="summary-label">Count Value</div>
+      <div class="summary-value">R {{ '{:,.2f}'.format(totals.value) }}</div>
+    </div>
+    {% if bin_total_value %}
+    <div class="summary-card">
+      <div class="summary-label">Bin Value</div>
+      <div class="summary-value">R {{ '{:,.2f}'.format(bin_total_value) }}</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-label">Total Value</div>
+      <div class="summary-value">R {{ '{:,.2f}'.format(grand_total_value) }}</div>
+    </div>
+    {% endif %}
+    {% endif %}
+  </div>
+
+  <!-- ── Table ── -->
+  <div class="session-block">
+    {% if rows %}
+    <div style="overflow-x:auto;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Customer</th>
+            <th>Book</th>
+            <th>Count</th>
+            <th>Variance</th>
+            {% if can('stocktake', 'value') %}<th>Value</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows_page.items %}
+          <tr>
+            <td><strong>{{ r.product }}</strong></td>
+            <td style="color:var(--ink-soft);font-size:.8rem;">{{ r.customer }}</td>
+            <td>{{ r.book | int }}</td>
+            <td>{{ r.count | int }}</td>
+            <td>
+              {% set v = r.variance | int %}
+              <span class="var-pill {{ 'var-neg' if v < 0 else ('var-pos' if v > 0 else 'var-zero') }}">
+                {{ v }}
+              </span>
+            </td>
+            {% if can('stocktake', 'value') %}
+            <td>
+              {% if r.has_price %}
+                R {{ '{:,.2f}'.format(r.value) }}
+              {% else %}
+                <span style="color:var(--ink-muted);font-size:.78rem;">No price</span>
+              {% endif %}
+            </td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="2">Totals</td>
+            <td>{{ totals.book | int }}</td>
+            <td>{{ totals.count | int }}</td>
+            <td>{{ totals.variance | int }}</td>
+            {% if can('stocktake', 'value') %}
+            <td>R {{ '{:,.2f}'.format(totals.value) }}</td>
+            {% endif %}
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    {% set pagination = rows_page %}
+    {% set endpoint = 'stocktake.value_report' %}
+    {% set args = {'date_from': date_from.isoformat(), 'date_to': date_to.isoformat(), 'department_id': department_id, 'customer_id': customer_id, 'product': product_q} %}
+    {% include "_pagination.html" with context %}
+    {% else %}
+    <div class="empty-state">No stocktake lines match these filters.</div>
+    {% endif %}
+  </div>
+
+  {% if bin_rows %}
+  <div class="session-block">
+    <div style="overflow-x:auto;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>HDA Bin Type</th>
+            <th>Bins</th>
+            <th>Weight (kg)</th>
+            {% if can('stocktake', 'value') %}<th>Value</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in bin_rows %}
+          <tr>
+            <td><strong>{{ r.label }}</strong></td>
+            <td>{{ r.bins }}</td>
+            <td>{{ '%.0f'|format(r.weight) }}</td>
+            {% if can('stocktake', 'value') %}
+            <td>
+              {% if r.has_rate %}
+                R {{ '{:,.2f}'.format(r.value) }}
+              {% else %}
+                <span style="color:var(--ink-muted);font-size:.78rem;">No rate</span>
+              {% endif %}
+            </td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="2">Totals</td>
+            <td>{{ '%.0f'|format(bin_rows|sum(attribute='weight')) }}</td>
+            {% if can('stocktake', 'value') %}
+            <td>R {{ '{:,.2f}'.format(bin_total_value) }}</td>
+            {% endif %}
+          </tr>
+          {% if can('stocktake', 'value') %}
+          <tr>
+            <td colspan="3">Grand Total (Products + Bins)</td>
+            <td>R {{ '{:,.2f}'.format(grand_total_value) }}</td>
+          </tr>
+          {% endif %}
+        </tfoot>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

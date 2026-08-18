@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}Overtime{% endblock %} — OT Manager</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" />
+  <!-- app-shell.css only for its .app-pagination component — this module's
+       own .ot-* classes are a distinct namespace, so nothing else collides. -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='app-shell.css') }}" />
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <style>
+    :root {
+      --ot-bg:       #f4f7fb;
+      --ot-surface:  #ffffff;
+      --ot-border:   #e2e8f0;
+      --ot-primary:  #2563eb;
+      --ot-primary-dk: #1d4ed8;
+      --ot-primary-lt: #dbeafe;
+      --ot-success:  #059669;
+      --ot-success-lt: #d1fae5;
+      --ot-danger:   #dc2626;
+      --ot-danger-lt: #fee2e2;
+      --ot-warning:  #d97706;
+      --ot-warning-lt: #fef3c7;
+      --ot-muted:    #64748b;
+      --ot-text:     #1e293b;
+      --sidebar-w:   230px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--ot-bg);
+      color: var(--ot-text);
+      margin: 0;
+      min-height: 100vh;
+    }
+
+    /* ── Sidebar ── */
+    #ot-sidebar {
+      position: fixed; top: 0; left: 0; bottom: 0;
+      width: var(--sidebar-w);
+      background: #1e293b;
+      display: flex; flex-direction: column;
+      z-index: 100;
+      border-right: 1px solid rgba(255,255,255,.06);
+    }
+
+    .ot-brand {
+      padding: 1.4rem 1.25rem 1rem;
+      border-bottom: 1px solid rgba(255,255,255,.07);
+    }
+    .ot-brand .brand-name {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.2rem;
+      color: #fff;
+    }
+    .ot-brand .brand-sub {
+      font-size: .65rem;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      color: rgba(255,255,255,.35);
+      margin-top: .15rem;
+    }
+
+    .ot-nav { flex: 1; padding: .75rem 0; overflow-y: auto; }
+
+    .ot-nav-label {
+      font-size: .62rem;
+      text-transform: uppercase;
+      letter-spacing: .12em;
+      color: rgba(255,255,255,.28);
+      padding: .9rem 1.25rem .35rem;
+    }
+
+    .ot-nav a {
+      display: flex; align-items: center; gap: .6rem;
+      padding: .55rem 1.25rem;
+      color: rgba(255,255,255,.55);
+      font-size: .875rem;
+      font-weight: 500;
+      text-decoration: none;
+      border-left: 3px solid transparent;
+      transition: all .15s;
+    }
+    .ot-nav a:hover { color: #fff; background: rgba(255,255,255,.06); }
+    .ot-nav a.active {
+      color: #fff;
+      background: rgba(37,99,235,.25);
+      border-left-color: var(--ot-primary);
+    }
+    .ot-nav a i { font-size: 1rem; width: 1.1rem; }
+
+    .ot-sidebar-footer {
+      padding: 1rem 1.25rem;
+      border-top: 1px solid rgba(255,255,255,.07);
+      font-size: .75rem;
+      color: rgba(255,255,255,.35);
+    }
+    .ot-sidebar-footer a {
+      color: rgba(255,255,255,.4);
+      text-decoration: none;
+      display: flex; align-items: center; gap: .4rem;
+    }
+    .ot-sidebar-footer a:hover { color: #fff; }
+
+    /* ── Main area ── */
+    #ot-main {
+      margin-left: var(--sidebar-w);
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+    }
+
+    .ot-topbar {
+      background: var(--ot-surface);
+      border-bottom: 1px solid var(--ot-border);
+      padding: .75rem 2rem;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 50;
+      box-shadow: 0 1px 3px rgba(0,0,0,.05);
+    }
+    .ot-topbar-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.25rem;
+      color: var(--ot-text);
+    }
+
+    .ot-page-body { padding: 1.75rem 2rem 3rem; flex: 1; }
+
+    /* ── Cards ── */
+    .ot-card {
+      background: var(--ot-surface);
+      border: 1px solid var(--ot-border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .ot-card-header {
+      padding: 1rem 1.4rem;
+      border-bottom: 1px solid var(--ot-border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .ot-card-title {
+      font-size: .78rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .07em;
+      color: var(--ot-muted); margin: 0;
+    }
+    .ot-card-body { padding: 1.4rem; }
+
+    /* ── Stat chips ── */
+    .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+    .stat-chip {
+      background: var(--ot-surface);
+      border: 1px solid var(--ot-border);
+      border-radius: 10px;
+      padding: 1rem 1.4rem;
+      min-width: 140px;
+      border-top: 3px solid var(--ot-primary);
+    }
+    .stat-chip.success { border-top-color: var(--ot-success); }
+    .stat-chip.danger  { border-top-color: var(--ot-danger); }
+    .stat-chip.warning { border-top-color: var(--ot-warning); }
+    .stat-chip .val  { font-size: 1.8rem; font-weight: 700; color: var(--ot-text); line-height: 1; }
+    .stat-chip .lbl  { font-size: .72rem; font-weight: 600; text-transform: uppercase;
+                       letter-spacing: .06em; color: var(--ot-muted); margin-top: .3rem; }
+
+    /* ── Table ── */
+    .ot-table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+    .ot-table th {
+      padding: .6rem 1rem; text-align: left;
+      font-size: .68rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .07em; color: var(--ot-muted);
+      background: #f8fafc; border-bottom: 1px solid var(--ot-border);
+      white-space: nowrap;
+    }
+    .ot-table td {
+      padding: .75rem 1rem;
+      border-bottom: 1px solid var(--ot-border);
+      vertical-align: middle;
+    }
+    .ot-table tr:last-child td { border-bottom: none; }
+    .ot-table tbody tr:hover td { background: #f8fafc; }
+
+    /* ── Status badges ── */
+    .ot-badge {
+      display: inline-block; padding: .2rem .65rem;
+      border-radius: 999px; font-size: .72rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .04em;
+    }
+    .ot-badge.pending  { background: var(--ot-warning-lt); color: var(--ot-warning); }
+    .ot-badge.approved { background: var(--ot-success-lt); color: var(--ot-success); }
+    .ot-badge.rejected { background: var(--ot-danger-lt);  color: var(--ot-danger); }
+
+    /* ── Buttons ── */
+    .ot-btn {
+      display: inline-flex; align-items: center; gap: .4rem;
+      padding: .5rem 1.1rem; border-radius: 7px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: .875rem; font-weight: 600;
+      border: none; cursor: pointer; text-decoration: none;
+      transition: all .15s;
+    }
+    .ot-btn i { font-size: 1rem; }
+    .ot-btn-primary { background: var(--ot-primary); color: #fff; }
+    .ot-btn-primary:hover { background: var(--ot-primary-dk); color: #fff; text-decoration: none; }
+    .ot-btn-outline {
+      background: transparent; color: var(--ot-muted);
+      border: 1.5px solid var(--ot-border);
+    }
+    .ot-btn-outline:hover { border-color: var(--ot-primary); color: var(--ot-primary); text-decoration: none; }
+    .ot-btn-success { background: var(--ot-success); color: #fff; }
+    .ot-btn-success:hover { opacity: .88; color: #fff; text-decoration: none; }
+    .ot-btn-danger  { background: var(--ot-danger);  color: #fff; }
+    .ot-btn-danger:hover  { opacity: .88; color: #fff; text-decoration: none; }
+    .ot-btn-sm { padding: .35rem .8rem; font-size: .8rem; }
+
+    /* ── Forms ── */
+    .ot-form-label {
+      display: block; font-size: .75rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .06em;
+      color: var(--ot-muted); margin-bottom: .4rem;
+    }
+    .ot-form-control {
+      width: 100%; padding: .65rem .9rem;
+      border: 1.5px solid var(--ot-border); border-radius: 7px;
+      font-family: 'DM Sans', sans-serif; font-size: .9rem; color: var(--ot-text);
+      background: var(--ot-surface); outline: none;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .ot-form-control:focus {
+      border-color: var(--ot-primary);
+      box-shadow: 0 0 0 3px var(--ot-primary-lt);
+    }
+
+    /* ── Searchable select ──
+       Put data-ot-search on a <select> and the script at the foot of this
+       page turns it into a type-to-filter picker. Without JS the plain
+       <select> is left exactly as it is, so the form still works. */
+    .ot-ss { position: relative; }
+    .ot-ss .ot-ss-native {
+      /* Kept in the DOM, and focusable, so `required` still validates. */
+      position: absolute; left: 0; top: 0;
+      width: 100%; height: 100%;
+      opacity: 0; pointer-events: none;
+    }
+    .ot-ss-input { padding-right: 2.2rem; }
+    .ot-ss-caret {
+      position: absolute; right: .9rem; top: 50%; transform: translateY(-50%);
+      color: var(--ot-muted); font-size: .75rem; pointer-events: none;
+    }
+    .ot-ss.open .ot-ss-caret { transform: translateY(-50%) rotate(180deg); }
+    .ot-ss-panel {
+      display: none;
+      position: absolute; z-index: 60;
+      left: 0; right: 0; top: calc(100% + 4px);
+      max-height: 17rem; overflow-y: auto;
+      background: var(--ot-surface);
+      border: 1.5px solid var(--ot-border);
+      border-radius: 8px;
+      box-shadow: 0 10px 26px rgba(15,23,42,.13);
+    }
+    .ot-ss.open .ot-ss-panel { display: block; }
+    .ot-ss-opt {
+      padding: .5rem .9rem;
+      font-size: .875rem; cursor: pointer;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .ot-ss-opt:last-child { border-bottom: none; }
+    .ot-ss-opt.active { background: var(--ot-primary-lt); color: var(--ot-primary-dk); }
+    .ot-ss-empty { padding: .75rem .9rem; font-size: .82rem; color: var(--ot-muted); }
+
+    /* ── Alerts ── */
+    .ot-alert { border-radius: 8px; font-size: .875rem; border: none; padding: .9rem 1.1rem; margin-bottom: 1rem; }
+    .ot-alert-success { background: var(--ot-success-lt); color: var(--ot-success); }
+    .ot-alert-danger  { background: var(--ot-danger-lt);  color: var(--ot-danger); }
+    .ot-alert-warning { background: var(--ot-warning-lt); color: var(--ot-warning); }
+    .ot-alert-info    { background: var(--ot-primary-lt); color: var(--ot-primary-dk); }
+
+    /* ── Permission grid ── */
+    .perm-grid {
+      display: grid;
+      grid-template-columns: 200px repeat(var(--perm-cols, 4), 1fr);
+      gap: 0;
+    }
+    .perm-grid-header {
+      font-size: .68rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .07em; color: var(--ot-muted);
+      padding: .6rem .75rem; background: #f8fafc;
+      border-bottom: 1px solid var(--ot-border);
+      border-right: 1px solid var(--ot-border);
+      text-align: center;
+    }
+    .perm-grid-header:first-child { text-align: left; }
+    .perm-user-cell {
+      padding: .65rem .75rem; border-bottom: 1px solid var(--ot-border);
+      border-right: 1px solid var(--ot-border);
+      font-size: .85rem; font-weight: 600;
+      display: flex; align-items: center; gap: .5rem;
+    }
+    .perm-check-cell {
+      padding: .5rem; text-align: center;
+      border-bottom: 1px solid var(--ot-border);
+      border-right: 1px solid var(--ot-border);
+    }
+
+    .empty-state { padding: 3rem; text-align: center; color: var(--ot-muted); font-size: .875rem; }
+
+    /* ── Icon tile (personnel, org-chart) ── */
+    .ot-icon-tile {
+      width: 34px; height: 34px; border-radius: 9px;
+      display: inline-grid; place-items: center;
+      color: #fff; font-size: 1rem; flex: none;
+      box-shadow: 0 2px 6px rgba(0,0,0,.15);
+    }
+    .ot-icon-tile.placeholder { background: #cbd5e1; color: #64748b; box-shadow: none; }
+
+    /* ── Profile photo avatar (personnel) ── */
+    .ot-avatar {
+      width: 34px; height: 34px; border-radius: 50%;
+      display: inline-grid; place-items: center; overflow: hidden;
+      flex: none; background: #cbd5e1; color: #64748b;
+      box-shadow: 0 2px 6px rgba(0,0,0,.15);
+    }
+    .ot-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .ot-avatar.placeholder { box-shadow: none; }
+    .ot-avatar-lg { width: 72px; height: 72px; font-size: 1.8rem; }
+
+    /* ── Icon picker (personnel form) ── */
+    .icon-picker { display: flex; flex-wrap: wrap; gap: .6rem; }
+    .icon-swatch {
+      width: 44px; height: 44px; border-radius: 10px;
+      display: grid; place-items: center;
+      color: #fff; font-size: 1.1rem; cursor: pointer;
+      border: 2px solid transparent; box-shadow: 0 2px 6px rgba(0,0,0,.15);
+      transition: transform .1s ease;
+    }
+    .icon-swatch:hover { transform: translateY(-2px); }
+    .icon-swatch.selected { border-color: var(--ot-text); }
+    .icon-swatch.none-swatch { background: #f1f5f9 !important; color: #64748b; box-shadow: none; }
+
+    /* ── Footer ── */
+    .ot-footer {
+      border-top: 1px solid var(--ot-border);
+      background: var(--ot-surface);
+      padding: 1.1rem 2rem;
+      text-align: center;
+      font-size: .82rem;
+      color: var(--ot-muted);
+    }
+    .ot-footer strong { color: var(--ot-text); font-weight: 700; }
+    .ot-footer .foot-legal { font-size: .75rem; color: #94a3b8; margin-top: .2rem; }
+    .ot-footer .sep { opacity: .55; margin: 0 .35rem; }
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<!-- ── Sidebar ── -->
+<nav id="ot-sidebar">
+  <div class="ot-brand">
+    <div class="brand-name">OT Manager</div>
+    <div class="brand-sub">Overtime Approval</div>
+  </div>
+
+  <div class="ot-nav">
+    <div class="ot-nav-label">Overtime</div>
+
+    <a href="{{ url_for('overtime.index') }}"
+       class="{% if request.endpoint == 'overtime.index' %}active{% endif %}">
+      <i class="bi bi-list-ul"></i> All Requests
+    </a>
+
+    {% if can('overtime', 'request') %}
+    <a href="{{ url_for('overtime.new_request') }}"
+       class="{% if request.endpoint == 'overtime.new_request' %}active{% endif %}">
+      <i class="bi bi-plus-circle"></i> New Request
+    </a>
+    {% endif %}
+
+    {% if can('overtime', 'actual') %}
+    <a href="{{ url_for('overtime.new_actual') }}"
+       class="{% if request.endpoint == 'overtime.new_actual' %}active{% endif %}">
+      <i class="bi bi-clipboard-check"></i> New Actual
+    </a>
+    {% endif %}
+
+    <div class="ot-nav-label">Reports</div>
+    <a href="{{ url_for('overtime.actual_report') }}"
+       class="{% if request.endpoint == 'overtime.actual_report' %}active{% endif %}">
+      <i class="bi bi-bar-chart"></i> Actual vs Requested
+    </a>
+    <a href="{{ url_for('overtime.weekly_report') }}"
+       class="{% if request.endpoint == 'overtime.weekly_report' %}active{% endif %}">
+      <i class="bi bi-graph-up"></i> Weekly Report
+    </a>
+
+    {% if can('overtime', 'admin') %}
+    <div class="ot-nav-label">Admin</div>
+    <a href="{{ url_for('overtime.admin_permissions') }}"
+       class="{% if request.endpoint == 'overtime.admin_permissions' %}active{% endif %}">
+      <i class="bi bi-shield-lock"></i> Permissions
+    </a>
+    {% endif %}
+
+    {% if can('personnel', 'view') or can('managers', 'view') %}
+    <div class="ot-nav-label">Master Data</div>
+    {% if can('personnel', 'view') %}
+    <a href="{{ url_for('overtime.personnel_list') }}"
+       class="{% if request.endpoint in ['overtime.personnel_list', 'overtime.personnel_new', 'overtime.personnel_edit'] %}active{% endif %}">
+      <i class="bi bi-person-vcard"></i> Personnel
+    </a>
+    <a href="{{ url_for('overtime.personnel_organogram') }}"
+       class="{% if request.endpoint == 'overtime.personnel_organogram' %}active{% endif %}">
+      <i class="bi bi-diagram-3-fill"></i> Organogram
+    </a>
+    {% endif %}
+    {% if can('managers', 'view') %}
+    <a href="{{ url_for('overtime.managers_list') }}"
+       class="{% if request.endpoint == 'overtime.managers_list' %}active{% endif %}">
+      <i class="bi bi-diagram-3"></i> Heads
+    </a>
+    {% endif %}
+    {% endif %}
+
+    <div class="ot-nav-label">Navigation</div>
+    <a href="{{ url_for('dashboard') }}">
+      <i class="bi bi-house-door"></i> Main Dashboard
+    </a>
+  </div>
+
+  <div class="ot-sidebar-footer">
+    {% if current_user.is_authenticated %}
+    <div style="margin-bottom:.5rem;color:rgba(255,255,255,.55);font-size:.8rem;">
+      <i class="bi bi-person-circle me-1"></i>{{ current_user.name }}
+    </div>
+    {% endif %}
+    <a href="{{ url_for('logout') }}">
+      <i class="bi bi-box-arrow-right"></i> Sign out
+    </a>
+  </div>
+</nav>
+
+<!-- ── Main ── -->
+<div id="ot-main">
+  <div class="ot-topbar">
+    <div class="ot-topbar-title">{% block page_title %}Overtime{% endblock %}</div>
+    <div>{% block topbar_actions %}{% endblock %}</div>
+  </div>
+
+  <div class="ot-page-body">
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+        <div class="ot-alert ot-alert-{{ category }} d-flex align-items-center gap-2">
+          <i class="bi bi-{% if category == 'success' %}check-circle{% elif category == 'danger' %}exclamation-triangle{% elif category == 'warning' %}exclamation-circle{% else %}info-circle{% endif %}"></i>
+          {{ message }}
+        </div>
+      {% endfor %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </div>
+
+  <footer class="ot-footer">
+    <div><strong>Foundry Analytics</strong> — HDC Production System</div>
+    <div class="foot-legal">
+      &copy; {{ current_year }} Foundry Analytics. All rights reserved.
+      <span class="sep">·</span> Developed by Armand Reynecke
+    </div>
+  </footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+/* ── Searchable select ───────────────────────────────────────────────────
+   Enhances every <select data-ot-search> into a type-to-filter picker.
+
+   A long personnel list is unusable as a native dropdown, so the user types
+   any part of what they can see — first name, surname, clock number,
+   department — and the list narrows. Each whitespace-separated word must
+   match somewhere, so "john 1042" and "smith fettling" both work.
+
+   The original <select> stays in the form and keeps the value, so nothing
+   server-side changes and native `required` validation still fires. If this
+   script never runs, the page degrades to the ordinary dropdown.
+*/
+(function () {
+  function enhance(select) {
+    if (select.dataset.otSearchReady) return;
+    select.dataset.otSearchReady = "1";
+
+    var wrap = document.createElement("div");
+    wrap.className = "ot-ss";
+    select.parentNode.insertBefore(wrap, select);
+    wrap.appendChild(select);
+    select.classList.add("ot-ss-native");
+    select.tabIndex = -1;
+
+    // The blank "— Select … —" option becomes the search box's placeholder.
+    var blank = Array.prototype.filter.call(select.options, function (o) {
+      return o.value === "";
+    })[0];
+
+    var input = document.createElement("input");
+    input.type = "text";
+    input.className = "ot-form-control ot-ss-input";
+    input.placeholder = blank ? blank.textContent.trim() : "Type to search…";
+    input.autocomplete = "off";
+    input.setAttribute("role", "combobox");
+    input.setAttribute("aria-autocomplete", "list");
+    input.setAttribute("aria-expanded", "false");
+    input.disabled = select.disabled;
+    if (select.id) input.id = select.id + "_search";
+
+    var caret = document.createElement("i");
+    caret.className = "bi bi-chevron-down ot-ss-caret";
+
+    var panel = document.createElement("div");
+    panel.className = "ot-ss-panel";
+    panel.setAttribute("role", "listbox");
+
+    wrap.appendChild(input);
+    wrap.appendChild(caret);
+    wrap.appendChild(panel);
+
+    var items = Array.prototype.filter.call(select.options, function (o) {
+      return o.value !== "";
+    }).map(function (o) {
+      var label = o.textContent.replace(/\s+/g, " ").trim();
+      return { value: o.value, label: label, haystack: label.toLowerCase() };
+    });
+
+    var shown  = [];
+    var active = -1;
+
+    function labelFor(value) {
+      for (var i = 0; i < items.length; i++) {
+        if (items[i].value === value) return items[i].label;
+      }
+      return "";
+    }
+
+    function isOpen() { return wrap.classList.contains("open"); }
+
+    function setActive(i) {
+      active = i;
+      Array.prototype.forEach.call(panel.children, function (el, idx) {
+        el.classList.toggle("active", idx === active);
+      });
+      if (active >= 0 && panel.children[active].scrollIntoView) {
+        panel.children[active].scrollIntoView({ block: "nearest" });
+      }
+    }
+
+    function render(query) {
+      var words = query.toLowerCase().split(/\s+/).filter(Boolean);
+      shown = items.filter(function (it) {
+        return words.every(function (w) { return it.haystack.indexOf(w) !== -1; });
+      });
+
+      panel.innerHTML = "";
+
+      if (!shown.length) {
+        var none = document.createElement("div");
+        none.className = "ot-ss-empty";
+        none.textContent = "Nothing matches that search.";
+        panel.appendChild(none);
+        active = -1;
+        return;
+      }
+
+      shown.forEach(function (it, i) {
+        var row = document.createElement("div");
+        row.className = "ot-ss-opt";
+        row.setAttribute("role", "option");
+        row.textContent = it.label;
+        // Keep focus in the search box so the panel does not close first.
+        row.addEventListener("mousedown", function (e) { e.preventDefault(); });
+        row.addEventListener("click", function () { choose(it.value); });
+        row.addEventListener("mouseenter", function () { setActive(i); });
+        panel.appendChild(row);
+      });
+
+      setActive(shown.findIndex(function (it) { return it.value === select.value; }));
+    }
+
+    function open(query) {
+      render(query);
+      wrap.classList.add("open");
+      input.setAttribute("aria-expanded", "true");
+    }
+
+    function close() {
+      wrap.classList.remove("open");
+      input.setAttribute("aria-expanded", "false");
+      // Drop a half-typed search and show whatever is actually selected.
+      input.value = labelFor(select.value);
+    }
+
+    function choose(value) {
+      select.value = value;
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+      close();
+    }
+
+    input.addEventListener("focus", function () { open(""); input.select(); });
+    input.addEventListener("click", function () { if (!isOpen()) open(input.value); });
+    input.addEventListener("input", function () { open(input.value); });
+
+    input.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        if (!isOpen()) { open(input.value); return; }
+        if (!shown.length) return;
+        var next = active + (e.key === "ArrowDown" ? 1 : -1);
+        if (next < 0) next = shown.length - 1;
+        if (next >= shown.length) next = 0;
+        setActive(next);
+      } else if (e.key === "Enter") {
+        if (isOpen() && active >= 0) {
+          e.preventDefault();          // pick the row, do not submit the form
+          choose(shown[active].value);
+        }
+      } else if (e.key === "Escape") {
+        if (isOpen()) { e.preventDefault(); close(); }
+      }
+    });
+
+    input.addEventListener("blur", function () { setTimeout(close, 120); });
+
+    // Lets other scripts set select.value and dispatch "change" to drive this
+    // widget programmatically (e.g. a "load a whole department" quick-add),
+    // without duplicating the open/close/panel logic above.
+    select.addEventListener("change", function () {
+      input.value = labelFor(select.value);
+    });
+
+    input.value = labelFor(select.value);   // sticky value after a failed post
+  }
+
+  document.querySelectorAll("select[data-ot-search]").forEach(enhance);
+})();
+</script>
+
+{% block extra_js %}{% endblock %}
+</body>
+</html>
