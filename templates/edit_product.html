@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Product #{{ product.id }}{% endblock %}
+
+{% block content %}
+<div class="app-container wide">
+    <a href="{{ url_for('products_crud') }}" style="display:inline-flex;align-items:center;gap:.4rem;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.4);text-decoration:none;font-weight:600;font-size:.85rem;margin-bottom:1rem;">
+        <i class="bi bi-arrow-left"></i> All Products
+    </a>
+
+    <div class="app-card">
+        <div class="app-card-head">
+            <h2 class="app-card-title"><i class="bi bi-pencil-square"></i> Edit Product <span class="app-id">#{{ product.id }}</span></h2>
+        </div>
+        <div class="app-card-body">
+            <p class="app-muted" style="margin-top:-.4rem;font-size:.85rem;">Update supplier details, price and customer links.</p>
+
+            <form method="POST" autocomplete="off" enctype="multipart/form-data">
+                {{ form.hidden_tag() }}
+                <div class="app-form-grid pf-grid">
+                    <div class="app-field">
+                        <label class="app-label" for="{{ form.name.id }}">{{ form.name.label.text }}</label>
+                        {{ form.name(class="app-input is-invalid" if form.name.errors else "app-input", maxlength="100") }}
+                        {% for e in form.name.errors %}<div class="app-err">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label" for="{{ form.product_code.id }}">{{ form.product_code.label.text }}</label>
+                        {{ form.product_code(class="app-input is-invalid" if form.product_code.errors else "app-input", maxlength="50") }}
+                        {% for e in form.product_code.errors %}<div class="app-err">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label" for="{{ form.supplier_code.id }}">{{ form.supplier_code.label.text }}</label>
+                        {{ form.supplier_code(class="app-input is-invalid" if form.supplier_code.errors else "app-input", maxlength="50") }}
+                        {% for e in form.supplier_code.errors %}<div class="app-err">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label" for="{{ form.simplified_code.id }}">{{ form.simplified_code.label.text }}</label>
+                        {{ form.simplified_code(class="app-input is-invalid" if form.simplified_code.errors else "app-input", maxlength="50") }}
+                        <div class="app-hint">{{ form.simplified_code.description }}</div>
+                        {% for e in form.simplified_code.errors %}<div class="app-err">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label" for="{{ form.grade.id }}">{{ form.grade.label.text }}</label>
+                        {{ form.grade(class="app-select is-invalid" if form.grade.errors else "app-select") }}
+                        <div class="app-hint">Material grade of the casting.</div>
+                        {% for e in form.grade.errors %}<div class="app-err">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label" for="{{ form.drawing_level.id }}">{{ form.drawing_level.label.text }}</label>
+                        {{ form.drawing_level(class="app-input is-invalid" if form.drawing_level.errors else "app-input", placeholder="e.g. AA, OOO, AB") }}
+                        <div class="app-hint">Drawing revision level.</div>
+                        {% for e in form.drawing_level.errors %}<div class="app-err">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label" for="{{ form.price.id }}">{{ form.price.label.text }}</label>
+                        <div class="price-wrap"><span class="cur">R</span>
+                            {{ form.price(class="app-input is-invalid" if form.price.errors else "app-input", type="number", step="0.01", min="0", placeholder="0.00") }}
+                        </div>
+                        {% for e in form.price.errors %}<div class="app-err">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label" for="{{ form.weight.id }}">{{ form.weight.label.text }}</label>
+                        <div class="price-wrap unit"><span class="cur">kg</span>
+                            {{ form.weight(class="app-input is-invalid" if form.weight.errors else "app-input", type="number", step="0.001", min="0", placeholder="0.000") }}
+                        </div>
+                        <div class="app-hint">Cast weight — price per kg is worked out from this.</div>
+                        {% for e in form.weight.errors %}<div class="app-err">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="app-field full">
+                        <label class="app-label" for="{{ form.supplier_description.id }}">{{ form.supplier_description.label.text }}</label>
+                        {{ form.supplier_description(class="app-input is-invalid" if form.supplier_description.errors else "app-input", maxlength="255") }}
+                        {% for e in form.supplier_description.errors %}<div class="app-err">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label" for="{{ form.customer_id.id }}">{{ form.customer_id.label.text }}</label>
+                        {{ form.customer_id(class="app-select") }}
+                        <div class="app-hint">Used by Fettling &amp; Stocktake reports.</div>
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label" for="{{ form.linked_customers.id }}">{{ form.linked_customers.label.text }}</label>
+                        {{ form.linked_customers(class="app-select", size=6) }}
+                        <div class="app-hint">Hold Ctrl (Cmd on Mac) to select several.</div>
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label" for="{{ form.departments.id }}">{{ form.departments.label.text }}</label>
+                        {{ form.departments(class="app-select", size=6) }}
+                        <div class="app-hint">Departments this product is worked in — hold Ctrl (Cmd on Mac) to select several.</div>
+                        {% for e in form.departments.errors %}<div class="app-err">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="app-field" style="display:flex; align-items:flex-start; gap:.6rem; padding-top:1.6rem;">
+                        {{ form.is_stock_item() }}
+                        <div>
+                            <label class="app-label" for="{{ form.is_stock_item.id }}" style="text-transform:none;">{{ form.is_stock_item.label.text }}</label>
+                            <div class="app-hint">Held as stock rather than made to order.</div>
+                        </div>
+                    </div>
+                    <div class="app-field" style="display:flex; align-items:flex-start; gap:.6rem; padding-top:1.6rem;">
+                        {{ form.active() }}
+                        <div>
+                            <label class="app-label" for="{{ form.active.id }}" style="text-transform:none;">{{ form.active.label.text }}</label>
+                            <div class="app-hint">Unticked keeps the product and its history, but takes it off the product pickers.</div>
+                        </div>
+                    </div>
+
+                    <!-- Worked out from the price list and the weight — not editable. -->
+                    <div class="derived-box">
+                        <div class="d-item">
+                            <div class="d-label">Current Price (price list)</div>
+                            {% if current_price is not none %}
+                                <div class="d-value">R {{ '%.2f'|format(current_price) }}</div>
+                                <div class="d-note">{{ price_period.label if price_period else '' }}</div>
+                            {% else %}
+                                <div class="d-value empty">—</div>
+                                <div class="d-note">
+                                    {% if not product.customer_id %}No primary customer set.
+                                    {% elif price_period %}No entry on “{{ price_period.label }}”.
+                                    {% else %}No price list period covers today.{% endif %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="d-item">
+                            <div class="d-label">Price per kg</div>
+                            {% if price_per_kg is not none %}
+                                <div class="d-value">R {{ '%.2f'|format(price_per_kg) }}</div>
+                                <div class="d-note">{{ 'Current price' if current_price is not none else 'Catalogue price' }} ÷ {{ '%.3f'|format(product.weight) }} kg</div>
+                            {% else %}
+                                <div class="d-value empty">—</div>
+                                <div class="d-note">{% if not product.weight %}Set a weight to work this out.{% else %}No price available.{% endif %}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="images-section">
+                    <h3><i class="bi bi-images"></i> Product Images</h3>
+                    {% if product.images %}
+                    <div class="image-gallery">
+                        {% for img in product.images %}
+                        <div class="image-thumb">
+                            <img src="{{ url_for('static', filename='images/products/' + img.filename) }}" alt="{{ product.name }}">
+                            <button type="submit" form="delete-image-{{ img.id }}" class="thumb-delete" title="Remove image">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="app-hint">No images uploaded yet.</p>
+                    {% endif %}
+                    <div class="app-field full">
+                        <label class="app-label" for="product_images">Add Images</label>
+                        <input type="file" class="app-input" id="product_images" name="product_images" accept="image/*" multiple>
+                        <div class="app-hint">JPG, PNG, GIF or WEBP. You can select several files at once.</div>
+                    </div>
+                </div>
+
+                <div class="images-section">
+                    <h3><i class="bi bi-file-earmark-pdf"></i> PPAP Document</h3>
+                    {% if product.ppap_filename %}
+                    <div class="ppap-current">
+                        <a href="{{ url_for('static', filename='documents/ppap/' + product.ppap_filename) }}" target="_blank" class="app-btn app-btn-outline">
+                            <i class="bi bi-file-earmark-pdf-fill" style="color:#dc2626;"></i> View current PPAP
+                            {% if product.ppap_uploaded_at %}<span class="app-hint" style="margin:0 0 0 .3rem;">(uploaded {{ product.ppap_uploaded_at.strftime('%Y-%m-%d') }})</span>{% endif %}
+                        </a>
+                        <button type="submit" form="delete-ppap" class="app-btn app-btn-outline" style="color:#dc2626; border-color:#fca5a5;" title="Remove PPAP document">
+                            <i class="bi bi-trash3"></i> Remove
+                        </button>
+                    </div>
+                    {% else %}
+                    <p class="app-hint">No PPAP document uploaded yet.</p>
+                    {% endif %}
+                    <div class="app-field full">
+                        <label class="app-label" for="product_ppap">{{ 'Replace PPAP File' if product.ppap_filename else 'Upload PPAP File' }}</label>
+                        <input type="file" class="app-input" id="product_ppap" name="product_ppap" accept="application/pdf,.pdf">
+                        <div class="app-hint">PDF only. Uploading a new file replaces the current one.</div>
+                    </div>
+                </div>
+
+                <div style="margin-top:1.5rem; display:flex; gap:.75rem;">
+                    <button type="submit" class="app-btn app-btn-primary"><i class="bi bi-check-lg"></i> Save Changes</button>
+                    <a href="{{ url_for('products_crud') }}" class="app-btn app-btn-outline">Cancel</a>
+                </div>
+            </form>
+
+            <!-- Standalone delete forms — outside the edit form so removing a
+                 photo doesn't also submit (and re-validate) the product fields. -->
+            {% for img in product.images %}
+            <form id="delete-image-{{ img.id }}" method="POST"
+                  action="{{ url_for('delete_product_image', product_id=product.id, image_id=img.id) }}"
+                  data-confirm-title="Remove this image?" data-confirm-body="This photo will be deleted from the product." data-confirm-label="Remove image"
+                  style="display:none;">
+                {{ form.csrf_token }}
+            </form>
+            {% endfor %}
+            {% if product.ppap_filename %}
+            <form id="delete-ppap" method="POST"
+                  action="{{ url_for('delete_product_ppap', product_id=product.id) }}"
+                  data-confirm-title="Remove the PPAP document?" data-confirm-body="The current PDF will be deleted. You can upload a new one afterward." data-confirm-label="Remove PPAP"
+                  style="display:none;">
+                {{ form.csrf_token }}
+            </form>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+    .pf-grid { grid-template-columns: repeat(3, 1fr); }
+    @media (max-width: 1000px) { .pf-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 640px)  { .pf-grid { grid-template-columns: 1fr; } }
+    .price-wrap { position: relative; }
+    .price-wrap .cur { position: absolute; left: .8rem; top: 50%; transform: translateY(-50%); color: #64748b; font-weight: 600; font-size: .85rem; }
+    .price-wrap input { padding-left: 1.9rem !important; }
+    .price-wrap.unit .cur { font-size: .78rem; }
+    .price-wrap.unit input { padding-left: 2.4rem !important; }
+    .derived-box { grid-column: 1 / -1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: .7rem;
+        padding: 1rem 1.1rem; display: flex; gap: 2.5rem; flex-wrap: wrap; }
+    .derived-box .d-label { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #64748b; margin-bottom: .3rem; }
+    .derived-box .d-value { font-size: 1.15rem; font-weight: 700; color: #0f172a; }
+    .derived-box .d-note { font-size: .74rem; color: #94a3b8; margin-top: .25rem; }
+    .derived-box .d-value.empty { color: #94a3b8; font-weight: 500; font-size: 1rem; }
+    .images-section { margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid #e2e8f0; }
+    .images-section h3 { font-size: .95rem; font-weight: 700; color: #0f172a; margin: 0 0 .8rem; display: flex; align-items: center; gap: .5rem; }
+    .image-gallery { display: flex; flex-wrap: wrap; gap: .8rem; margin-bottom: 1rem; }
+    .image-thumb { position: relative; width: 96px; height: 96px; border-radius: .6rem; overflow: hidden; border: 1.5px solid #e2e8f0; background: #f8fafc; }
+    .image-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .thumb-delete { position: absolute; top: .25rem; right: .25rem; width: 1.5rem; height: 1.5rem; border: none; border-radius: 50%;
+        background: rgba(15,23,42,.65); color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: .7rem; padding: 0; }
+    .thumb-delete:hover { background: #dc2626; }
+    .ppap-current { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; margin-bottom: 1rem; }
+</style>
+{% endblock %}

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Customer #{{ customer.id }}{% endblock %}
+
+{% block content %}
+<div class="app-container">
+    <a href="{{ url_for('customers') }}" style="display:inline-flex;align-items:center;gap:.4rem;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.4);text-decoration:none;font-weight:600;font-size:.85rem;margin-bottom:1rem;">
+        <i class="bi bi-arrow-left"></i> All Customers
+    </a>
+
+    <div class="app-card">
+        <div class="app-card-head">
+            <h2 class="app-card-title"><i class="bi bi-pencil-square"></i> Edit Customer <span class="app-id">#{{ customer.id }}</span></h2>
+        </div>
+        <div class="app-card-body">
+            <p class="app-muted" style="margin-top:-.4rem;font-size:.85rem;">Rename this customer. The ID never changes.</p>
+
+            <form method="POST" autocomplete="off">
+                {{ form.hidden_tag() }}
+                <div class="app-field" style="margin-bottom:1.1rem;">
+                    <label class="app-label" for="{{ form.name.id }}">{{ form.name.label.text }}</label>
+                    {{ form.name(class="app-input is-invalid" if form.name.errors else "app-input", maxlength="100") }}
+                    {% for e in form.name.errors %}<div class="app-err"><i class="bi bi-exclamation-circle"></i> {{ e }}</div>{% endfor %}
+                </div>
+
+                <div class="app-field" style="margin-bottom:1.1rem;">
+                    <label class="app-label" for="{{ form.code.id }}">{{ form.code.label.text }}</label>
+                    {{ form.code(class="app-input is-invalid" if form.code.errors else "app-input", maxlength="50") }}
+                    {% for e in form.code.errors %}<div class="app-err"><i class="bi bi-exclamation-circle"></i> {{ e }}</div>{% endfor %}
+                </div>
+
+                <div class="app-field" style="margin-bottom:1.1rem;">
+                    <label class="app-label" for="{{ form.division_id.id }}">{{ form.division_id.label.text }}</label>
+                    {{ form.division_id(class="app-select") }}
+                    <div class="app-hint">Decides which price list calendar applies — HDC updates annually (July), HDA quarterly.</div>
+                </div>
+
+                <div class="app-field" style="margin-bottom:1.1rem; display:flex; align-items:center; gap:.5rem;">
+                    {{ form.active() }}
+                    <label class="app-label" for="{{ form.active.id }}" style="margin:0; text-transform:none; font-weight:600; color:#334155;">{{ form.active.label.text }}</label>
+                </div>
+                <p class="app-hint" style="margin-top:-.6rem;">Inactive customers stay on every record that already references them, but drop off "add new" pickers.</p>
+
+                <p class="app-muted" style="font-size:.85rem; margin:1.1rem 0;">
+                    <i class="bi bi-box-seam"></i>
+                    {{ customer.products | length }} product(s) with this as primary customer,
+                    {{ customer.linked_products | length }} linked via many-to-many.
+                </p>
+
+                <div style="display:flex; gap:.75rem;">
+                    <button type="submit" class="app-btn app-btn-primary"><i class="bi bi-check-lg"></i> Save Changes</button>
+                    <a href="{{ url_for('customers') }}" class="app-btn app-btn-outline">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

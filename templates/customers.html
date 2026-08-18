@@ -1,58 +1,139 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Customers - Fettling</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-    <header>
-        <div class="nav-container">
-            <h1>Customers</h1>
-            <nav>
-                <a href="{{ url_for('dashboard') }}">Dashboard</a>
-                <a href="{{ url_for('logout') }}">Logout</a>
-            </nav>
-        </div>
-    </header>
+{% extends "base.html" %}
 
-    <div class="container">
-        <div class="grid-2">
-            <div class="card" >
-                <div class="card-inner" style="width: 80%;">
-                <h2>Add New Customer</h2>
-                <form method="POST">
-                    {{ form.hidden_tag() }}
-                    <div class="form-group">
-                        {{ form.name.label }}
-                        {{ form.name(class="form-control", placeholder="Enter customer name") }}
-                    </div>
-                    {{ form.submit(class="btn btn-primary") }}
-                </form>
-                </div>
-            </div>
-            </div>
-            <div class="card">
-                
-                <table>
-                    <thead>
-                        <tr>
-                            
-                            <th data-sort="text">Customer Name <i class="fas fa-sort ms-1"></i></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for s in customers %}
-                        <tr>
-                            
-                            <td>{{ s.name }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+{% block title %}Customers{% endblock %}
+
+{% block content %}
+<div class="app-container wide">
+
+    <div class="app-kpi-row">
+        <div class="app-kpi ok">
+            <div class="v">{{ total_customers }}</div>
+            <div class="l">Total Customers</div>
+        </div>
+        <div class="app-kpi">
+            <div class="v">{{ product_counts.values() | sum }}</div>
+            <div class="l">Linked Products</div>
         </div>
     </div>
-</body>
-</html>
+
+    <div style="display:grid; grid-template-columns: 340px 1fr; gap: 1.4rem; align-items:start;" class="cust-grid">
+
+        {% if may_edit %}
+        <div class="app-card">
+            <div class="app-card-head">
+                <h2 class="app-card-title"><i class="bi bi-person-plus-fill"></i> Add New Customer</h2>
+            </div>
+            <div class="app-card-body">
+                <p class="app-muted" style="margin-top:-.4rem;font-size:.85rem;">Create a customer record. A unique ID is assigned automatically.</p>
+                <form method="POST" autocomplete="off">
+                    {{ form.hidden_tag() }}
+                    <div class="app-field" style="margin-bottom:1rem;">
+                        <label class="app-label" for="{{ form.name.id }}">{{ form.name.label.text }}</label>
+                        {{ form.name(class="app-input is-invalid" if form.name.errors else "app-input",
+                                     placeholder="e.g. High Duty Castings", autofocus=true, maxlength="100") }}
+                        {% for error in form.name.errors %}<div class="app-err"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>{% endfor %}
+                    </div>
+                    <div class="app-field" style="margin-bottom:1rem;">
+                        <label class="app-label" for="{{ form.code.id }}">{{ form.code.label.text }}</label>
+                        {{ form.code(class="app-input is-invalid" if form.code.errors else "app-input",
+                                     placeholder="e.g. HDC001", maxlength="50") }}
+                        {% for error in form.code.errors %}<div class="app-err"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>{% endfor %}
+                    </div>
+                    <div class="app-field" style="margin-bottom:1rem;">
+                        <label class="app-label" for="{{ form.division_id.id }}">{{ form.division_id.label.text }}</label>
+                        {{ form.division_id(class="app-select") }}
+                        <div class="app-hint">Sets which price list calendar applies (HDC annual / HDA quarterly).</div>
+                    </div>
+                    <div class="app-field" style="margin-bottom:1.2rem; display:flex; align-items:center; gap:.5rem;">
+                        {{ form.active() }}
+                        <label class="app-label" for="{{ form.active.id }}" style="margin:0; text-transform:none; font-weight:600; color:#334155;">{{ form.active.label.text }}</label>
+                    </div>
+                    <button type="submit" class="app-btn app-btn-primary" style="width:100%; justify-content:center;">
+                        <i class="bi bi-plus-lg"></i> Add Customer
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="app-card">
+            <div class="app-card-head">
+                <h2 class="app-card-title"><i class="bi bi-list-ul"></i> All Customers</h2>
+            </div>
+            <div class="app-card-body">
+                <form method="GET" class="app-search" style="margin-bottom:1.1rem;" data-no-guard>
+                    <i class="bi bi-search"></i>
+                    <input type="text" name="q" value="{{ search }}" placeholder="Search by name or code…">
+                </form>
+
+                <div class="app-table-wrap">
+                    <table class="app-table app-table-stack">
+                        <thead>
+                            <tr>
+                                <th style="width:90px;">ID</th>
+                                <th>Customer Name</th>
+                                <th style="width:110px;">Code</th>
+                                <th style="width:100px;">Division</th>
+                                <th class="num" style="width:110px;">Products</th>
+                                <th style="width:100px;">Status</th>
+                                <th style="width:80px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for c in customers.items %}
+                            <tr>
+                                <td data-label="ID"><span class="app-id">#{{ c.id }}</span></td>
+                                <td data-label="Name" style="font-weight:600;color:#0f172a;">{{ c.name }}</td>
+                                <td data-label="Code">
+                                    {% if c.code %}<span class="app-id">{{ c.code }}</span>
+                                    {% else %}<span class="app-muted">—</span>{% endif %}
+                                </td>
+                                <td data-label="Division">
+                                    {% if c.division %}<span class="app-badge blue">{{ c.division.code }}</span>
+                                    {% else %}<span class="app-muted">—</span>{% endif %}
+                                </td>
+                                <td data-label="Products" class="num">
+                                    {% set pc = product_counts.get(c.id, 0) %}
+                                    <span class="app-badge {{ 'blue' if pc else 'gray' }}">{{ pc }}</span>
+                                </td>
+                                <td data-label="Status">
+                                    {% if c.active %}
+                                    <span class="app-badge green"><i class="bi bi-check-circle-fill"></i> Active</span>
+                                    {% else %}
+                                    <span class="app-badge gray"><i class="bi bi-dash-circle"></i> Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="">
+                                    {% if may_edit %}<a class="app-btn app-btn-outline app-btn-sm" href="{{ url_for('edit_customer', customer_id=c.id) }}"><i class="bi bi-pencil"></i> Edit</a>{% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="7">
+                                    <div class="app-empty">
+                                        <i class="bi bi-inbox"></i>
+                                        {% if search %}No customers match “{{ search }}”.{% else %}No customers yet. Add your first one using the form on the left.{% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% set endpoint = 'customers' %}
+                {% set args = {'q': search} if search else {} %}
+                {% set pagination = customers %}
+                {% include "_pagination.html" with context %}
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+    @media (max-width: 860px) { .cust-grid { grid-template-columns: 1fr !important; } }
+</style>
+{% endblock %}

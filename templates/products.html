@@ -1,68 +1,232 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Products - Fettling</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-    <header>
-        <div class="nav-container">
-            <h1>Products</h1>
-            <nav>
-                <a href="{{ url_for('dashboard') }}">Dashboard</a>
-                <a href="{{ url_for('logout') }}">Logout</a>
-            </nav>
+{% extends "base.html" %}
+
+{% block title %}Products{% endblock %}
+
+{% block content %}
+<div class="app-container wide">
+
+    <div class="app-kpi-row">
+        <div class="app-kpi ok"><div class="v">{{ total_products }}</div><div class="l">Total Products</div></div>
+        <div class="app-kpi"><div class="v">{{ active_count }}</div><div class="l">Active</div></div>
+        <div class="app-kpi"><div class="v">{{ stock_count }}</div><div class="l">Stock Items</div></div>
+        <div class="app-kpi"><div class="v">{{ priced_count }}</div><div class="l">Priced Items</div></div>
+    </div>
+
+    {% if can('products', 'import') %}
+    <div style="display:flex; gap:.6rem; flex-wrap:wrap; margin-bottom:1.4rem;">
+        <a href="{{ url_for('import_products_view') }}" class="app-btn app-btn-outline"><i class="bi bi-upload"></i> Import from CSV / Excel</a>
+        <a href="{{ url_for('product_import_template') }}" class="app-btn app-btn-outline"><i class="bi bi-download"></i> Download CSV Template</a>
+        <a href="{{ url_for('product_export_csv') }}" class="app-btn app-btn-outline"><i class="bi bi-box-arrow-down"></i> Export Products</a>
+    </div>
+    {% endif %}
+
+    {% if may_edit %}
+    <div class="app-card" style="margin-bottom:1.4rem;">
+        <div class="app-card-head">
+            <h2 class="app-card-title"><i class="bi bi-plus-square-fill"></i> Add New Product</h2>
         </div>
-    </header>
-
-    <div class="container">
-        <div class="grid-2">
-            <!-- ADD PRODUCT FORM -->
-            <div class="card">
-                <div class="card-inner" style="width: 80%;">
-                <h2>Add New Product</h2>
-                <form method="POST" class="form-horizontal form-spacing">
-                        {{ form.hidden_tag() }}
-
-                        <form method="POST">
-                            <div class="form-group">
-                                {{ form.name.label }}
-                                {{ form.name(class="form-control", placeholder="Enter product name") }}
-                            </div>
-
-                            <div class="form-group">
-                                {{ form.customer_id.label }}
-                                {{ form.customer_id(class="form-control") }}
-                            </div>
-
-                            {{ form.submit(class="btn btn-primary") }}
-                        </form>
+        <div class="app-card-body">
+            <p class="app-muted" style="margin-top:-.4rem;font-size:.85rem;">Create a product with its supplier details, price and customer links. An ID is assigned automatically.</p>
+            <form method="POST" autocomplete="off">
+                {{ form.hidden_tag() }}
+                <div class="app-form-grid pf-grid">
+                    <div class="app-field">
+                        <label class="app-label" for="{{ form.name.id }}">{{ form.name.label.text }}</label>
+                        {{ form.name(class="app-input is-invalid" if form.name.errors else "app-input", placeholder="e.g. Brake Caliper Housing", maxlength="100") }}
+                        {% for e in form.name.errors %}<div class="app-err">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label" for="{{ form.product_code.id }}">{{ form.product_code.label.text }}</label>
+                        {{ form.product_code(class="app-input is-invalid" if form.product_code.errors else "app-input", placeholder="e.g. BCH-001", maxlength="50") }}
+                        {% for e in form.product_code.errors %}<div class="app-err">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label" for="{{ form.supplier_code.id }}">{{ form.supplier_code.label.text }}</label>
+                        {{ form.supplier_code(class="app-input is-invalid" if form.supplier_code.errors else "app-input", placeholder="e.g. SUP-4471", maxlength="50") }}
+                        {% for e in form.supplier_code.errors %}<div class="app-err">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label" for="{{ form.simplified_code.id }}">{{ form.simplified_code.label.text }}</label>
+                        {{ form.simplified_code(class="app-input is-invalid" if form.simplified_code.errors else "app-input", placeholder="e.g. VB2 00", maxlength="50") }}
+                        <div class="app-hint">{{ form.simplified_code.description }}</div>
+                        {% for e in form.simplified_code.errors %}<div class="app-err">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label" for="{{ form.grade.id }}">{{ form.grade.label.text }}</label>
+                        {{ form.grade(class="app-select is-invalid" if form.grade.errors else "app-select") }}
+                        <div class="app-hint">Material grade of the casting.</div>
+                        {% for e in form.grade.errors %}<div class="app-err">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label" for="{{ form.drawing_level.id }}">{{ form.drawing_level.label.text }}</label>
+                        {{ form.drawing_level(class="app-input is-invalid" if form.drawing_level.errors else "app-input", placeholder="e.g. AA, OOO, AB") }}
+                        <div class="app-hint">Drawing revision level.</div>
+                        {% for e in form.drawing_level.errors %}<div class="app-err">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label" for="{{ form.price.id }}">{{ form.price.label.text }}</label>
+                        <div class="price-wrap"><span class="cur">R</span>
+                            {{ form.price(class="app-input is-invalid" if form.price.errors else "app-input", type="number", step="0.01", min="0", placeholder="0.00") }}
+                        </div>
+                        {% for e in form.price.errors %}<div class="app-err">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label" for="{{ form.weight.id }}">{{ form.weight.label.text }}</label>
+                        <div class="price-wrap unit"><span class="cur">kg</span>
+                            {{ form.weight(class="app-input is-invalid" if form.weight.errors else "app-input", type="number", step="0.001", min="0", placeholder="0.000") }}
+                        </div>
+                        <div class="app-hint">Cast weight — price per kg is worked out from this.</div>
+                        {% for e in form.weight.errors %}<div class="app-err">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="app-field full">
+                        <label class="app-label" for="{{ form.supplier_description.id }}">{{ form.supplier_description.label.text }}</label>
+                        {{ form.supplier_description(class="app-input is-invalid" if form.supplier_description.errors else "app-input", placeholder="Supplier's description of the item", maxlength="255") }}
+                        {% for e in form.supplier_description.errors %}<div class="app-err">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label" for="{{ form.customer_id.id }}">{{ form.customer_id.label.text }}</label>
+                        {{ form.customer_id(class="app-select") }}
+                        <div class="app-hint">Used by Fettling &amp; Stocktake reports.</div>
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label" for="{{ form.linked_customers.id }}">{{ form.linked_customers.label.text }}</label>
+                        {{ form.linked_customers(class="app-select", size=6) }}
+                        <div class="app-hint">Hold Ctrl (Cmd on Mac) to select several.</div>
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label" for="{{ form.departments.id }}">{{ form.departments.label.text }}</label>
+                        {{ form.departments(class="app-select", size=6) }}
+                        <div class="app-hint">Departments this product is worked in — hold Ctrl (Cmd on Mac) to select several.</div>
+                        {% for e in form.departments.errors %}<div class="app-err">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="app-field" style="display:flex; align-items:flex-start; gap:.6rem; padding-top:1.6rem;">
+                        {{ form.is_stock_item() }}
+                        <div>
+                            <label class="app-label" for="{{ form.is_stock_item.id }}" style="text-transform:none;">{{ form.is_stock_item.label.text }}</label>
+                            <div class="app-hint">Held as stock rather than made to order.</div>
+                        </div>
+                    </div>
+                    <div class="app-field" style="display:flex; align-items:flex-start; gap:.6rem; padding-top:1.6rem;">
+                        {{ form.active() }}
+                        <div>
+                            <label class="app-label" for="{{ form.active.id }}" style="text-transform:none;">{{ form.active.label.text }}</label>
+                            <div class="app-hint">Unticked keeps the product and its history, but takes it off the product pickers.</div>
+                        </div>
+                    </div>
                 </div>
-            </div>
+                <div style="margin-top:1.25rem;">
+                    <button type="submit" class="app-btn app-btn-primary"><i class="bi bi-plus-lg"></i> Add Product</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
 
-            <!-- PRODUCTS TABLE -->
-            <div class="card">
-                <h2>All Products</h2>
-                <table>
+    <div class="app-card">
+        <div class="app-card-head">
+            <h2 class="app-card-title"><i class="bi bi-list-ul"></i> All Products</h2>
+        </div>
+        <div class="app-card-body">
+            <p class="app-muted" style="margin-top:-.4rem;font-size:.85rem;">Every product with its supplier details, price and linked customers.</p>
+
+            <form method="GET" class="app-search" style="margin-bottom:1.1rem; max-width:420px;" data-no-guard>
+                <i class="bi bi-search"></i>
+                <input type="text" name="q" value="{{ search }}" placeholder="Search products…">
+            </form>
+
+            <div class="app-table-wrap prod-table-wrap">
+                <table class="app-table app-table-stack">
                     <thead>
                         <tr>
-                            <th>Product</th>
-                            <th>Customer</th>
+                            <th style="width:60px;">ID</th>
+                            <th style="min-width:150px;">Name</th>
+                            <th>Product<br>Code</th>
+                            <th>Supplier<br>Code</th>
+                            <th>Simplified<br>Code</th>
+                            <th style="min-width:132px;">Supplier Description</th>
+                            <th>Grade</th>
+                            <th>Drawing<br>Level</th>
+                            <th class="num">Weight<br>(kg)</th>
+                            <th class="num">Price<br>(R)</th>
+                            <th class="num" title="Price on the current price list — display only">Current<br>Price (R)</th>
+                            <th class="num" title="Current price ÷ weight — display only">Price / kg<br>(R)</th>
+                            <th style="min-width:118px;">Departments</th>
+                            <th style="min-width:118px;">Customers</th>
+                            <th style="min-width:78px;">Stock</th>
+                            <th>Status</th>
+                            <th style="width:74px;"></th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for p in products %}
+                        {% for p in products.items %}
                         <tr>
-                            <td>{{ p.name }}</td>
-                            <td>{{ p.customer.name if p.customer else "—" }}</td>
+                            <td data-label="ID"><span class="app-id">#{{ p.id }}</span></td>
+                            <td data-label="Name" style="font-weight:600;color:#0f172a;">{{ p.name }}</td>
+                            <td data-label="Product Code">{% if p.product_code %}<span class="mono-sm">{{ p.product_code }}</span>{% else %}<span class="app-muted">—</span>{% endif %}</td>
+                            <td data-label="Supplier Code">{% if p.supplier_code %}<span class="mono-sm">{{ p.supplier_code }}</span>{% else %}<span class="app-muted">—</span>{% endif %}</td>
+                            <td data-label="Simplified Code">{% if p.simplified_code %}<span class="mono-sm">{{ p.simplified_code }}</span>{% else %}<span class="app-muted">—</span>{% endif %}</td>
+                            <td data-label="Supplier Description">{{ p.supplier_description or "—" }}</td>
+                            <td data-label="Grade">{% if p.grade %}<span class="app-badge blue">{{ p.grade }}</span>{% else %}<span class="app-muted">—</span>{% endif %}</td>
+                            <td data-label="Drawing Level">{{ p.drawing_level or "—" }}</td>
+                            <td data-label="Weight (kg)" class="num">{% if p.weight is not none %}{{ '%.3f'|format(p.weight) }}{% else %}<span class="app-muted">—</span>{% endif %}</td>
+                            <td data-label="Price (R)" class="num">{% if p.price is not none %}<span style="font-weight:600;">{{ '%.2f'|format(p.price) }}</span>{% else %}<span class="app-muted">—</span>{% endif %}</td>
+                            {% set list_price = current_prices.get(p.id) %}
+                            <td data-label="Current Price (R)" class="num">{% if list_price is not none %}<span style="font-weight:600;">{{ '%.2f'|format(list_price) }}</span>{% else %}<span class="app-muted" title="No entry on the current price list">—</span>{% endif %}</td>
+                            {% set per_kg = prices_per_kg.get(p.id) %}
+                            <td data-label="Price / kg (R)" class="num">{% if per_kg is not none %}<span style="font-weight:600;color:#475569;">{{ '%.2f'|format(per_kg) }}</span>{% else %}<span class="app-muted">—</span>{% endif %}</td>
+                            <td data-label="Departments">
+                                {% for d in p.departments %}<span class="app-badge gray" style="margin:1px;">{{ d.name }}</span>{% endfor %}
+                                {% if not p.departments %}<span class="app-muted">—</span>{% endif %}
+                            </td>
+                            <td data-label="Customers">
+                                {% if p.customer %}<span class="app-badge green" style="margin:1px;" title="Primary customer">{{ p.customer.name }}</span>{% endif %}
+                                {% for c in p.linked_customers %}<span class="app-badge blue" style="margin:1px;">{{ c.name }}</span>{% endfor %}
+                                {% if not p.customer and not p.linked_customers %}<span class="app-muted">—</span>{% endif %}
+                            </td>
+                            <td data-label="Stock">{% if p.is_stock_item is sameas false %}<span class="app-badge gray">Made to Order</span>{% else %}<span class="app-badge blue">Stock Item</span>{% endif %}</td>
+                            <td data-label="Status">{% if p.active is sameas false %}<span class="app-badge red">Inactive</span>{% else %}<span class="app-badge green">Active</span>{% endif %}</td>
+                            <td data-label="">{% if may_edit %}<a class="app-btn app-btn-outline app-btn-sm" href="{{ url_for('edit_product', product_id=p.id) }}"><i class="bi bi-pencil"></i> Edit</a>{% endif %}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="17">
+                                <div class="app-empty">
+                                    <i class="bi bi-inbox"></i>
+                                    {% if search %}No products match “{{ search }}”.{% else %}No products yet. Add your first one above.{% endif %}
+                                </div>
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
+
+            {% set endpoint = 'products_crud' %}
+            {% set args = {'q': search} if search else {} %}
+            {% set pagination = products %}
+            {% include "_pagination.html" with context %}
         </div>
     </div>
-</body>
-</html>
+
+</div>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+    .pf-grid { grid-template-columns: repeat(3, 1fr); }
+    @media (max-width: 1180px) { .pf-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 640px)  { .pf-grid { grid-template-columns: 1fr; } }
+    .price-wrap { position: relative; }
+    .price-wrap .cur { position: absolute; left: .8rem; top: 50%; transform: translateY(-50%); color: #64748b; font-weight: 600; font-size: .85rem; }
+    .price-wrap input { padding-left: 1.9rem !important; }
+    .price-wrap.unit .cur { font-size: .78rem; }
+    .price-wrap.unit input { padding-left: 2.4rem !important; }
+    .mono-sm { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: .82rem; color: #334155; }
+    /* This table carries 17 columns — keep a visible scrollbar at desktop
+       widths too rather than an overlay one that only appears on hover. */
+    .prod-table-wrap { scrollbar-width: thin; scrollbar-color: #94a3b8 #f1f5f9; }
+    .prod-table-wrap::-webkit-scrollbar { height: 11px; }
+    .prod-table-wrap::-webkit-scrollbar-track { background: #f1f5f9; }
+    .prod-table-wrap::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; border: 2px solid #f1f5f9; }
+</style>
+{% endblock %}
