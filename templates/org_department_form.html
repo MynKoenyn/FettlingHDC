@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Edit Department' if department else 'New Department' }}{% endblock %}
+
+{% block content %}
+<div class="app-container" style="max-width:720px;">
+
+    <div class="app-card">
+        <div class="app-card-head">
+            <span class="app-card-title">
+                <i class="bi bi-diagram-3" style="color:var(--hdc-primary);"></i>
+                {{ 'Edit Department' if department else 'New Department' }}
+            </span>
+            <a href="{{ url_for('org_structure') }}" class="app-btn app-btn-outline app-btn-sm">
+                <i class="bi bi-arrow-left"></i> Back
+            </a>
+        </div>
+        <div class="app-card-body">
+
+            <form method="POST" autocomplete="off">
+                {{ form.hidden_tag() }}
+
+                <div class="app-form-grid">
+                    <div class="app-field">
+                        <label class="app-label" for="name">Department Name <span class="req">*</span></label>
+                        {{ form.name(class="app-input is-invalid" if form.name.errors else "app-input",
+                                     id="name", placeholder="e.g. Fettling", maxlength="100", autofocus=true) }}
+                        {% for error in form.name.errors %}
+                        <div class="app-err"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="app-field">
+                        <label class="app-label" for="division_id">Division <span class="req">*</span></label>
+                        {{ form.division_id(class="app-select is-invalid" if form.division_id.errors else "app-select",
+                                            id="division_id") }}
+                        {% for error in form.division_id.errors %}
+                        <div class="app-err"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>
+                        {% endfor %}
+                        {% if department %}
+                        <div class="app-hint">
+                            Moving the department also moves its personnel, users and overtime records
+                            to the new division.
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div style="margin-top:1.5rem; display:flex; gap:.6rem;">
+                    <button type="submit" class="app-btn app-btn-primary">
+                        <i class="bi bi-check-lg"></i> {{ 'Save Changes' if department else 'Create Department' }}
+                    </button>
+                    <a href="{{ url_for('org_structure') }}" class="app-btn app-btn-outline">Cancel</a>
+                </div>
+            </form>
+
+        </div>
+    </div>
+
+    {% if department %}
+
+    <!-- What is currently attached -->
+    <div class="app-card">
+        <div class="app-card-head">
+            <span class="app-card-title"><i class="bi bi-link-45deg" style="color:var(--hdc-primary);"></i> In Use By</span>
+        </div>
+        <div class="app-card-body">
+            {% if usage_summary %}
+            <p class="app-muted" style="margin:0;">
+                This department is referenced by <strong>{{ usage_summary }}</strong>.
+            </p>
+            {% else %}
+            <p class="app-muted" style="margin:0;">
+                Nothing references this department yet.
+            </p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Merge -->
+    {% if merge_targets %}
+    <div class="app-card">
+        <div class="app-card-head">
+            <span class="app-card-title"><i class="bi bi-signpost-split" style="color:#b45309;"></i> Merge Into Another Department</span>
+        </div>
+        <div class="app-card-body">
+            <p class="app-muted" style="margin:0 0 1rem; font-size:.9rem;">
+                Use this when <strong>{{ department.name }}</strong> is a duplicate or a typo. Every personnel
+                record, user, stocktake and overtime request pointing here is moved to the department you
+                choose, and <strong>{{ department.name }}</strong> is then deleted. This cannot be undone.
+            </p>
+
+            <form method="POST" action="{{ url_for('org_department_merge', department_id=department.id) }}"
+                  onsubmit="return confirmMerge(this);">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div style="display:flex; gap:.6rem; flex-wrap:wrap; align-items:flex-end;">
+                    <div style="flex:1; min-width:260px;">
+                        <label class="app-label" for="target_id">Merge into</label>
+                        <select name="target_id" id="target_id" class="app-select" required>
+                            <option value="">— Choose a department —</option>
+                            {% for t in merge_targets %}
+                            <option value="{{ t.id }}">
+                                {{ t.name }}{% if t.division %} ({{ t.division.code }}){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="app-btn app-btn-danger">
+                        <i class="bi bi-signpost-split"></i> Merge and Delete
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Delete -->
+    <div class="app-card">
+        <div class="app-card-head">
+            <span class="app-card-title"><i class="bi bi-trash3" style="color:#dc2626;"></i> Delete Department</span>
+        </div>
+        <div class="app-card-body">
+            {% set blockers = usage.values() | select | list %}
+            {% if blockers %}
+            <p class="app-muted" style="margin:0 0 1rem;">
+                This department cannot be deleted while {{ usage_summary }} still reference it.
+                Merge it into another department instead, or reassign those records first.
+            </p>
+            <button class="app-btn app-btn-danger" disabled style="opacity:.5; cursor:not-allowed;">
+                <i class="bi bi-trash3"></i> Delete Department
+            </button>
+            {% else %}
+            <p class="app-muted" style="margin:0 0 1rem;">
+                Nothing references this department, so it is safe to delete.
+            </p>
+            <form method="POST" action="{{ url_for('org_department_delete', department_id=department.id) }}"
+                  data-confirm-title="Delete the department &#8220;{{ department.name }}&#8221;?" data-confirm-label="Delete department">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="app-btn app-btn-danger">
+                    <i class="bi bi-trash3"></i> Delete Department
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function confirmMerge(form) {
+        const select = form.querySelector('#target_id');
+        if (!select.value) return false;
+        const target = select.options[select.selectedIndex].text.trim();
+        return confirm(
+            'Move everything from “{{ department.name if department else "" }}” into “' + target + '” ' +
+            'and delete “{{ department.name if department else "" }}”?\n\nThis cannot be undone.'
+        );
+    }
+</script>
+{% endblock %}

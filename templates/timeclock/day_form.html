@@ -1,0 +1,216 @@
+{% extends "timeclock/base_timeclock.html" %}
+{% set page_title = "Edit " ~ day.work_date.strftime('%a %d %b %Y') %}
+{% set page_sub = day.employee.display_name ~ " · clock " ~ day.employee.emp_no %}
+
+{% block title %}Edit clock day{% endblock %}
+
+{% block tc_content %}
+
+<div class="two-col">
+
+    {# ── The edit ─────────────────────────────────────────────── #}
+    <div class="app-card">
+        <div class="app-card-head">
+            <h2 class="app-card-title"><i class="bi bi-pencil-square"></i> Correct this Row</h2>
+        </div>
+        <div class="app-card-body">
+            <form method="POST" autocomplete="off">
+                {{ form.hidden_tag() }}
+
+                <div class="app-form-grid">
+                    <div class="app-field">
+                        <label class="app-label" for="time_in">{{ form.time_in.label.text }}</label>
+                        {{ form.time_in(class="app-input") }}
+                        {% for e in form.time_in.errors %}<div class="app-err">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label" for="time_out">{{ form.time_out.label.text }}</label>
+                        {{ form.time_out(class="app-input") }}
+                        {% for e in form.time_out.errors %}<div class="app-err">{{ e }}</div>{% endfor %}
+                    </div>
+
+                    <div class="app-field">
+                        <label class="app-label" for="normal_hours">{{ form.normal_hours.label.text }}</label>
+                        {{ form.normal_hours(class="app-input", step="0.01") }}
+                        {% for e in form.normal_hours.errors %}<div class="app-err">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label" for="total_hours">{{ form.total_hours.label.text }}</label>
+                        {{ form.total_hours(class="app-input", step="0.01") }}
+                        <div class="app-hint">Normal plus overtime, as the clock reports it.</div>
+                        {% for e in form.total_hours.errors %}<div class="app-err">{{ e }}</div>{% endfor %}
+                    </div>
+
+                    <div class="app-field">
+                        <label class="app-label" for="ot1_hours">{{ form.ot1_hours.label.text }}</label>
+                        {{ form.ot1_hours(class="app-input", step="0.01") }}
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label" for="ot2_hours">{{ form.ot2_hours.label.text }}</label>
+                        {{ form.ot2_hours(class="app-input", step="0.01") }}
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label" for="ot3_hours">{{ form.ot3_hours.label.text }}</label>
+                        {{ form.ot3_hours(class="app-input", step="0.01") }}
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label" for="ot4_hours">{{ form.ot4_hours.label.text }}</label>
+                        {{ form.ot4_hours(class="app-input", step="0.01") }}
+                    </div>
+
+                    <div class="app-field">
+                        <label class="app-label" for="description">{{ form.description.label.text }}</label>
+                        {{ form.description(class="app-input") }}
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label" for="edit_note">{{ form.edit_note.label.text }}</label>
+                        {{ form.edit_note(class="app-input", placeholder="e.g. missed punch confirmed with the supervisor") }}
+                        <div class="app-hint">{{ form.edit_note.description }}</div>
+                    </div>
+                </div>
+
+                <div class="app-hint" style="margin-top:.9rem;">
+                    The hours are typed rather than worked out from the times: the clock applies its
+                    own shift rules, rounding and grace periods when it splits normal from overtime,
+                    and recalculating here would quietly disagree with the payroll figure the report
+                    was printed for.
+                </div>
+
+                <div style="margin-top:1.2rem; display:flex; gap:.6rem; flex-wrap:wrap;">
+                    <button type="submit" class="app-btn app-btn-primary">
+                        <i class="bi bi-check-lg"></i> Save Row
+                    </button>
+                    <a class="app-btn app-btn-outline"
+                       href="{{ url_for('timeclock.batch_detail', batch_id=day.employee.batch_id) }}#emp-{{ day.employee_id }}">
+                        Cancel
+                    </a>
+                </div>
+            </form>
+
+            {% if day.is_edited %}
+            <hr style="margin:1.2rem 0; border:none; border-top:1px solid #eef2f7;">
+            <form method="POST" action="{{ url_for('timeclock.revert_day', day_id=day.id) }}"
+                  data-confirm-title="Put this row back to exactly what the report printed?" data-confirm-label="Revert">
+                {{ confirm_form.hidden_tag() }}
+                <button type="submit" class="app-btn app-btn-warn">
+                    <i class="bi bi-arrow-counterclockwise"></i> Revert to the imported figures
+                </button>
+                <span class="app-hint">
+                    Edited{% if day.editor %} by {{ day.editor.name }}{% endif %}
+                    {%- if day.edited_at %} on {{ day.edited_at.strftime('%d %b %Y %H:%M') }}{% endif %}.
+                </span>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+
+    {# ── What the file said ───────────────────────────────────── #}
+    <div>
+        <div class="app-card">
+            <div class="app-card-head">
+                <h2 class="app-card-title"><i class="bi bi-file-earmark-text"></i> What the Report Printed</h2>
+            </div>
+            <div class="app-card-body">
+                {% if original %}
+                <div class="app-table-wrap">
+                    <table class="app-table orig-table">
+                        <thead><tr><th>Field</th><th class="num">On the file</th><th class="num">Now</th></tr></thead>
+                        <tbody>
+                            {% set rows = [
+                                ('Clock in',  original.time_in.strftime('%H:%M') if original.time_in else '—',
+                                              day.time_in.strftime('%H:%M') if day.time_in else '—'),
+                                ('Clock out', original.time_out.strftime('%H:%M') if original.time_out else '—',
+                                              day.time_out.strftime('%H:%M') if day.time_out else '—'),
+                                ('Normal hours', original.normal_hours, day.normal_hours),
+                                ('Overtime 1',   original.ot1_hours,    day.ot1_hours),
+                                ('Overtime 2',   original.ot2_hours,    day.ot2_hours),
+                                ('Overtime 3',   original.ot3_hours,    day.ot3_hours),
+                                ('Overtime 4',   original.ot4_hours,    day.ot4_hours),
+                                ('Total hours',  original.total_hours,  day.total_hours),
+                                ('Description',  original.description or '—', day.description or '—'),
+                            ] %}
+                            {% for label, was, now in rows %}
+                            <tr>
+                                <td>{{ label }}</td>
+                                <td class="num">{{ was if was is not none else '—' }}</td>
+                                <td class="num {{ 'changed' if (was|string) != (now|string) }}">{{ now if now is not none else '—' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <p class="app-hint" style="margin-top:.8rem;">
+                    Read straight back off the line the clock printed, which every imported row
+                    keeps. That is what Revert restores, so an edit is never one-way.
+                </p>
+                {% else %}
+                <div class="app-empty"><i class="bi bi-question-circle"></i>
+                    The original line is not on this row, so it cannot be reverted.</div>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if day.punches %}
+        <div class="app-card">
+            <div class="app-card-head">
+                <h2 class="app-card-title"><i class="bi bi-exclamation-triangle"></i> Odd Clocking</h2>
+            </div>
+            <div class="app-card-body">
+                <p class="app-muted" style="margin-top:0; font-size:.86rem;">
+                    This day was clocked {{ day.punches|length }} times, so the clock printed the
+                    full punch list under it. The In and Out above are only the
+                    <strong>first</strong> pair — the rest are here.
+                </p>
+                <div class="app-table-wrap">
+                    <table class="app-table">
+                        <thead><tr><th>#</th><th>In</th><th>Out</th><th>As printed</th></tr></thead>
+                        <tbody>
+                            {% for punch in day.punches %}
+                            <tr>
+                                <td>{{ punch.sequence }}</td>
+                                <td class="mono-sm">{{ punch.time_in.strftime('%H:%M') if punch.time_in else '—' }}</td>
+                                <td class="mono-sm">{{ punch.time_out.strftime('%H:%M') if punch.time_out else '—' }}</td>
+                                <td class="mono-sm">
+                                    {{ punch.raw_in }} / {{ punch.raw_out }}
+                                    {% if punch.is_odd %}
+                                    <span class="app-badge amber"
+                                          title="The clock printed an N where it usually prints an h. What that means is not documented, so it is shown as printed.">unusual</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="app-card">
+            <div class="app-card-head">
+                <h2 class="app-card-title"><i class="bi bi-person-badge"></i> Context</h2>
+            </div>
+            <div class="app-card-body">
+                <table class="app-table">
+                    <tbody>
+                        <tr><td>Person</td><td><strong>{{ day.employee.display_name }}</strong></td></tr>
+                        <tr><td>Clock number on the report</td><td class="mono-sm">{{ day.employee.emp_no }}</td></tr>
+                        <tr><td>Name on the report</td><td>{{ day.employee.emp_name or '—' }}</td></tr>
+                        <tr><td>Matched personnel</td>
+                            <td>{% if day.personnel %}{{ day.personnel.name }} {{ day.personnel.surname or '' }}
+                                ({{ day.personnel.clockno }}){% else %}<span class="app-badge red">Not matched</span>{% endif %}</td></tr>
+                        <tr><td>Cost centre</td><td>{{ day.employee.cost_centre or '—' }}</td></tr>
+                        <tr><td>Shift</td><td class="mono-sm">{{ day.shift or '—' }}</td></tr>
+                        <tr><td>Import</td>
+                            <td><a href="{{ url_for('timeclock.batch_detail', batch_id=day.employee.batch_id) }}">#{{ day.employee.batch_id }}</a>
+                                · {{ day.employee.batch.period_label }}</td></tr>
+                        <tr><td>Line in the file</td><td class="mono-sm">{{ day.source_row or '—' }}</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}

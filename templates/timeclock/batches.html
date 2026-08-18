@@ -1,0 +1,119 @@
+{% extends "timeclock/base_timeclock.html" %}
+{% set page_title = "Clock Imports" %}
+{% set page_sub = "Every Turbo Time report loaded, what each one brought in, and whether it still reconciles with the file." %}
+
+{% block title %}Clock Imports{% endblock %}
+
+{% block tc_content %}
+
+<div class="kpi-row">
+    <div class="kpi">
+        <div class="v">{{ batches|length }}</div>
+        <div class="l">Imports</div>
+    </div>
+    <div class="kpi ok">
+        <div class="v">{{ batches|sum(attribute='rows_imported') or 0 }}</div>
+        <div class="l">Day rows loaded</div>
+    </div>
+    <div class="kpi {{ 'danger' if unmatched else 'muted' }}">
+        <div class="v">{{ unmatched }}</div>
+        <div class="l">Unmatched employees</div>
+        <div class="s">{{ 'Their hours are not attributed to anyone' if unmatched else 'Everyone is linked to a personnel record' }}</div>
+    </div>
+</div>
+
+<div class="app-card">
+    <div class="app-card-head">
+        <h2 class="app-card-title"><i class="bi bi-archive"></i> Imports</h2>
+        {% if can_import %}
+        <a class="app-btn app-btn-primary app-btn-sm" href="{{ url_for('timeclock.import_report') }}">
+            <i class="bi bi-upload"></i> Import report
+        </a>
+        {% endif %}
+    </div>
+    <div class="app-card-body">
+        {% if batches %}
+        <div class="app-table-wrap">
+            <table class="app-table">
+                <thead>
+                    <tr>
+                        <th>#</th><th>File</th><th>Report</th><th>Period</th><th>Imported</th><th>By</th>
+                        <th class="num">People</th><th class="num">Days</th>
+                        <th class="num">Normal</th><th class="num">Overtime</th>
+                        <th>Matching</th><th>Reconciles</th><th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for b in batches %}
+                    <tr>
+                        <td><span class="app-id">#{{ b.id }}</span></td>
+                        <td class="mono-sm">{{ b.filename or '—' }}</td>
+                        <td>
+                            {% if b.is_full_clocking %}
+                                <span class="app-badge green" title="Every day of the period, worked or not">All days</span>
+                            {% else %}
+                                <span class="app-badge amber" title="Only the days that carried overtime">Overtime only</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ b.period_label }}</td>
+                        <td>{{ b.imported_at.strftime('%d %b %Y %H:%M') if b.imported_at else '—' }}</td>
+                        <td class="app-muted">{{ b.user.name if b.user else '—' }}</td>
+                        <td class="num">{{ b.employees_total or 0 }}</td>
+                        <td class="num">
+                            {{ b.rows_imported or 0 }}
+                            {% if b.edited_days %}<span class="app-badge amber" title="{{ b.edited_days }} row(s) corrected by hand">{{ b.edited_days }} edited</span>{% endif %}
+                            {% if b.odd_clockings %}<span class="app-badge blue" title="{{ b.odd_clockings }} day(s) clocked more than twice">{{ b.odd_clockings }} odd</span>{% endif %}
+                        </td>
+                        <td class="num">{{ '%.2f'|format(b.normal_hours) }}</td>
+                        <td class="num">{{ '%.2f'|format(b.overtime_hours) }}</td>
+                        <td>
+                            {% if b.employees_unmatched %}
+                                <span class="app-badge red">{{ b.employees_unmatched }} unmatched</span>
+                            {% else %}
+                                <span class="app-badge green">All matched</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if b.reconciles is none %}
+                                <span class="app-muted">—</span>
+                            {% elif b.reconciles %}
+                                <span class="app-badge green" title="Overtime loaded agrees with the report's own grand total">Yes</span>
+                            {% else %}
+                                <span class="app-badge red"
+                                      title="File says {{ b.file_overtime_hours }}, loaded {{ '%.2f'|format(b.overtime_hours) }}">Check</span>
+                            {% endif %}
+                        </td>
+                        <td style="white-space:nowrap;">
+                            <a class="app-btn {{ 'app-btn-warn' if b.employees_unmatched else 'app-btn-outline' }} app-btn-sm"
+                               href="{{ url_for('timeclock.batch_detail', batch_id=b.id, unmatched=1 if b.employees_unmatched else None) }}">
+                                {% if b.employees_unmatched %}Match{% else %}View{% endif %}
+                            </a>
+                            {% if can('timeclock', 'admin') %}
+                            <form method="POST" action="{{ url_for('timeclock.delete_batch', batch_id=b.id) }}"
+                                  style="display:inline;"
+                                  data-confirm-title="Reverse import #{{ b.id }}?"
+                                  data-confirm-body="This removes the {{ b.rows_imported or 0 }} day row(s) it created for {{ b.employees_total or 0 }} employee(s). Matches you have remembered are kept."
+                                  data-confirm-label="Reverse import">
+                                {{ confirm_form.hidden_tag() }}
+                                <button type="submit" class="app-btn app-btn-danger app-btn-sm">
+                                    <i class="bi bi-arrow-counterclockwise"></i> Reverse
+                                </button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="app-empty">
+            <i class="bi bi-inbox"></i>
+            No clock reports imported yet.
+            {% if can_import %}<a href="{{ url_for('timeclock.import_report') }}">Import one</a>.{% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

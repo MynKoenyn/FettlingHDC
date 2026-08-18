@@ -1,0 +1,77 @@
+{% extends "scrap/base_scrap.html" %}
+{% set page_title = "Import History" %}
+{% set page_sub = "Every external scrap report loaded, and what each one did." %}
+
+{% block title %}Scrap Import History{% endblock %}
+
+{% block scrap_content %}
+
+<div class="app-card">
+    <div class="app-card-head">
+        <h2 class="app-card-title"><i class="bi bi-archive"></i> Imports</h2>
+        <a class="app-btn app-btn-primary app-btn-sm" href="{{ url_for('scrap.import_report') }}">
+            <i class="bi bi-upload"></i> Import report
+        </a>
+    </div>
+    <div class="app-card-body">
+        {% if batches %}
+        <div class="app-table-wrap">
+            <table class="app-table">
+                <thead>
+                    <tr>
+                        <th>#</th><th>File</th><th>Customer</th><th>Imported</th><th>By</th>
+                        <th class="num">Rows</th><th class="num">New</th><th class="num">Duplicates</th>
+                        <th class="num">Skipped</th><th class="num">Unmatched</th><th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for b in batches %}
+                    <tr>
+                        <td><span class="app-id">#{{ b.id }}</span></td>
+                        <td class="mono-sm">{{ b.filename or '—' }}</td>
+                        <td>{{ b.customer.name if b.customer else '—' }}</td>
+                        <td>{{ b.imported_at.strftime('%d %b %Y %H:%M') if b.imported_at else '—' }}</td>
+                        <td class="app-muted">{{ b.user.name if b.user else '—' }}</td>
+                        <td class="num">{{ b.rows_total or 0 }}</td>
+                        <td class="num"><span class="app-badge green">{{ b.rows_imported or 0 }}</span></td>
+                        <td class="num">
+                            {% if b.rows_duplicate %}
+                                {% if b.duplicates_pending %}
+                                    <span class="app-badge amber" title="{{ b.duplicates_pending }} awaiting a decision">{{ b.rows_duplicate }} · {{ b.duplicates_pending }} pending</span>
+                                {% else %}
+                                    <span class="app-badge gray" title="{{ b.duplicates_allowed }} allowed, {{ b.duplicates_rejected }} rejected">{{ b.rows_duplicate }}</span>
+                                {% endif %}
+                            {% else %}—{% endif %}
+                        </td>
+                        <td class="num">{% if b.rows_skipped %}<span class="app-badge red">{{ b.rows_skipped }}</span>{% else %}—{% endif %}</td>
+                        <td class="num">{% if b.rows_unmatched %}<span class="app-badge red">{{ b.rows_unmatched }}</span>{% else %}—{% endif %}</td>
+                        <td style="white-space:nowrap;">
+                            <a class="app-btn {{ 'app-btn-warn' if b.duplicates_pending else 'app-btn-outline' }} app-btn-sm"
+                               href="{{ url_for('scrap.import_batch', batch_id=b.id, review=1 if b.duplicates_pending else None) }}">
+                                {% if b.duplicates_pending %}Review{% else %}View{% endif %}
+                            </a>
+                            <form method="POST" action="{{ url_for('scrap.delete_batch', batch_id=b.id) }}"
+                                  style="display:inline;"
+                                  data-confirm-title="Reverse import #{{ b.id }}?"
+                                  data-confirm-body="This removes the {{ b.rows_imported or 0 }} entry(ies) it created." data-confirm-label="Reverse import">
+                                {{ delete_form.hidden_tag() }}
+                                <button type="submit" class="app-btn app-btn-danger app-btn-sm">
+                                    <i class="bi bi-arrow-counterclockwise"></i> Reverse
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="app-empty">
+            <i class="bi bi-inbox"></i>
+            No reports imported yet.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

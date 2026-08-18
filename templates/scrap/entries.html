@@ -1,0 +1,183 @@
+{% extends "scrap/base_scrap.html" %}
+{% set page_title = "Scrap Entries" %}
+{% set page_sub = "Every scrap line — imported and internally captured." %}
+
+{% block title %}Scrap Entries{% endblock %}
+
+{% block scrap_content %}
+
+<div class="app-card">
+    <div class="app-card-head">
+        <h2 class="app-card-title"><i class="bi bi-funnel"></i> Filters</h2>
+        <a class="app-btn app-btn-primary app-btn-sm" href="{{ url_for('scrap.internal_entry') }}">
+            <i class="bi bi-plus-lg"></i> Capture internal scrap
+        </a>
+    </div>
+    <div class="app-card-body">
+        <form method="GET" class="filter-bar">
+            <div>
+                <label class="app-label">Source</label>
+                <select name="source" class="app-select">
+                    <option value="">All sources</option>
+                    {% for value, label in source_choices %}
+                    <option value="{{ value }}" {{ 'selected' if filters.source == value }}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="app-label">Customer</label>
+                <select name="customer_id" class="app-select">
+                    <option value="">All customers</option>
+                    {% for c in customers %}
+                    <option value="{{ c.id }}" {{ 'selected' if filters.customer_id == c.id }}>{{ c.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="app-label">Product</label>
+                <select name="product_id" class="app-select">
+                    <option value="">All products</option>
+                    {% for p in products %}
+                    <option value="{{ p.id }}" {{ 'selected' if p.id in filters.product_id }}>{{ p.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="app-label">From</label>
+                <input type="date" name="start_date" class="app-input" value="{{ filters.start_date }}">
+            </div>
+            <div>
+                <label class="app-label">To</label>
+                <input type="date" name="end_date" class="app-input" value="{{ filters.end_date }}">
+            </div>
+            <div class="acts">
+                <button type="submit" class="app-btn app-btn-primary"><i class="bi bi-search"></i> Apply</button>
+                <a href="{{ url_for('scrap.entries') }}" class="app-btn app-btn-outline">Clear</a>
+            </div>
+        </form>
+
+        <div style="margin-top:.9rem;display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;">
+            {% if unmatched_only %}
+                <a class="app-btn app-btn-outline app-btn-sm" href="{{ url_for('scrap.entries') }}">
+                    <i class="bi bi-x-lg"></i> Showing unlinked rows only
+                </a>
+            {% else %}
+                <a class="app-btn app-btn-outline app-btn-sm" href="{{ url_for('scrap.entries', unmatched=1) }}">
+                    <i class="bi bi-link-45deg"></i> Show only rows with no product link
+                </a>
+            {% endif %}
+
+            <form method="POST" action="{{ url_for('scrap.rematch_products') }}" style="display:inline;"
+                  data-confirm-title="Re-run product matching?"
+                  data-confirm-body="This goes over every entry that has no product linked." data-confirm-label="Re-match products">
+                {{ delete_form.hidden_tag() }}
+                <button type="submit" class="app-btn app-btn-outline app-btn-sm">
+                    <i class="bi bi-arrow-repeat"></i> Re-match products
+                </button>
+            </form>
+            <span class="app-muted" style="font-size:.8rem;">
+                Run this after loading products — it links imported rows whose part number now matches.
+            </span>
+        </div>
+    </div>
+</div>
+
+<div class="kpi-row">
+    <div class="kpi muted">
+        <div class="v">{{ '{:,}'.format(totals.entries) }}</div>
+        <div class="l">Entries Shown</div>
+    </div>
+    <div class="kpi">
+        <div class="v">{{ '{:,}'.format(totals.machined) }}</div>
+        <div class="l">Qty Machined / Packed</div>
+    </div>
+    <div class="kpi danger">
+        <div class="v">{{ '{:,}'.format(totals.scrap) }}</div>
+        <div class="l">Qty Scrapped</div>
+    </div>
+    <div class="kpi {{ 'danger' if totals.pct and totals.pct >= 5 else 'warn' if totals.pct and totals.pct >= 3 else 'ok' }}">
+        <div class="v">{% if totals.pct is not none %}{{ '%.2f'|format(totals.pct) }}%{% else %}—{% endif %}</div>
+        <div class="l">Reject %</div>
+    </div>
+</div>
+
+<div class="app-card">
+    <div class="app-card-head">
+        <h2 class="app-card-title"><i class="bi bi-list-ul"></i> Entries</h2>
+        <span class="app-muted" style="font-size:.82rem;">Newest first, capped at 1 000 rows</span>
+    </div>
+    <div class="app-card-body">
+        {% if rows %}
+        <div class="app-table-wrap">
+            <table class="app-table">
+                <thead>
+                    <tr>
+                        <th>Date</th><th>Source</th><th>Customer</th><th>Product</th>
+                        <th>Casting</th><th>Batch</th>
+                        <th class="num">Machined / Packed</th><th class="num">Scrap</th><th class="num">% Reject</th>
+                        <th>Reasons</th><th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for e in rows %}
+                    <tr>
+                        <td>{{ e.entry_date.strftime('%d %b %Y') }}</td>
+                        <td><span class="app-badge {{ 'src-ext' if e.source == 'external' else 'src-int' }}">{{ 'External' if e.source == 'external' else 'Internal' }}</span></td>
+                        <td>{{ e.customer.name if e.customer else '—' }}</td>
+                        <td>
+                            {% if e.product %}{{ e.product.name }}
+                            {% else %}
+                                <form method="POST" action="{{ url_for('scrap.link_entry_product', entry_id=e.id) }}"
+                                      style="display:flex;gap:.3rem;align-items:center;">
+                                    {{ delete_form.hidden_tag() }}
+                                    <select name="product_id" class="app-select" style="min-width:170px;padding:.3rem .45rem;font-size:.8rem;">
+                                        {% for value, label in product_choices %}
+                                        <option value="{{ value }}">{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <button type="submit" class="app-btn app-btn-outline app-btn-sm" title="Link product"><i class="bi bi-link-45deg"></i></button>
+                                </form>
+                            {% endif %}
+                        </td>
+                        <td class="mono-sm">{{ e.casting_no or e.machined_part_no or '—' }}</td>
+                        <td class="mono-sm">{{ e.batch_no or '—' }}</td>
+                        <td class="num">{{ '{:,}'.format(e.entered_qty or 0) }}</td>
+                        <td class="num"><strong>{{ '{:,}'.format(e.qty_scrap or 0) }}</strong></td>
+                        <td class="num">
+                            {% if e.reject_pct is not none %}
+                                <span class="{{ 'pct-hi' if e.reject_pct >= 5 else 'pct-ok' }}">{{ '%.1f'|format(e.reject_pct) }}%</span>
+                            {% else %}—{% endif %}
+                        </td>
+                        <td style="white-space:normal;max-width:250px;">
+                            {% for line in e.defect_lines %}
+                                <span class="app-badge blue" title="{{ line.defect.name }}">{{ line.defect.code }} {{ line.qty }}</span>
+                            {% else %}<span class="app-muted">—</span>{% endfor %}
+                        </td>
+                        <td style="white-space:nowrap;">
+                            {% if e.source == 'internal' %}
+                            <a class="app-btn app-btn-outline app-btn-sm" href="{{ url_for('scrap.internal_entry', entry_id=e.id) }}" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            {% endif %}
+                            <form method="POST" action="{{ url_for('scrap.delete_entry', entry_id=e.id) }}"
+                                  style="display:inline;"
+                                  data-confirm-title="Delete this scrap entry?" data-confirm-label="Delete">
+                                {{ delete_form.hidden_tag() }}
+                                <button type="submit" class="app-btn app-btn-danger app-btn-sm" title="Delete"><i class="bi bi-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="app-empty">
+            <i class="bi bi-inbox"></i>
+            No scrap entries match those filters.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

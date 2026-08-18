@@ -114,6 +114,7 @@
   .suggestion-item:last-child { border-bottom:none; }
   .suggestion-item:hover, .suggestion-item.active { background:var(--brand-lt); }
   .suggestion-item .prod-name { font-weight:600; }
+  .suggestion-item .prod-name .prod-code { font-weight:400; color:var(--ink-muted); margin-left:.4rem; }
   .suggestion-item .cust-name { font-size:.75rem; color:var(--ink-muted); }
 
   /* Product preview */
@@ -129,6 +130,12 @@
   @keyframes fadeIn { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:none} }
   #product-preview .prod-selected-name { font-weight:700; font-size:.95rem; color:var(--ink); }
   #product-preview .prod-selected-cust { font-size:.78rem; color:var(--ink-soft); margin-top:.15rem; }
+  #product-preview .prod-selected-code { font-size:.78rem; color:var(--ink-soft); margin-top:.1rem; }
+  #product-preview .prod-selected-images { display:flex; flex-wrap:wrap; gap:.4rem; margin-top:.6rem; }
+  #product-preview .prod-selected-images img {
+    width:56px; height:56px; object-fit:cover; border-radius:.4rem;
+    border:1.5px solid var(--surface-3); cursor:zoom-in;
+  }
   #clear-product {
     float:right; background:none; border:none; cursor:pointer;
     color:var(--ink-muted); font-size:1.1rem; line-height:1; padding:0;
@@ -179,6 +186,24 @@
   }
   .lines-panel-header h2 { font-size:.82rem; font-weight:700; text-transform:uppercase;
                             letter-spacing:.07em; color:var(--ink-soft); margin:0; }
+
+  /* Large product-photo preview — shown between the panel header and the
+     table while a product is selected. */
+  #preview-image-large {
+    display:none;
+    padding:1rem 1.4rem;
+    border-bottom:1px solid var(--surface-3);
+    background:var(--surface-2);
+  }
+  #preview-image-large.show { display:block; }
+  #preview-image-large .pil-name { font-weight:700; font-size:.9rem; color:var(--ink); margin-bottom:.75rem; }
+  #preview-image-large .pil-images { display:flex; flex-wrap:wrap; gap:.75rem; }
+  #preview-image-large .pil-images img {
+    width:200px; height:200px; object-fit:cover; border-radius:var(--radius);
+    border:1.5px solid var(--surface-3); background:var(--surface); cursor:zoom-in;
+    box-shadow:var(--shadow-sm);
+  }
+  #preview-image-large .pil-empty { color:var(--ink-muted); font-size:.85rem; }
   .line-count-badge {
     background:var(--brand-lt); color:var(--brand-dk);
     font-size:.72rem; font-weight:700;
@@ -281,13 +306,15 @@
           <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
         </svg>
         <input type="text" id="barcode" autocomplete="off"
-               placeholder="Scan barcode or type product name…" autofocus>
+               placeholder="Scan barcode or type product name / code…" autofocus>
         <div id="suggestions"></div>
       </div>
       <div id="product-preview">
         <button type="button" id="clear-product" title="Clear selection">✕</button>
         <div class="prod-selected-name" id="preview-name">—</div>
         <div class="prod-selected-cust" id="preview-cust">—</div>
+        <div class="prod-selected-code" id="preview-code"></div>
+        <div class="prod-selected-images" id="preview-images"></div>
       </div>
     </div>
 
@@ -321,6 +348,15 @@
       <span class="line-count-badge">{{ lines|length }} item{{ 's' if lines|length != 1 }}</span>
     </div>
 
+    <!-- Large preview of the currently-selected product's photos. Only
+         shown while a product is picked but not yet added — "Add Line"
+         is a normal form POST that reloads the page, so this clears
+         itself the moment the line is saved. -->
+    <div id="preview-image-large">
+      <div class="pil-name" id="pil-name"></div>
+      <div class="pil-images" id="pil-images"></div>
+    </div>
+
     {% if lines %}
     <table class="data-table">
       <thead>
@@ -338,12 +374,12 @@
         <tr>
           <td style="color:var(--ink-muted);font-size:.75rem;">{{ loop.revindex }}</td>
           <td style="font-size:.8rem;color:var(--ink-soft);">{{ line.customer.name }}</td>
-          <td><strong>{{ line.product.name }}</strong></td>
+          <td><strong>{{ line.product.simplified_code }}</strong></td>
           <td>{{ '%.3f'|format(line.count_value) }}</td>
           <td style="font-size:.78rem;color:var(--ink-muted);">{{ line.line_notes or '' }}</td>
           <td>
             <form method="POST" action="{{ url_for('stocktake.delete_line', line_id=line.id) }}"
-                  onsubmit="return confirm('Remove this line?')">
+                  data-confirm-title="Remove this line?" data-confirm-label="Remove">
               {{ delete_form.hidden_tag() }}
               <button type="submit" class="btn-del" title="Delete">
                 <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -375,6 +411,70 @@
 
 </div><!-- /entry-layout -->
 
+{% if header.department.name == "HDA" %}
+<div class="entry-layout" style="grid-template-columns:1fr;">
+  <div class="lines-panel">
+    <div class="lines-panel-header">
+      <h2>Bin Stock</h2>
+      {% if bin_rate %}
+        <span class="line-count-badge">R{{ '%.2f'|format(bin_rate.rate_per_kg) }}/KG since {{ bin_rate.effective_date.strftime('%d %b %Y') }}</span>
+      {% else %}
+        <span class="line-count-badge" style="background:var(--danger-lt);color:var(--danger);">No rate set</span>
+      {% endif %}
+    </div>
+
+    {% if not bin_rate %}
+      <div class="flash-wrap" style="padding:.75rem 1.4rem 0;">
+        <div class="flash warning">
+          No bin R/KG rate is set yet — bin value can't be calculated.
+          <a href="{{ url_for('stocktake.bin_rates') }}" style="color:var(--brand-dk);margin-left:.4rem;">Set the rate →</a>
+        </div>
+      </div>
+    {% endif %}
+
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Bin Type</th>
+          <th>Weight/Bin</th>
+          <th>Bins</th>
+          <th>Weight (kg)</th>
+          <th>Value</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in bin_rows %}
+        <tr>
+          <td><strong>{{ row.label }}</strong>{% if row.yield_pct < 1 %}<div style="font-size:.72rem;color:var(--ink-muted);">{{ (row.yield_pct * 100)|int }}% yield</div>{% endif %}</td>
+          <td>{{ row.weight_per_bin }} kg</td>
+          <td>
+            <form method="POST" action="{{ url_for('stocktake.bin_entry', header_id=header.id) }}" style="display:flex;gap:.5rem;align-items:center;">
+              {{ bin_form.csrf_token }}
+              <input type="hidden" name="bin_type" value="{{ row.type.value }}">
+              <input type="number" name="bin_count" min="0" step="1"
+                     value="{{ row.line.bin_count if row.line else '' }}"
+                     class="form-control-custom" style="width:90px;">
+              <button type="submit" class="btn-add" style="width:auto;padding:.5rem .9rem;">Save</button>
+            </form>
+          </td>
+          <td>{{ '%.0f'|format(row.line.weight_kg) if row.line else '—' }}</td>
+          <td>{{ 'R%.2f'|format(row.value) if row.value is not none else '—' }}</td>
+          <td></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr style="background:var(--surface-2);">
+          <td colspan="4" style="padding:.7rem 1rem;font-weight:700;font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);">Total Bin Value</td>
+          <td colspan="2" style="padding:.7rem 1rem;font-weight:700;">R{{ '%.2f'|format(bin_total_value) }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+{% endif %}
+
 <script>
 (function () {
   const barcodeInput  = document.getElementById('barcode');
@@ -382,6 +482,11 @@
   const preview       = document.getElementById('product-preview');
   const previewName   = document.getElementById('preview-name');
   const previewCust   = document.getElementById('preview-cust');
+  const previewCode   = document.getElementById('preview-code');
+  const previewImages = document.getElementById('preview-images');
+  const previewLarge   = document.getElementById('preview-image-large');
+  const pilName        = document.getElementById('pil-name');
+  const pilImages       = document.getElementById('pil-images');
   const customerIdFld = document.getElementById('customer_id');
   const productIdFld  = document.getElementById('product_id');
   const submitBtn     = document.getElementById('submit-btn');
@@ -449,12 +554,18 @@
       .catch(() => hideSuggestions());
   }
 
+  function codeLabel(item) {
+    const codes = [item.simplified_code, item.product_code].filter(Boolean);
+    return codes.length ? codes.join(' / ') : '';
+  }
+
   function renderSuggestions(data) {
     suggestBox.innerHTML = '';
     data.forEach((item, i) => {
       const el = document.createElement('div');
       el.className = 'suggestion-item';
-      el.innerHTML = `<div class="prod-name">${escHtml(item.product_name)}</div>
+      const code = codeLabel(item);
+      el.innerHTML = `<div class="prod-name">${escHtml(item.product_name)}${code ? `<span class="prod-code">${escHtml(code)}</span>` : ''}</div>
                       <div class="cust-name">${escHtml(item.customer_name)}</div>`;
       el.addEventListener('mousedown', (e) => {
         e.preventDefault();
@@ -478,7 +589,24 @@
     productIdFld.value  = item.product_id;
     previewName.textContent = item.product_name;
     previewCust.textContent = item.customer_name;
+    previewCode.textContent = codeLabel(item);
+    previewImages.innerHTML = (item.images || [])
+      .map(src => `<img src="${escHtml(src)}" alt="" onclick="window.open(this.src, '_blank')">`)
+      .join('');
     preview.style.display = 'block';
+
+    // Big preview above the counted-lines table — only worth showing
+    // when the product actually has photos.
+    if (item.images && item.images.length) {
+      pilName.textContent = item.product_name;
+      pilImages.innerHTML = item.images
+        .map(src => `<img src="${escHtml(src)}" alt="" onclick="window.open(this.src, '_blank')">`)
+        .join('');
+      previewLarge.classList.add('show');
+    } else {
+      previewLarge.classList.remove('show');
+      pilImages.innerHTML = '';
+    }
     barcodeInput.value = '';
     hideSuggestions();
     checkSubmitReady();
@@ -492,7 +620,11 @@
   document.getElementById('clear-product').addEventListener('click', function () {
     customerIdFld.value = '';
     productIdFld.value  = '';
+    previewCode.textContent = '';
+    previewImages.innerHTML = '';
     preview.style.display = 'none';
+    previewLarge.classList.remove('show');
+    pilImages.innerHTML = '';
     barcodeInput.value = '';
     barcodeInput.focus();
     checkSubmitReady();

@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+{% block title %}{{ period.label }} — Prices{% endblock %}
+
+{% block content %}
+<div class="app-container wide">
+
+    <!-- Period header -->
+    <div class="app-card">
+        <div class="app-card-head">
+            <span class="app-card-title">
+                <i class="bi bi-tags-fill" style="color:var(--hdc-primary);"></i>
+                {{ period.label }} <span class="app-id">#{{ period.id }}</span>
+            </span>
+            <div style="display:flex; gap:.5rem;">
+                <form method="POST" action="{{ url_for('price_list_copy_forward', period_id=period.id) }}" style="display:inline;"
+                      data-confirm-title="Copy all prices from the previous period into this one?"
+                      data-confirm-body="Existing prices here are left untouched." data-confirm-label="Copy prices">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="app-btn app-btn-outline app-btn-sm"><i class="bi bi-arrow-down-up"></i> Copy from previous</button>
+                </form>
+                <a href="{{ url_for('price_list_period_form', period_id=period.id) }}" class="app-btn app-btn-outline app-btn-sm"><i class="bi bi-pencil"></i> Edit period</a>
+                <a href="{{ url_for('price_list_import', period_id=period.id) }}" class="app-btn app-btn-outline app-btn-sm"><i class="bi bi-upload"></i> Import</a>
+                <a href="{{ url_for('price_lists') }}" class="app-btn app-btn-outline app-btn-sm"><i class="bi bi-arrow-left"></i> Back</a>
+            </div>
+        </div>
+        <div class="app-card-body">
+            <div style="display:flex; gap:2rem; flex-wrap:wrap; font-size:.9rem;">
+                <div><span class="app-label" style="margin:0 0 .2rem;">Division</span> <strong>{{ period.division.code }} — {{ period.division.name }}</strong></div>
+                <div><span class="app-label" style="margin:0 0 .2rem;">Effective</span> <strong>{{ period.start_date.strftime('%d %b %Y') }} → {{ period.end_date.strftime('%d %b %Y') }}</strong></div>
+                <div><span class="app-label" style="margin:0 0 .2rem;">Prices</span> <strong>{{ entries|length }}</strong></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add / update a price -->
+    <div class="app-card">
+        <div class="app-card-head">
+            <span class="app-card-title"><i class="bi bi-plus-circle" style="color:var(--hdc-primary);"></i> Add or Update a Price</span>
+        </div>
+        <div class="app-card-body">
+            {% if has_customers %}
+            <form method="POST">
+                {{ form.hidden_tag() }}
+                <div class="app-form-grid" style="grid-template-columns:1fr 1fr 200px;">
+                    <div class="app-field">
+                        <label class="app-label">Customer <span class="req">*</span></label>
+                        {{ form.customer_id(class="app-select searchable-select") }}
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label">Product <span class="req">*</span></label>
+                        {{ form.product_id(class="app-select searchable-select") }}
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label">Price (R) <span class="req">*</span></label>
+                        {{ form.price(class="app-input" + (" is-invalid" if form.price.errors else ""), type="number", step="0.01", min="0", placeholder="0.00") }}
+                        {% for e in form.price.errors %}<div class="app-err">{{ e }}</div>{% endfor %}
+                    </div>
+                </div>
+                <div class="app-hint" style="margin-top:.6rem;">Adding the same customer + product again updates that price.</div>
+                <div style="margin-top:1rem;">
+                    <button type="submit" class="app-btn app-btn-primary"><i class="bi bi-check-lg"></i> Save Price</button>
+                </div>
+            </form>
+            {% else %}
+            <div class="hdc-flash hdc-flash-warning" style="margin:0;">
+                <i class="bi bi-exclamation-circle-fill"></i>
+                <span>No customers are assigned to division <strong>{{ period.division.code }}</strong> yet.
+                      Set a customer's division on the <a href="{{ url_for('customers') }}">Customers</a> page first.</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Prices in this period -->
+    <div class="app-card">
+        <div class="app-card-head">
+            <span class="app-card-title"><i class="bi bi-card-list" style="color:var(--hdc-primary);"></i> Prices in this Period</span>
+        </div>
+        <div class="app-card-body">
+            {% if entries %}
+            <div class="app-search" style="margin-bottom:1rem;">
+                <i class="bi bi-search"></i>
+                <input type="text" id="priceEntrySearch" placeholder="Search by customer, product or code…" onkeyup="filterPriceEntries()">
+            </div>
+            <div class="app-table-wrap">
+                <table class="app-table">
+                    <thead>
+                        <tr>
+                            <th>Customer</th>
+                            <th>Product</th>
+                            <th>Product Code</th>
+                            <th style="text-align:right;">Price</th>
+                            <th style="width:110px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="priceEntryBody">
+                        {% for e in entries %}
+                        <tr>
+                            <td style="font-weight:600; color:#0f172a;">{{ e.customer.name }}</td>
+                            <td>{{ e.product.name }}</td>
+                            <td class="app-muted" style="font-family:ui-monospace,Menlo,monospace;">{{ e.product.product_code or '—' }}</td>
+                            <td style="text-align:right; font-weight:600;">R {{ '%.2f'|format(e.price) }}</td>
+                            <td style="text-align:right;">
+                                <form method="POST" action="{{ url_for('price_list_entry_delete', entry_id=e.id) }}"
+                                      style="display:inline;" data-confirm-title="Remove this price?" data-confirm-label="Remove">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="app-btn app-btn-danger app-btn-sm"><i class="bi bi-x-lg"></i> Remove</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="app-result-count" id="priceEntryCount">{{ entries|length }} price{{ 's' if entries|length != 1 }} in this period</div>
+            {% else %}
+            <div class="app-empty">
+                <i class="bi bi-tag"></i>
+                No prices captured for this period yet. Add one above, or copy the previous period forward.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function filterPriceEntries() {
+        const q = document.getElementById('priceEntrySearch').value.toLowerCase().trim();
+        const rows = document.querySelectorAll('#priceEntryBody tr');
+        let visible = 0;
+        rows.forEach(row => {
+            const text = row.innerText.toLowerCase();
+            const show = text.includes(q);
+            row.style.display = show ? '' : 'none';
+            if (show) visible++;
+        });
+        const counter = document.getElementById('priceEntryCount');
+        if (counter) counter.textContent = visible + ' price' + (visible !== 1 ? 's' : '') + (q ? ' matching “' + q + '”' : ' in this period');
+    }
+</script>
+{% endblock %}

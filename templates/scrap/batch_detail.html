@@ -1,0 +1,465 @@
+{% extends "scrap/base_scrap.html" %}
+{% set page_title = "Import #" ~ batch.id %}
+{% set page_sub = batch.filename or "External scrap report" %}
+
+{% block title %}Scrap Import #{{ batch.id }}{% endblock %}
+
+{% block scrap_head %}
+<style>
+    /* ── Duplicate review dialog ── */
+    .dup-overlay { position: fixed; inset: 0; z-index: 1080; background: rgba(15,23,42,.6);
+        display: flex; align-items: center; justify-content: center; padding: 1.5rem; }
+    .dup-overlay[hidden] { display: none; }
+    .dup-dialog { background: #fff; border-radius: 1rem; width: min(1000px, 100%);
+        max-height: 88vh; display: flex; flex-direction: column; overflow: hidden;
+        box-shadow: 0 24px 60px rgba(0,0,0,.4); }
+    .dup-dialog > header { padding: 1.1rem 1.4rem; border-bottom: 1px solid #eef2f7;
+        display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+    .dup-dialog > header h3 { margin: 0; font-size: 1.05rem; font-weight: 800; color: #0f172a;
+        display: flex; align-items: center; gap: .5rem; }
+    .dup-dialog > header p { margin: .25rem 0 0; font-size: .82rem; color: #64748b; }
+    .dup-close { background: none; border: none; font-size: 1.3rem; line-height: 1;
+        color: #94a3b8; cursor: pointer; padding: .2rem .4rem; }
+    .dup-close:hover { color: #0f172a; }
+    .dup-body { padding: 1.1rem 1.4rem; overflow-y: auto; }
+    .dup-dialog > footer { padding: .9rem 1.4rem; border-top: 1px solid #eef2f7;
+        background: #f8fafc; display: flex; gap: .5rem; justify-content: flex-end;
+        flex-wrap: wrap; align-items: center; }
+    .dup-dialog > footer .spacer { margin-right: auto; font-size: .8rem; color: #64748b; }
+
+    /* One row awaiting a decision */
+    .dup-item { border: 1px solid #e2e8f0; border-radius: .8rem; overflow: hidden;
+        margin-bottom: 1rem; }
+    .dup-item > .hd { background: #fffbeb; border-bottom: 1px solid #fde68a;
+        padding: .55rem .9rem; display: flex; align-items: center; gap: .6rem;
+        font-size: .82rem; color: #92400e; font-weight: 700; flex-wrap: wrap; }
+    .dup-compare { display: grid; grid-template-columns: 1fr 1fr; }
+    .dup-compare > div { padding: .8rem .9rem; }
+    .dup-compare > div + div { border-left: 1px solid #e2e8f0; background: #f8fafc; }
+    .dup-compare .cap { font-size: .68rem; font-weight: 800; letter-spacing: .07em;
+        text-transform: uppercase; color: #64748b; margin-bottom: .5rem; }
+    .dup-facts { display: grid; grid-template-columns: auto 1fr; gap: .3rem .8rem;
+        font-size: .84rem; align-items: baseline; }
+    .dup-facts dt { color: #94a3b8; }
+    .dup-facts dd { margin: 0; color: #0f172a; font-weight: 600; }
+    .dup-facts dd.diff { color: #b45309; background: #fef3c7; border-radius: .35rem;
+        padding: 0 .35rem; display: inline-block; }
+    .dup-actions { padding: .7rem .9rem; border-top: 1px solid #e2e8f0;
+        display: flex; gap: .5rem; justify-content: flex-end; }
+    @media (max-width: 760px) {
+        .dup-compare { grid-template-columns: 1fr; }
+        .dup-compare > div + div { border-left: none; border-top: 1px solid #e2e8f0; }
+    }
+
+    .dup-banner { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap;
+        background: #fffbeb; border: 1px solid #fde68a; border-radius: .8rem;
+        padding: .8rem 1rem; margin-bottom: 1.4rem; color: #92400e; font-size: .88rem; }
+    .dup-banner strong { color: #78350f; }
+    .dup-banner .grow { margin-right: auto; }
+</style>
+{% endblock %}
+
+{% block scrap_content %}
+
+<div class="kpi-row">
+    <div class="kpi muted">
+        <div class="v">{{ batch.rows_total or 0 }}</div>
+        <div class="l">Rows Read</div>
+        <div class="s">{{ batch.customer.name if batch.customer else 'No customer' }}</div>
+    </div>
+    <div class="kpi ok">
+        <div class="v">{{ batch.rows_imported or 0 }}</div>
+        <div class="l">Imported</div>
+        <div class="s">{{ batch.imported_at.strftime('%d %b %Y %H:%M') if batch.imported_at else '' }}</div>
+    </div>
+    <div class="kpi {{ 'warn' if pending_duplicates }}">
+        <div class="v">{{ batch.rows_duplicate or 0 }}</div>
+        <div class="l">Duplicates</div>
+        <div class="s">
+            {% if pending_duplicates %}
+                {{ pending_duplicates|length }} awaiting a decision
+            {% elif duplicates %}
+                {{ batch.duplicates_allowed }} allowed · {{ batch.duplicates_rejected }} rejected
+            {% else %}
+                None found
+            {% endif %}
+        </div>
+    </div>
+    <div class="kpi warn">
+        <div class="v">{{ batch.rows_skipped or 0 }}</div>
+        <div class="l">Skipped</div>
+        <div class="s">No date or no quantity</div>
+    </div>
+    <div class="kpi danger">
+        <div class="v">{{ batch.rows_unmatched or 0 }}</div>
+        <div class="l">Unmatched Product</div>
+        <div class="s">Link below</div>
+    </div>
+</div>
+
+{% if batch.rows_unmatched and can('scrap', 'capture') %}
+<div class="dup-banner">
+    <i class="bi bi-link-45deg" style="font-size:1.2rem;"></i>
+    <span class="grow">
+        <strong>{{ batch.rows_unmatched }} row(s) have no product linked.</strong>
+        If the product list has since been fixed or loaded, re-run matching instead of
+        linking each row below by hand.
+    </span>
+    <form method="POST" action="{{ url_for('scrap.rematch_products') }}" style="display:inline;"
+          data-confirm-title="Re-run product matching?"
+          data-confirm-body="This goes over every entry that has no product linked." data-confirm-label="Re-match products">
+        {{ delete_form.hidden_tag() }}
+        <button type="submit" class="app-btn app-btn-warn app-btn-sm">
+            <i class="bi bi-arrow-repeat"></i> Re-match products
+        </button>
+    </form>
+</div>
+{% endif %}
+
+{% if pending_duplicates %}
+<div class="dup-banner">
+    <i class="bi bi-exclamation-triangle-fill" style="font-size:1.2rem;"></i>
+    <span class="grow">
+        <strong>{{ pending_duplicates|length }} row(s) repeat one already loaded</strong> and were
+        not imported. Allow the ones that are a genuine second reject, reject the rest.
+    </span>
+    <button type="button" class="app-btn app-btn-warn app-btn-sm" onclick="openDupReview()">
+        <i class="bi bi-check2-square"></i> Review duplicates
+    </button>
+</div>
+{% endif %}
+
+{% if batch.notes %}
+<div class="app-card">
+    <div class="app-card-head"><h2 class="app-card-title"><i class="bi bi-info-circle"></i> Import Notes</h2></div>
+    <div class="app-card-body">
+        <pre style="white-space:pre-wrap;margin:0;font-size:.84rem;color:#475569;font-family:inherit;">{{ batch.notes }}</pre>
+    </div>
+</div>
+{% endif %}
+
+<!-- DUPLICATE ROWS -->
+{% if duplicates %}
+<div class="app-card">
+    <div class="app-card-head">
+        <h2 class="app-card-title"><i class="bi bi-files"></i> Duplicate Rows ({{ duplicates|length }})</h2>
+        {% if pending_duplicates and can('scrap', 'import') %}
+        <button type="button" class="app-btn app-btn-warn app-btn-sm" onclick="openDupReview()">
+            <i class="bi bi-check2-square"></i> Decide {{ pending_duplicates|length }} pending
+        </button>
+        {% endif %}
+    </div>
+    <div class="app-card-body">
+        <p class="app-muted" style="margin-top:0;">
+            These rows carry the same customer, machined part, casting, batch and reject date as a
+            row already loaded, so they were held back. Nothing is imported until it is allowed.
+        </p>
+        <div class="app-table-wrap">
+            <table class="app-table">
+                <thead>
+                    <tr>
+                        <th>Row</th><th>Date</th><th>Machined Part</th><th>Casting</th><th>Batch</th>
+                        <th class="num">Scrap</th><th class="num">Machined</th><th>Reasons</th>
+                        <th>Clashes with</th><th>Status</th><th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in duplicates %}
+                    <tr>
+                        <td class="app-muted">{{ d.source_row or '—' }}</td>
+                        <td>{{ d.entry_date.strftime('%d %b %Y') }}</td>
+                        <td class="mono-sm">{{ d.machined_part_no or '—' }}</td>
+                        <td class="mono-sm">{{ d.casting_no or '—' }}</td>
+                        <td class="mono-sm">{{ d.batch_no or '—' }}</td>
+                        <td class="num"><strong>{{ '{:,}'.format(d.qty_scrap or 0) }}</strong></td>
+                        <td class="num">{{ '{:,}'.format(d.qty_machined or 0) }}</td>
+                        <td style="white-space:normal;max-width:240px;">
+                            {% for defect_id, qty in d.defect_qtys.items() %}
+                                {% set df = defects_by_id.get(defect_id) %}
+                                <span class="app-badge blue" title="{{ df.name if df else 'Reason ' ~ defect_id }}">{{ df.code if df else defect_id }} {{ qty }}</span>
+                            {% else %}<span class="app-muted">—</span>{% endfor %}
+                        </td>
+                        <td style="white-space:nowrap;">
+                            <span class="app-badge gray">{{ d.clash_label }}</span>
+                            {% if d.existing_entry %}
+                                <div class="app-muted" style="font-size:.75rem;">
+                                    {{ '{:,}'.format(d.existing_entry.qty_scrap or 0) }} scrap
+                                    {% if d.existing_entry.batch_id %}
+                                        · <a href="{{ url_for('scrap.import_batch', batch_id=d.existing_entry.batch_id) }}">import #{{ d.existing_entry.batch_id }}</a>
+                                        {% if d.existing_entry.source_row %} row {{ d.existing_entry.source_row }}{% endif %}
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                        </td>
+                        <td style="white-space:nowrap;">
+                            {% if d.status == 'allowed' %}
+                                <span class="app-badge green">Allowed</span>
+                            {% elif d.status == 'rejected' %}
+                                <span class="app-badge red">Rejected</span>
+                            {% else %}
+                                <span class="app-badge amber">Pending</span>
+                            {% endif %}
+                            {% if d.resolved_at %}
+                            <div class="app-muted" style="font-size:.75rem;">
+                                {{ d.resolver.name if d.resolver else 'Unknown' }},
+                                {{ d.resolved_at.strftime('%d %b %H:%M') }}
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td style="white-space:nowrap;">
+                            {% if d.is_pending and can('scrap', 'import') %}
+                            <form method="POST" style="display:flex;gap:.35rem;"
+                                  action="{{ url_for('scrap.resolve_duplicate', batch_id=batch.id, dup_id=d.id) }}">
+                                {{ delete_form.hidden_tag() }}
+                                <button type="submit" name="decision" value="allow"
+                                        class="app-btn app-btn-primary app-btn-sm"
+                                        data-confirm-title="Import row {{ d.source_row }} anyway?"
+                                        data-confirm-body="This row repeats one already loaded." data-confirm-label="Import anyway">
+                                    <i class="bi bi-check-lg"></i> Allow
+                                </button>
+                                <button type="submit" name="decision" value="reject"
+                                        class="app-btn app-btn-outline app-btn-sm">
+                                    <i class="bi bi-x-lg"></i> Reject
+                                </button>
+                            </form>
+                            {% else %}
+                            <span class="app-muted">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="app-card">
+    <div class="app-card-head">
+        <h2 class="app-card-title"><i class="bi bi-list-ul"></i> Imported Rows</h2>
+        <div style="display:flex;gap:.5rem;">
+            <a class="app-btn app-btn-outline app-btn-sm" href="{{ url_for('scrap.import_batches') }}">
+                <i class="bi bi-arrow-left"></i> All imports
+            </a>
+            <form method="POST" action="{{ url_for('scrap.delete_batch', batch_id=batch.id) }}"
+                  data-confirm-title="Reverse this import?"
+                  data-confirm-body="{{ batch.rows_imported or 0 }} entry(ies) will be removed." data-confirm-label="Reverse import">
+                {{ delete_form.hidden_tag() }}
+                <button type="submit" class="app-btn app-btn-danger app-btn-sm">
+                    <i class="bi bi-arrow-counterclockwise"></i> Reverse import
+                </button>
+            </form>
+        </div>
+    </div>
+    <div class="app-card-body">
+        {% if entries %}
+        <div class="app-table-wrap">
+            <table class="app-table">
+                <thead>
+                    <tr>
+                        <th>Row</th><th>Date</th><th>Machined Part</th><th>Casting</th><th>Batch</th>
+                        <th class="num">Booked</th><th class="num">Machined</th><th class="num">Scrap</th>
+                        <th class="num">% Reject</th><th>Reasons</th><th>Product</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for e in entries %}
+                    <tr>
+                        <td class="app-muted">{{ e.source_row or '—' }}</td>
+                        <td>{{ e.entry_date.strftime('%d %b %Y') }}</td>
+                        <td class="mono-sm">{{ e.machined_part_no or '—' }}</td>
+                        <td class="mono-sm">{{ e.casting_no or '—' }}</td>
+                        <td class="mono-sm">{{ e.batch_no or '—' }}</td>
+                        <td class="num">{{ '{:,}'.format(e.qty_booked or 0) }}</td>
+                        <td class="num">{{ '{:,}'.format(e.qty_machined or 0) }}</td>
+                        <td class="num"><strong>{{ '{:,}'.format(e.qty_scrap or 0) }}</strong></td>
+                        <td class="num">
+                            {% if e.reject_pct is not none %}
+                                <span class="{{ 'pct-hi' if e.reject_pct >= 5 else 'pct-ok' }}">{{ '%.1f'|format(e.reject_pct) }}%</span>
+                            {% else %}—{% endif %}
+                        </td>
+                        <td style="white-space:normal;max-width:280px;">
+                            {% for line in e.defect_lines %}
+                                <span class="app-badge blue" title="{{ line.defect.name }}">{{ line.defect.code }} {{ line.qty }}</span>
+                            {% else %}<span class="app-muted">—</span>{% endfor %}
+                            {% if e.defect_lines and not e.is_reconciled %}
+                                <span class="app-badge red" title="Breakdown totals {{ e.defect_total }}, scrap qty is {{ e.qty_scrap }}">≠</span>
+                            {% endif %}
+                        </td>
+                        <td style="white-space:nowrap;">
+                            {% if e.product %}
+                                <span class="app-badge green">{{ e.product.name }}</span>
+                            {% else %}
+                                <form method="POST" action="{{ url_for('scrap.link_entry_product', entry_id=e.id) }}"
+                                      style="display:flex;gap:.35rem;align-items:center;">
+                                    {{ delete_form.hidden_tag() }}
+                                    <select name="product_id" class="app-select" style="min-width:190px;padding:.35rem .5rem;font-size:.82rem;">
+                                        {% for value, label in product_choices %}
+                                        <option value="{{ value }}">{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <button type="submit" class="app-btn app-btn-outline app-btn-sm"><i class="bi bi-link-45deg"></i></button>
+                                </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="app-empty">
+            <i class="bi bi-inbox"></i>
+            This import created no entries — every row was a duplicate or unusable.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ══ DUPLICATE DECISION DIALOG ══ -->
+{% if pending_duplicates and can('scrap', 'import') %}
+<div class="dup-overlay" id="dupReview" {% if not open_review %}hidden{% endif %}
+     onclick="if (event.target === this) closeDupReview();">
+    <div class="dup-dialog" role="dialog" aria-modal="true" aria-labelledby="dupReviewTitle">
+
+        <header>
+            <div>
+                <h3 id="dupReviewTitle">
+                    <i class="bi bi-exclamation-triangle-fill" style="color:#d97706;"></i>
+                    {{ pending_duplicates|length }} duplicate row(s) need a decision
+                </h3>
+                <p>
+                    Each row below repeats one already in the system. Allow it if the customer
+                    genuinely rejected that part and batch a second time; reject it if the report
+                    was simply re-sent.
+                </p>
+            </div>
+            <button type="button" class="dup-close" onclick="closeDupReview();" aria-label="Close">&times;</button>
+        </header>
+
+        <div class="dup-body">
+            {% for d in pending_duplicates %}
+            {% set ex = d.existing_entry %}
+            <div class="dup-item">
+                <div class="hd">
+                    <span><i class="bi bi-file-earmark-text"></i> File row {{ d.source_row or '?' }}</span>
+                    <span>·</span>
+                    <span>{{ d.clash_label }}</span>
+                    <span>·</span>
+                    <span class="mono-sm">{{ d.machined_part_no or d.casting_no or '—' }} / batch {{ d.batch_no or '—' }} / {{ d.entry_date.strftime('%d %b %Y') }}</span>
+                </div>
+
+                <div class="dup-compare">
+                    <div>
+                        <div class="cap">New — from this file</div>
+                        <dl class="dup-facts">
+                            <dt>Scrap</dt>
+                            <dd class="{{ 'diff' if ex and (d.qty_scrap or 0) != (ex.qty_scrap or 0) }}">{{ '{:,}'.format(d.qty_scrap or 0) }}</dd>
+                            <dt>Machined</dt>
+                            <dd class="{{ 'diff' if ex and (d.qty_machined or 0) != (ex.qty_machined or 0) }}">{{ '{:,}'.format(d.qty_machined or 0) }}</dd>
+                            <dt>Booked</dt>
+                            <dd class="{{ 'diff' if ex and (d.qty_booked or 0) != (ex.qty_booked or 0) }}">{{ '{:,}'.format(d.qty_booked or 0) }}</dd>
+                            <dt>Reasons</dt>
+                            <dd>
+                                {% for defect_id, qty in d.defect_qtys.items() %}
+                                    {% set df = defects_by_id.get(defect_id) %}
+                                    <span class="app-badge blue" title="{{ df.name if df else 'Reason ' ~ defect_id }}">{{ df.code if df else defect_id }} {{ qty }}</span>
+                                {% else %}<span class="app-muted">—</span>{% endfor %}
+                            </dd>
+                            {% if d.notes %}
+                            <dt>Notes</dt><dd>{{ d.notes }}</dd>
+                            {% endif %}
+                        </dl>
+                    </div>
+
+                    <div>
+                        <div class="cap">Already loaded</div>
+                        {% if ex %}
+                        <dl class="dup-facts">
+                            <dt>Scrap</dt><dd>{{ '{:,}'.format(ex.qty_scrap or 0) }}</dd>
+                            <dt>Machined</dt><dd>{{ '{:,}'.format(ex.qty_machined or 0) }}</dd>
+                            <dt>Booked</dt><dd>{{ '{:,}'.format(ex.qty_booked or 0) }}</dd>
+                            <dt>Reasons</dt>
+                            <dd>
+                                {% for line in ex.defect_lines %}
+                                    <span class="app-badge blue" title="{{ line.defect.name }}">{{ line.defect.code }} {{ line.qty }}</span>
+                                {% else %}<span class="app-muted">—</span>{% endfor %}
+                            </dd>
+                            <dt>Loaded</dt>
+                            <dd>
+                                {% if ex.batch_id %}
+                                    <a href="{{ url_for('scrap.import_batch', batch_id=ex.batch_id) }}">Import #{{ ex.batch_id }}</a>
+                                    {% if ex.source_row %} row {{ ex.source_row }}{% endif %}
+                                {% else %}Captured by hand{% endif %}
+                            </dd>
+                        </dl>
+                        {% else %}
+                        <p class="app-muted" style="margin:0;font-size:.84rem;">
+                            The matching entry has since been removed. Allowing this row will
+                            load it as a fresh entry.
+                        </p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <form method="POST" class="dup-actions"
+                      action="{{ url_for('scrap.resolve_duplicate', batch_id=batch.id, dup_id=d.id) }}">
+                    {{ delete_form.hidden_tag() }}
+                    <button type="submit" name="decision" value="reject" class="app-btn app-btn-outline app-btn-sm">
+                        <i class="bi bi-x-lg"></i> Reject — don't import
+                    </button>
+                    <button type="submit" name="decision" value="allow" class="app-btn app-btn-primary app-btn-sm">
+                        <i class="bi bi-check-lg"></i> Allow — import anyway
+                    </button>
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+
+        <footer>
+            <span class="spacer">Decisions are saved one at a time — close and come back whenever.</span>
+            <button type="button" class="app-btn app-btn-outline app-btn-sm" onclick="closeDupReview();">
+                Decide later
+            </button>
+            <form method="POST" style="display:flex;gap:.5rem;"
+                  action="{{ url_for('scrap.resolve_duplicates_bulk', batch_id=batch.id) }}">
+                {{ delete_form.hidden_tag() }}
+                <button type="submit" name="decision" value="reject" class="app-btn app-btn-outline app-btn-sm"
+                        data-confirm-title="Reject all {{ pending_duplicates|length }} duplicate row(s)?"
+                        data-confirm-body="None of them will be imported." data-confirm-label="Reject all">
+                    <i class="bi bi-x-circle"></i> Reject all
+                </button>
+                <button type="submit" name="decision" value="allow" class="app-btn app-btn-warn app-btn-sm"
+                        data-confirm-title="Import all {{ pending_duplicates|length }} duplicate row(s)?"
+                        data-confirm-body="Each one will be added on top of the row it repeats." data-confirm-label="Import all">
+                    <i class="bi bi-check2-all"></i> Allow all
+                </button>
+            </form>
+        </footer>
+
+    </div>
+</div>
+
+<script>
+    var dupReview = document.getElementById('dupReview');
+
+    function openDupReview() {
+        dupReview.hidden = false;
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeDupReview() {
+        dupReview.hidden = true;
+        document.body.style.overflow = '';
+    }
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && !dupReview.hidden) closeDupReview();
+    });
+
+    if (!dupReview.hidden) document.body.style.overflow = 'hidden';
+</script>
+{% endif %}
+
+{% endblock %}

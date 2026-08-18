@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Edit Division' if division else 'New Division' }}{% endblock %}
+
+{% block content %}
+<div class="app-container" style="max-width:720px;">
+
+    <div class="app-card">
+        <div class="app-card-head">
+            <span class="app-card-title">
+                <i class="bi bi-diagram-2" style="color:var(--hdc-primary);"></i>
+                {{ 'Edit Division' if division else 'New Division' }}
+            </span>
+            <a href="{{ url_for('org_structure') }}" class="app-btn app-btn-outline app-btn-sm">
+                <i class="bi bi-arrow-left"></i> Back
+            </a>
+        </div>
+        <div class="app-card-body">
+
+            <form method="POST" autocomplete="off">
+                {{ form.hidden_tag() }}
+
+                <div class="app-form-grid">
+                    <div class="app-field">
+                        <label class="app-label" for="code">Code <span class="req">*</span></label>
+                        {{ form.code(class="app-input is-invalid" if form.code.errors else "app-input",
+                                     id="code", placeholder="e.g. HDC", maxlength="10", autofocus=true) }}
+                        {% for error in form.code.errors %}
+                        <div class="app-err"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>
+                        {% endfor %}
+                        <div class="app-hint">Short identifier used on price lists and badges. Stored uppercase.</div>
+                    </div>
+
+                    <div class="app-field">
+                        <label class="app-label" for="name">Division Name <span class="req">*</span></label>
+                        {{ form.name(class="app-input is-invalid" if form.name.errors else "app-input",
+                                     id="name", placeholder="e.g. High Duty Castings", maxlength="100") }}
+                        {% for error in form.name.errors %}
+                        <div class="app-err"><i class="bi bi-exclamation-circle"></i> {{ error }}</div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div style="margin-top:1.5rem; display:flex; gap:.6rem;">
+                    <button type="submit" class="app-btn app-btn-primary">
+                        <i class="bi bi-check-lg"></i> {{ 'Save Changes' if division else 'Create Division' }}
+                    </button>
+                    <a href="{{ url_for('org_structure') }}" class="app-btn app-btn-outline">Cancel</a>
+                </div>
+            </form>
+
+        </div>
+    </div>
+
+    {% if division %}
+    <div class="app-card">
+        <div class="app-card-head">
+            <span class="app-card-title"><i class="bi bi-trash3" style="color:#dc2626;"></i> Delete Division</span>
+        </div>
+        <div class="app-card-body">
+            {% set blockers = usage.values() | select | list %}
+            {% if blockers %}
+            <p class="app-muted" style="margin:0 0 1rem;">
+                This division cannot be deleted while anything still belongs to it:
+            </p>
+            <ul class="app-muted" style="margin:0 0 1rem 1.1rem; font-size:.9rem;">
+                {% if usage.departments %}<li>{{ usage.departments }} department{{ 's' if usage.departments != 1 }}</li>{% endif %}
+                {% if usage.personnel %}<li>{{ usage.personnel }} personnel record{{ 's' if usage.personnel != 1 }}</li>{% endif %}
+                {% if usage.users %}<li>{{ usage.users }} user{{ 's' if usage.users != 1 }}</li>{% endif %}
+                {% if usage.customers %}<li>{{ usage.customers }} customer{{ 's' if usage.customers != 1 }}</li>{% endif %}
+                {% if usage.price_periods %}<li>{{ usage.price_periods }} price list period{{ 's' if usage.price_periods != 1 }}</li>{% endif %}
+            </ul>
+            <button class="app-btn app-btn-danger" disabled style="opacity:.5; cursor:not-allowed;">
+                <i class="bi bi-trash3"></i> Delete Division
+            </button>
+            {% else %}
+            <p class="app-muted" style="margin:0 0 1rem;">
+                Nothing belongs to this division, so it is safe to delete.
+            </p>
+            <form method="POST" action="{{ url_for('org_division_delete', division_id=division.id) }}"
+                  data-confirm-title="Delete the division &#8220;{{ division.code }} — {{ division.name }}&#8221;?" data-confirm-label="Delete division">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="app-btn app-btn-danger">
+                    <i class="bi bi-trash3"></i> Delete Division
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

@@ -1,0 +1,72 @@
+{% extends "timeclock/base_timeclock.html" %}
+{% set page_title = "Remembered Matches" %}
+{% set page_sub = "Clock numbers that were decided by hand, and now match themselves on every import." %}
+
+{% block title %}Remembered Matches{% endblock %}
+
+{% block tc_content %}
+
+<div class="app-card">
+    <div class="app-card-head">
+        <h2 class="app-card-title"><i class="bi bi-link-45deg"></i> Links <span class="app-muted" style="font-weight:500;">({{ links|length }})</span></h2>
+    </div>
+    <div class="app-card-body">
+        <p class="app-muted" style="margin-top:0; font-size:.86rem;">
+            Almost every employee number on the clock is a personnel clock number, and matches on its
+            own. These are the ones that did not — a number typed differently on the clock, someone
+            carried over from an old numbering, or a person who is not ours at all. Each was decided
+            once, here is where that decision lives, and removing a row makes the next import decide
+            it afresh.
+        </p>
+
+        {% if links %}
+        <div class="app-table-wrap">
+            <table class="app-table">
+                <thead>
+                    <tr>
+                        <th>Clock number</th><th>Name on the report</th><th>Matched to</th>
+                        <th class="num">Used on</th><th>Decided</th><th>By</th><th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for link in links %}
+                    <tr>
+                        <td class="mono-sm">{{ link.emp_no }}</td>
+                        <td>{{ link.emp_name or '—' }}</td>
+                        <td>
+                            {% if link.personnel %}
+                                {{ link.personnel.name }} {{ link.personnel.surname or '' }}
+                                <span class="app-muted">({{ link.personnel.clockno }})</span>
+                            {% else %}
+                                <span class="app-badge gray">Not one of ours</span>
+                            {% endif %}
+                        </td>
+                        <td class="num">{{ usage.get(link.emp_no, 0) }} import(s)</td>
+                        <td>{{ link.created_at.strftime('%d %b %Y') if link.created_at else '—' }}</td>
+                        <td class="app-muted">{{ link.user.name if link.user else '—' }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('timeclock.delete_link', link_id=link.id) }}"
+                                  data-confirm-title="Remove the remembered match for {{ link.emp_no }}?"
+                                  data-confirm-body="Imports already loaded keep their match; the next one will decide this number afresh."
+                                  data-confirm-label="Remove">
+                                {{ confirm_form.hidden_tag() }}
+                                <button type="submit" class="app-btn app-btn-danger app-btn-sm">
+                                    <i class="bi bi-trash"></i> Forget
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="app-empty">
+            <i class="bi bi-check2-circle"></i>
+            Nothing has needed a manual match yet — every clock number matched on its own.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

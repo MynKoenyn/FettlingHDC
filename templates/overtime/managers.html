@@ -1,0 +1,106 @@
+{% extends 'overtime/base.html' %}
+{% block title %}Heads{% endblock %}
+{% block page_title %}Personnel Heads{% endblock %}
+
+{% block content %}
+<div class="ot-alert ot-alert-info d-flex align-items-center gap-2 mb-4">
+  <i class="bi bi-info-circle-fill"></i>
+  A Head is a <strong>user login</strong> allowed to submit &amp; approve overtime for a personnel member.
+  Assign Heads here so they appear in each other's overtime scope.
+</div>
+
+<!-- Assign a Head -->
+<div class="ot-card" style="margin-bottom:1.5rem;">
+  <div class="ot-card-header">
+    <span class="ot-card-title"><i class="bi bi-plus-circle me-2"></i>Assign a Head</span>
+  </div>
+  <div class="ot-card-body">
+    {% if not can('managers', 'edit') %}
+    <div style="color:var(--ot-muted); font-size:.9rem;">You have view-only access to head assignments.</div>
+    {% elif personnel and users %}
+    <form method="POST" action="{{ url_for('overtime.managers_add') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="row g-3 align-items-end">
+        <div class="col-sm-5">
+          <label class="ot-form-label">Personnel Member</label>
+          <select name="personnel_id" class="ot-form-control" required data-ot-search>
+            <option value="">— Search name, surname or clock no. —</option>
+            {% for p in personnel %}
+            <option value="{{ p.id }}">{{ p.name }} {{ p.surname or '' }} ({{ p.clockno }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-sm-5">
+          <label class="ot-form-label">Head (user login)</label>
+          <select name="manager_id" class="ot-form-control" required data-ot-search>
+            <option value="">— Search head name or username —</option>
+            {% for u in users %}
+            <option value="{{ u.id }}">{{ u.name }} ({{ u.username }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-sm-2">
+          <button type="submit" class="ot-btn ot-btn-primary w-100"><i class="bi bi-link-45deg"></i> Assign</button>
+        </div>
+      </div>
+    </form>
+    {% else %}
+    <div style="color:var(--ot-muted); font-size:.9rem;">
+      {% if not personnel %}You need at least one <a href="{{ url_for('overtime.personnel_list') }}">personnel record</a>{% endif %}
+      {% if not personnel and not users %} and {% endif %}
+      {% if not users %}an active user login{% endif %}
+      before you can assign Heads.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Existing assignments -->
+<div class="ot-card">
+  <div class="ot-card-header">
+    <span class="ot-card-title"><i class="bi bi-diagram-3 me-2"></i>Current Assignments</span>
+  </div>
+  <div class="ot-card-body">
+    {% if grants %}
+    <div style="overflow-x:auto;">
+      <table class="ot-table">
+        <thead>
+          <tr>
+            <th>Personnel Member</th>
+            <th>Clock No</th>
+            <th>Head</th>
+            <th>Head Login</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for g in grants %}
+          <tr>
+            <td style="font-weight:600; color:var(--ot-text);">{{ g.personnel.name }} {{ g.personnel.surname or '' }}</td>
+            <td style="font-family:ui-monospace,Menlo,monospace;">{{ g.personnel.clockno }}</td>
+            <td>{{ g.manager.name if g.manager else '—' }}</td>
+            <td style="color:var(--ot-muted);">{{ g.manager.username if g.manager else '—' }}</td>
+            <td style="text-align:right;">
+              {% if can('managers', 'edit') %}
+              <form method="POST" action="{{ url_for('overtime.managers_delete', grant_id=g.id) }}"
+                    style="display:inline;" data-confirm-title="Remove this manager assignment?" data-confirm-label="Remove">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="ot-btn ot-btn-danger ot-btn-sm"><i class="bi bi-x-lg"></i> Remove</button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div style="font-size:.8rem; color:var(--ot-muted); margin-top:1rem;">{{ grants|length }} assignment{{ 's' if grants|length != 1 }}</div>
+    {% else %}
+    <div class="empty-state">
+      <i class="bi bi-diagram-3" style="font-size:1.6rem; display:block; margin-bottom:.5rem;"></i>
+      No Head assignments yet. Use the form above to create one.
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

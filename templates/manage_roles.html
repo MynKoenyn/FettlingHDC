@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+{% block title %}Roles{% endblock %}
+
+{% block content %}
+<div class="app-container wide">
+
+    <div class="app-card">
+        <div class="app-card-head">
+            <span class="app-card-title"><i class="bi bi-person-badge" style="color:var(--hdc-primary);"></i> User Roles</span>
+            <a href="{{ url_for('list_users') }}" class="app-btn app-btn-outline app-btn-sm">
+                <i class="bi bi-arrow-left"></i> Back to Users
+            </a>
+        </div>
+        <div class="app-card-body">
+            <p class="app-muted" style="margin-top:-.25rem;margin-bottom:1.1rem;">
+                Roles label users by job function. What each user may actually do is set per account on
+                the Access Control screen — only the <strong>admin</strong> role changes access (it can
+                reach everything).
+            </p>
+
+            <!-- Add role -->
+            <form method="POST" style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:flex-start;margin-bottom:1.5rem;">
+                {{ form.hidden_tag() }}
+                <div style="flex:1;min-width:220px;">
+                    {{ form.name(class="app-input", placeholder="New role name, e.g. Procurement", maxlength="50") }}
+                    {% for e in form.name.errors %}<div class="app-err"><i class="bi bi-exclamation-circle"></i>{{ e }}</div>{% endfor %}
+                </div>
+                <button type="submit" class="app-btn app-btn-primary"><i class="bi bi-plus-lg"></i> Add Role</button>
+            </form>
+
+            {% if roles %}
+            <div class="app-table-wrap">
+                <table class="app-table">
+                    <thead>
+                        <tr><th>Role</th><th class="num" style="width:90px;">Users</th><th style="width:300px;"></th></tr>
+                    </thead>
+                    <tbody>
+                        {% for r in roles %}
+                        {% set is_admin_role = r.name.lower() in ['admin', 'administrator'] %}
+                        {% set count = user_counts.get(r.id, 0) %}
+                        <tr>
+                            <td>
+                                {% if is_admin_role %}
+                                    <span class="app-badge blue">{{ r.name }}</span>
+                                    <span class="app-muted" style="font-size:.78rem;margin-left:.3rem;"><i class="bi bi-shield-lock"></i> full access</span>
+                                {% else %}
+                                    <form method="POST" action="{{ url_for('rename_role', role_id=r.id) }}" style="display:flex;gap:.4rem;align-items:center;max-width:280px;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="text" name="name" value="{{ r.name }}" class="app-input" style="padding:.4rem .6rem;" maxlength="50">
+                                        <button type="submit" class="app-btn app-btn-outline app-btn-sm" title="Save name"><i class="bi bi-check-lg"></i></button>
+                                    </form>
+                                {% endif %}
+                            </td>
+                            <td class="num">{{ count }}</td>
+                            <td style="text-align:right;">
+                                {% if is_admin_role %}
+                                    <span class="app-muted" style="font-size:.8rem;">Protected</span>
+                                {% elif count %}
+                                    <span class="app-muted" style="font-size:.8rem;" title="Move its users to another role first">In use — can't delete</span>
+                                {% else %}
+                                    <form method="POST" action="{{ url_for('delete_role', role_id=r.id) }}" style="display:inline;"
+                                          data-confirm-title="Delete the role &#8220;{{ r.name }}&#8221;?" data-confirm-label="Delete role">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="app-btn app-btn-outline app-btn-sm" style="color:#dc2626;"><i class="bi bi-trash"></i> Delete</button>
+                                    </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="app-result-count">{{ roles|length }} role{{ 's' if roles|length != 1 }}</div>
+            {% else %}
+            <div class="app-empty"><i class="bi bi-person-badge"></i> No roles yet. Add one above.</div>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+{% endblock %}

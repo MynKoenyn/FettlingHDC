@@ -1,0 +1,200 @@
+{% extends "furnace/base_furnace.html" %}
+
+{% block title %}Tin & Copper Calculations - Furnace Management System{% endblock %}
+
+{% block furnace_content %}
+<div class="row mb-4">
+    <div class="col">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1><i class="fas fa-flask me-2"></i>Tin &amp; Copper Calculations</h1>
+                <p class="text-muted">Track base readings, calculated additions, and actual amounts added</p>
+            </div>
+            <a href="{{ url_for('furnace.tin_copper_new') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>New Record
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-filter me-2"></i>Filters</h5>
+    </div>
+    <div class="card-body">
+        <form method="GET">
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    {{ filter_form.furnace_id.label(class="form-label") }}
+                    {{ filter_form.furnace_id(class="form-select") }}
+                </div>
+                <div class="col-md-3 mb-3">
+                    {{ filter_form.metal_grade_id.label(class="form-label") }}
+                    {{ filter_form.metal_grade_id(class="form-select") }}
+                </div>
+                <div class="col-md-3 mb-3">
+                    {{ filter_form.date_from.label(class="form-label") }}
+                    {{ filter_form.date_from(class="form-control") }}
+                </div>
+                <div class="col-md-3 mb-3">
+                    {{ filter_form.date_to.label(class="form-label") }}
+                    {{ filter_form.date_to(class="form-control") }}
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-outline-primary">
+                    <i class="fas fa-search me-1"></i>Apply
+                </button>
+                <a href="{{ url_for('furnace.tin_copper') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times me-1"></i>Clear
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Records Table -->
+<div class="card">
+    <div class="card-body">
+        {% if records %}
+        <div class="table-responsive">
+            <table class="table table-striped table-hover align-middle small">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Date</th>
+                        <th>Heat No</th>
+                        <th>Operator</th>
+                        <th>Furnace</th>
+                        <th>Grade</th>
+                        <th class="text-end">Weight (kg)</th>
+                        <th class="text-end">Base Sn (%)</th>
+                        <th class="text-end">Sn To Add (kg)</th>
+                        <th class="text-end">Sn Added (kg)</th>
+                        <th class="text-end">Base Cu (%)</th>
+                        <th class="text-end">Cu To Add (kg)</th>
+                        <th class="text-end">Cu Added (kg)</th>
+                        <th class="text-end">Start Sn</th>
+                        <th class="text-end">Sn Issued</th>
+                        <th class="text-end">End Sn</th>
+                        <th class="text-end">Start Cu</th>
+                        <th class="text-end">Cu Issued</th>
+                        <th class="text-end">End Cu</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in records %}
+                    <tr>
+                        <td>{{ r.date.strftime('%d/%m/%Y') }}</td>
+                        <td>{{ r.heat_number or '-' }}</td>
+                        <td>{{ r.operator.name if r.operator else '-' }}</td>
+                        <td>{{ r.furnace_rel.name if r.furnace_rel else '-' }}</td>
+                        <td>
+                            <span class="badge bg-secondary">{{ r.metal_grade_rel.name if r.metal_grade_rel else '-' }}</span>
+                        </td>
+                        <td class="text-end">{{ r.weight }}</td>
+                        <td class="text-end">{{ '%.4f' % r.base_tin if r.base_tin is not none else '-' }}</td>
+                        <td class="text-end">
+                            {% if r.tin_to_be_added is not none %}
+                                {% if r.tin_to_be_added < 0 %}
+                                    <span class="text-danger" title="Already at/above target - no tin required (counted as 0 in totals)">{{ '%.4f' % r.tin_to_be_added }}</span>
+                                {% else %}
+                                    {{ '%.4f' % r.tin_to_be_added }}
+                                {% endif %}
+                            {% else %}-{% endif %}
+                        </td>
+                        {% set sn = r.tin_check %}
+                        <td class="text-end {% if sn %}fw-semibold {{ 'text-success' if sn.status == 'ok' else 'text-danger' }}{% endif %}"
+                            {% if sn and sn.required %}title="Required {{ '%.4f' % sn.required }} kg - acceptable {{ '%.4f' % sn.low }} to {{ '%.4f' % sn.high }} kg (+/-10%)"
+                            {% elif sn %}title="No tin required - anything added is out of spec"{% endif %}>
+                            {{ '%.4f' % r.tin_added if r.tin_added is not none else '-' }}
+                        </td>
+                        <td class="text-end">{{ '%.4f' % r.base_copper if r.base_copper is not none else '-' }}</td>
+                        <td class="text-end">
+                            {% if r.copper_to_be_added is not none %}
+                                {% if r.copper_to_be_added < 0 %}
+                                    <span class="text-danger" title="Already at/above target - no copper required (counted as 0 in totals)">{{ '%.4f' % r.copper_to_be_added }}</span>
+                                {% else %}
+                                    {{ '%.4f' % r.copper_to_be_added }}
+                                {% endif %}
+                            {% else %}-{% endif %}
+                        </td>
+                        {% set cu = r.copper_check %}
+                        <td class="text-end {% if cu %}fw-semibold {{ 'text-success' if cu.status == 'ok' else 'text-danger' }}{% endif %}"
+                            {% if cu and cu.required %}title="Required {{ '%.4f' % cu.required }} kg - acceptable {{ '%.4f' % cu.low }} to {{ '%.4f' % cu.high }} kg (+/-10%)"
+                            {% elif cu %}title="No copper required - anything added is out of spec"{% endif %}>
+                            {{ '%.4f' % r.copper_added if r.copper_added is not none else '-' }}
+                        </td>
+                        <td class="text-end">{{ r.starting_tin if r.starting_tin is not none else '-' }}</td>
+                        <td class="text-end">{{ r.tin_issued if r.tin_issued is not none else '-' }}</td>
+                        {% set end_sn = (r.starting_tin or 0) + (r.tin_issued or 0) - (r.tin_added or 0) %}
+                        <td class="text-end {% if r.starting_tin is not none %}fw-semibold text-success{% endif %}">
+                            {{ '%.4f' % end_sn if r.starting_tin is not none else '-' }}
+                        </td>
+                        <td class="text-end">{{ r.starting_copper if r.starting_copper is not none else '-' }}</td>
+                        <td class="text-end">{{ r.copper_issued if r.copper_issued is not none else '-' }}</td>
+                        {% set end_cu = (r.starting_copper or 0) + (r.copper_issued or 0) - (r.copper_added or 0) %}
+                        <td class="text-end {% if r.starting_copper is not none %}fw-semibold text-success{% endif %}">
+                            {{ '%.4f' % end_cu if r.starting_copper is not none else '-' }}
+                        </td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <a href="{{ url_for('furnace.tin_copper_edit', record_id=r.id) }}"
+                                   class="btn btn-sm btn-outline-primary" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                {% if can('furnace', 'admin') %}
+                                <form method="POST" action="{{ url_for('furnace.tin_copper_delete', record_id=r.id) }}"
+                                      data-confirm-title="Delete this record?" data-confirm-label="Delete">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-secondary fw-bold border-top border-2">
+                    <tr>
+                        <td colspan="5">TOTALS &mdash; {{ records|length }} record(s)</td>
+                        <td class="text-end">{{ totals.weight }}</td>
+                        <td class="text-end text-muted fw-normal">&mdash;</td>
+                        <td class="text-end">{{ '%.4f' % totals.tin_to_be_added }}</td>
+                        <td class="text-end">{{ '%.4f' % totals.tin_added }}</td>
+                        <td class="text-end text-muted fw-normal">&mdash;</td>
+                        <td class="text-end">{{ '%.4f' % totals.copper_to_be_added }}</td>
+                        <td class="text-end">{{ '%.4f' % totals.copper_added }}</td>
+                        <td class="text-end text-muted fw-normal">&mdash;</td>
+                        <td class="text-end">{{ '%.4f' % totals.tin_issued }}</td>
+                        <td class="text-end text-muted fw-normal">&mdash;</td>
+                        <td class="text-end text-muted fw-normal">&mdash;</td>
+                        <td class="text-end">{{ '%.4f' % totals.copper_issued }}</td>
+                        <td class="text-end text-muted fw-normal">&mdash;</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        <div class="d-flex flex-wrap gap-3 align-items-center small mt-2">
+            <span class="text-muted">{{ records|length }} record(s) found</span>
+            <span class="text-muted">|</span>
+            <span><i class="fas fa-square text-success me-1"></i>Added within &plusmn;10% of required</span>
+            <span><i class="fas fa-square text-danger me-1"></i>Added outside &plusmn;10% of required</span>
+        </div>
+        <p class="text-muted small mt-2 mb-0">
+            Totals cover the filtered records above; negative <em>To Add</em> values
+            (already at or above target) are counted as 0.
+        </p>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+            <i class="fas fa-flask fa-3x mb-3"></i>
+            <p>No records found. <a href="{{ url_for('furnace.tin_copper_new') }}">Add the first one.</a></p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

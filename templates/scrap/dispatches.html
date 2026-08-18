@@ -1,0 +1,122 @@
+{% extends "scrap/base_scrap.html" %}
+{% set page_title = "Dispatches" %}
+{% set page_sub = "Packed stock that has left the site." %}
+
+{% block title %}Dispatches{% endblock %}
+
+{% block scrap_content %}
+
+<div class="app-card">
+    <div class="app-card-head">
+        <h2 class="app-card-title"><i class="bi bi-funnel"></i> Filters</h2>
+        <a class="app-btn app-btn-primary app-btn-sm" href="{{ url_for('scrap.dispatch_entry') }}">
+            <i class="bi bi-plus-lg"></i> Capture dispatch
+        </a>
+    </div>
+    <div class="app-card-body">
+        <form method="GET" class="filter-bar">
+            <div>
+                <label class="app-label">Customer</label>
+                <select name="customer_id" class="app-select">
+                    <option value="">All customers</option>
+                    {% for c in customers %}
+                    <option value="{{ c.id }}" {{ 'selected' if filters.customer_id == c.id }}>{{ c.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="app-label">Product</label>
+                <select name="product_id" class="app-select">
+                    <option value="">All products</option>
+                    {% for p in products %}
+                    <option value="{{ p.id }}" {{ 'selected' if p.id in filters.product_id }}>{{ p.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="app-label">From</label>
+                <input type="date" name="start_date" class="app-input" value="{{ filters.start_date }}">
+            </div>
+            <div>
+                <label class="app-label">To</label>
+                <input type="date" name="end_date" class="app-input" value="{{ filters.end_date }}">
+            </div>
+            <div class="acts">
+                <button type="submit" class="app-btn app-btn-primary"><i class="bi bi-search"></i> Apply</button>
+                <a href="{{ url_for('scrap.dispatches') }}" class="app-btn app-btn-outline">Clear</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="kpi-row">
+    <div class="kpi muted">
+        <div class="v">{{ '{:,}'.format(totals.dispatches) }}</div>
+        <div class="l">Dispatches Shown</div>
+    </div>
+    <div class="kpi">
+        <div class="v">{{ '{:,}'.format(totals.qty) }}</div>
+        <div class="l">Qty Dispatched</div>
+    </div>
+</div>
+
+<div class="app-card">
+    <div class="app-card-head">
+        <h2 class="app-card-title"><i class="bi bi-list-ul"></i> Dispatches</h2>
+        <span class="app-muted" style="font-size:.82rem;">Newest first, capped at 1 000 rows</span>
+    </div>
+    <div class="app-card-body">
+        {% if rows %}
+        <div class="app-table-wrap">
+            <table class="app-table">
+                <thead>
+                    <tr>
+                        <th>Date</th><th>Customer</th><th>Product</th>
+                        <th class="num">Qty Dispatched</th>
+                        <th>Invoice</th><th>Cage</th><th>Trenstar No.</th>
+                        <th>Notes</th><th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in rows %}
+                    <tr>
+                        <td>{{ d.dispatch_date.strftime('%d %b %Y') }}</td>
+                        <td>{{ d.customer.name if d.customer else '—' }}</td>
+                        <td>{{ d.product.name if d.product else '—' }}</td>
+                        <td class="num"><strong>{{ '{:,}'.format(d.qty_dispatched or 0) }}</strong></td>
+                        <td class="mono-sm">{{ d.batch.invoice_no if d.batch else '—' }}</td>
+                        <td class="num">{{ d.cage_no if d.cage_no else '—' }}</td>
+                        <td class="mono-sm">{{ d.trenstar_no or '—' }}</td>
+                        <td>{{ d.notes or (d.batch.notes if d.batch else None) or '—' }}</td>
+                        <td style="white-space:nowrap;">
+                            {% if d.batch_id %}
+                            <a class="app-btn app-btn-outline app-btn-sm" href="{{ url_for('scrap.dispatch_batch_edit', batch_id=d.batch_id) }}" title="Edit dispatch">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            {% else %}
+                            <a class="app-btn app-btn-outline app-btn-sm" href="{{ url_for('scrap.dispatch_entry', dispatch_id=d.id) }}" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            {% endif %}
+                            <form method="POST" action="{{ url_for('scrap.delete_dispatch', dispatch_id=d.id) }}"
+                                  style="display:inline;"
+                                  data-confirm-title="Delete this dispatch?" data-confirm-label="Delete">
+                                {{ delete_form.hidden_tag() }}
+                                <button type="submit" class="app-btn app-btn-danger app-btn-sm" title="Delete"><i class="bi bi-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="app-empty">
+            <i class="bi bi-inbox"></i>
+            No dispatches match those filters.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

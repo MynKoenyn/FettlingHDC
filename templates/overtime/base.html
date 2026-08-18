@@ -476,6 +476,10 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<!-- app-shell.js only for its confirmation-dialog helper (data-confirm-*)
+     and submit guard — this module's own JS below targets its own,
+     differently-named selectors, so nothing collides. -->
+<script src="{{ url_for('static', filename='app-shell.js') }}"></script>
 
 <script>
 /* ── Searchable select ───────────────────────────────────────────────────

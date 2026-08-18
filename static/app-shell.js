@@ -169,7 +169,7 @@ function hdcConfirm(opts) {
 }
 
 function hdcInitConfirmGuards(root) {
-    (root || document).querySelectorAll('form[data-confirm-body]').forEach(function (form) {
+    (root || document).querySelectorAll('form[data-confirm-title], form[data-confirm-body]').forEach(function (form) {
         if (form.dataset.confirmWired) return;
         form.dataset.confirmWired = '1';
         form.addEventListener('submit', function (e) {
@@ -184,6 +184,31 @@ function hdcInitConfirmGuards(root) {
             });
         });
     });
+
+    // Button-level variant — for forms with several submit buttons that each
+    // need their own confirmation message (e.g. "Allow" vs "Reject"), where
+    // hoisting one confirm to the whole form would apply the wrong message
+    // to the other button.
+    (root || document).querySelectorAll('button[data-confirm-title], button[data-confirm-body]').forEach(function (btn) {
+        if (btn.dataset.confirmWired) return;
+        btn.dataset.confirmWired = '1';
+        btn.addEventListener('click', function (e) {
+            if (btn.dataset.confirmed) { btn.dataset.confirmed = ''; return; }
+            var form = btn.form;
+            if (!form) return;
+            e.preventDefault();
+            hdcConfirm({
+                title: btn.dataset.confirmTitle,
+                body: btn.dataset.confirmBody,
+                confirmLabel: btn.dataset.confirmLabel,
+            }).then(function (ok) {
+                if (ok) {
+                    btn.dataset.confirmed = '1';
+                    form.requestSubmit ? form.requestSubmit(btn) : btn.click();
+                }
+            });
+        });
+    });
 }
 
 // ── Disable-on-submit guard — prevents double-submits on slow saves.
@@ -193,7 +218,8 @@ function hdcInitSubmitGuards(root) {
         if (form.dataset.guardWired) return;
         form.dataset.guardWired = '1';
         form.addEventListener('submit', function () {
-            if (form.dataset.confirmBody && !form.dataset.confirmed) return; // wait for confirm dialog first
+            var awaitingConfirm = (form.dataset.confirmTitle || form.dataset.confirmBody) && !form.dataset.confirmed;
+            if (awaitingConfirm) return; // wait for confirm dialog first
             var btn = form.querySelector('button[type="submit"], input[type="submit"]');
             if (btn && !btn.classList.contains('is-loading')) {
                 var textColor = getComputedStyle(btn).color;

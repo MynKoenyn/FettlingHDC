@@ -815,6 +815,11 @@
 })();
 </script>
 
+<!-- app-shell.js only for its confirmation-dialog helper (data-confirm-*)
+     and submit guard — this module's own JS above targets its own,
+     differently-named selectors, so nothing collides. -->
+<script src="{{ url_for('static', filename='app-shell.js') }}"></script>
+
 {% block scripts %}{% endblock %}
 </body>
 </html>

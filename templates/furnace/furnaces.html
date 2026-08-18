@@ -1,0 +1,89 @@
+{% extends "furnace/base_furnace.html" %}
+
+{% block title %}Furnaces - Furnace Management System{% endblock %}
+
+{% block furnace_content %}
+<div class="row mb-4">
+    <div class="col">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1><i class="fas fa-fire me-2"></i>Furnaces</h1>
+                <p class="text-muted">Manage furnace inventory and configurations</p>
+            </div>
+            <a href="{{ url_for('furnace.new_furnace') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>Add Furnace
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if furnaces %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Capacity</th>
+                            <th>Current Lining</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for furnace in furnaces %}
+                        <tr>
+                            <td><strong>{{ furnace.name }}</strong></td>
+                            <td>
+                                {% if furnace.capacity %}
+                                    {{ "%.1f"|format(furnace.capacity) }} {{ furnace.capacity_unit }}
+                                {% else %}
+                                    <span class="text-muted">Not specified</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ furnace.current_lining_number }}</td>
+                            <td class="status-column">
+                                {% if furnace.status == 'Active' %}
+                                    <span class="badge bg-success">{{ furnace.status }}</span>
+                                {% elif furnace.status == 'Maintenance' %}
+                                    <span class="badge bg-warning">{{ furnace.status }}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ furnace.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ furnace.created_at.strftime('%Y-%m-%d') }}</td>
+                            <td class="action-buttons">
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('furnace.edit_furnace', id=furnace.id) }}" class="btn btn-outline-primary">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    {% if furnace.status != 'Inactive' %}
+                                    <form method="POST" action="{{ url_for('furnace.delete_furnace', id=furnace.id) }}" style="display: inline;"
+                                          data-confirm-title="Deactivate this furnace?" data-confirm-label="Deactivate">
+                                        <button type="submit" class="btn btn-outline-danger">
+                                            <i class="fas fa-power-off"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-fire fa-3x text-muted mb-3"></i>
+                <h4>No Furnaces Found</h4>
+                <p class="text-muted">Get started by adding your first furnace.</p>
+                <a href="{{ url_for('furnace.new_furnace') }}" class="btn btn-primary">
+                    <i class="fas fa-plus me-1"></i>Add First Furnace
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

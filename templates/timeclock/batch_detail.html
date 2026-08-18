@@ -1,0 +1,352 @@
+{% extends "timeclock/base_timeclock.html" %}
+{% set page_title = "Import #" ~ batch.id %}
+{% set page_sub = batch.report_kind or "Clock report" %}
+{% set container_class = "xwide" %}
+
+{% block title %}Clock Import #{{ batch.id }}{% endblock %}
+
+{# A week's clocking report runs to 175 people, so the list is paged rather
+   than rendered whole — the same nav is shown above and below it. #}
+{% macro pager(page, pages, unmatched_only) %}
+<div class="pager">
+    {% if page > 1 %}
+    <a class="app-btn app-btn-outline app-btn-sm"
+       href="{{ url_for('timeclock.batch_detail', batch_id=batch.id, page=page-1, unmatched=1 if unmatched_only else None) }}">
+        <i class="bi bi-chevron-left"></i> Previous
+    </a>
+    {% endif %}
+    <span class="app-muted">Page {{ page }} of {{ pages }}</span>
+    {% if page < pages %}
+    <a class="app-btn app-btn-outline app-btn-sm"
+       href="{{ url_for('timeclock.batch_detail', batch_id=batch.id, page=page+1, unmatched=1 if unmatched_only else None) }}">
+        Next <i class="bi bi-chevron-right"></i>
+    </a>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{% block tc_content %}
+
+{# ── Header figures ─────────────────────────────────────────────── #}
+<div class="kpi-row">
+    <div class="kpi">
+        <div class="v">{{ batch.period_label }}</div>
+        <div class="l">Period</div>
+        <div class="s">{{ batch.filename or '—' }}</div>
+    </div>
+    <div class="kpi">
+        <div class="v">{{ batch.employees_total or 0 }}</div>
+        <div class="l">Employees</div>
+        <div class="s">{{ batch.rows_imported or 0 }} day row(s)</div>
+    </div>
+    <div class="kpi">
+        <div class="v">{{ '%.2f'|format(batch.normal_hours) }}</div>
+        <div class="l">Normal hours loaded</div>
+        <div class="s">
+            {% if batch.is_full_clocking %}Every day of the period
+            {% else %}Only the days that carried overtime{% endif %}
+        </div>
+    </div>
+    <div class="kpi {{ 'danger' if batch.employees_unmatched else 'ok' }}">
+        <div class="v">{{ batch.employees_unmatched or 0 }}</div>
+        <div class="l">Unmatched</div>
+        <div class="s">{{ 'Hours not attributed to anyone' if batch.employees_unmatched else 'Everyone linked' }}</div>
+    </div>
+    <div class="kpi {{ 'ok' if batch.reconciles else ('danger' if batch.reconciles is not none else 'muted') }}">
+        <div class="v">{{ '%.2f'|format(batch.overtime_hours) }}</div>
+        <div class="l">Overtime hours loaded</div>
+        <div class="s">
+            {% if batch.file_overtime_hours is not none %}
+                Report says {{ '%.2f'|format(batch.file_overtime_hours) }}
+                {% if batch.reconciles %}· reconciles{% else %}· does not reconcile{% endif %}
+            {% else %}No grand total on the file{% endif %}
+        </div>
+    </div>
+    {% if show_money and batch.file_cost_total is not none %}
+    <div class="kpi muted">
+        <div class="v">R{{ '{:,.2f}'.format(batch.file_cost_total) }}</div>
+        <div class="l">Cost on the report</div>
+        <div class="s">
+            {% if batch.file_cost_overtime is not none %}Overtime R{{ '{:,.2f}'.format(batch.file_cost_overtime) }}{% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{# ── Notes the import raised ────────────────────────────────────── #}
+{% if batch.note_lines or overlaps %}
+<div class="app-card">
+    <div class="app-card-head">
+        <h2 class="app-card-title"><i class="bi bi-exclamation-triangle"></i> Notes on this Import</h2>
+    </div>
+    <div class="app-card-body">
+        <ul class="app-muted" style="font-size:.86rem; line-height:1.6; padding-left:1.1rem; margin:0;">
+            {% for note in batch.note_lines %}<li>{{ note }}</li>{% endfor %}
+            {% for other in overlaps %}
+            <li>Period overlaps
+                <a href="{{ url_for('timeclock.batch_detail', batch_id=other.id) }}">import #{{ other.id }}</a>
+                ({{ other.period_label }}) — the same hours may be loaded twice.</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endif %}
+
+{# ── Actions ────────────────────────────────────────────────────── #}
+<div class="app-card">
+    <div class="app-card-head">
+        <h2 class="app-card-title"><i class="bi bi-sliders"></i> Actions</h2>
+        <div style="display:flex; gap:.5rem; flex-wrap:wrap; align-items:center;">
+            <a class="app-btn app-btn-outline app-btn-sm"
+               href="{{ url_for('timeclock.batch_detail', batch_id=batch.id, unmatched=None if unmatched_only else 1) }}">
+                {% if unmatched_only %}<i class="bi bi-list"></i> Show everyone
+                {% else %}<i class="bi bi-funnel"></i> Only unmatched{% endif %}
+            </a>
+            <a class="app-btn app-btn-outline app-btn-sm"
+               href="{{ url_for('timeclock.days', start=batch.period_start, end=batch.period_end) }}">
+                <i class="bi bi-list-ul"></i> Hours worked
+            </a>
+
+            {% if can_edit %}
+            <form method="POST" action="{{ url_for('timeclock.rematch', batch_id=batch.id) }}" style="display:inline;">
+                {{ confirm_form.hidden_tag() }}
+                <button type="submit" class="app-btn app-btn-primary app-btn-sm"
+                        title="Try again on the employees still undecided. Matches you made by hand are left alone.">
+                    <i class="bi bi-arrow-repeat"></i> Re-match unmatched
+                </button>
+            </form>
+            <form method="POST" action="{{ url_for('timeclock.rematch', batch_id=batch.id) }}" style="display:inline;"
+                  data-confirm-title="Redo every employee on this import?"
+                  data-confirm-body="Matches made by hand will be replaced by whatever the automatic passes decide." data-confirm-label="Redo every match">
+                {{ confirm_form.hidden_tag() }}
+                <input type="hidden" name="include_decided" value="1">
+                <button type="submit" class="app-btn app-btn-outline app-btn-sm">
+                    <i class="bi bi-arrow-clockwise"></i> Redo every match
+                </button>
+            </form>
+            {% endif %}
+
+            {% if can_admin %}
+            <form method="POST" action="{{ url_for('timeclock.delete_batch', batch_id=batch.id) }}" style="display:inline;"
+                  data-confirm-title="Reverse import #{{ batch.id }}?"
+                  data-confirm-body="This removes the {{ batch.rows_imported or 0 }} day row(s) it created for {{ batch.employees_total or 0 }} employee(s). Matches you have remembered are kept."
+                  data-confirm-label="Reverse import">
+                {{ confirm_form.hidden_tag() }}
+                <button type="submit" class="app-btn app-btn-danger app-btn-sm">
+                    <i class="bi bi-arrow-counterclockwise"></i> Reverse this import
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+    <div class="app-card-body">
+        <p class="app-muted" style="margin:0; font-size:.85rem;">
+            Imported {{ batch.imported_at.strftime('%d %b %Y %H:%M') if batch.imported_at else '—' }}
+            by {{ batch.user.name if batch.user else '—' }}.
+            {% if batch.report_generated_at %}Report produced by the clock on
+            {{ batch.report_generated_at.strftime('%d %b %Y %H:%M') }}.{% endif %}
+            {% if batch.edited_days %}
+            <strong>{{ batch.edited_days }} row(s)</strong> have been corrected by hand since —
+            each one can be put back to what the file said.
+            {% endif %}
+        </p>
+    </div>
+</div>
+
+{# ── The employees ──────────────────────────────────────────────── #}
+<div class="app-card">
+    <div class="app-card-head">
+        <h2 class="app-card-title">
+            <i class="bi bi-people"></i>
+            {% if unmatched_only %}Unmatched Employees{% else %}Employees on this Report{% endif %}
+            <span class="app-muted" style="font-weight:500;">
+                {% if employees_total %}({{ first_shown }}–{{ last_shown }} of {{ employees_total }}){% else %}(0){% endif %}
+            </span>
+        </h2>
+        {% if pages > 1 %}{{ pager(page, pages, unmatched_only) }}{% endif %}
+    </div>
+    <div class="app-card-body">
+        {% if not employees %}
+        <div class="app-empty">
+            <i class="bi bi-check2-circle"></i>
+            {% if unmatched_only %}Every employee on this import is matched.{% else %}No employees on this import.{% endif %}
+        </div>
+        {% endif %}
+
+        {% for emp in employees %}
+        <div class="emp-card {{ 'unmatched' if emp.needs_match }}" id="emp-{{ emp.id }}">
+
+            <div class="emp-head">
+                <div>
+                    <div class="who">
+                        {{ emp.display_name }}
+                        {% if emp.is_matched %}
+                            <span class="app-badge green" title="{{ emp.match_note or '' }}">{{ emp.match_label }}</span>
+                        {% elif emp.is_ignored %}
+                            <span class="app-badge gray">Not one of ours</span>
+                        {% else %}
+                            <span class="app-badge red">Not matched</span>
+                        {% endif %}
+                    </div>
+                    <div class="sub">
+                        Clock {{ emp.emp_no }} · {{ emp.emp_name or '—' }}
+                        {% if emp.cost_centre %} · {{ emp.cost_centre }}{% if emp.cost_centre_code %} ({{ emp.cost_centre_code }}){% endif %}{% endif %}
+                        {% if emp.personnel %} · matched to {{ emp.personnel.clockno }}{% endif %}
+                    </div>
+                </div>
+
+                <div class="spacer"></div>
+
+                <div class="emp-figs">
+                    <span title="The clock's total for the whole period, including days not printed">
+                        Period normal <b>{{ '%.2f'|format(emp.normal_hours or 0) }}</b></span>
+                    <span title="The clock's overtime total for the period">
+                        Period OT <b>{{ '%.2f'|format(emp.overtime_hours) }}</b></span>
+                    <span title="Shifts worked in the period">Shifts <b>{{ emp.shifts if emp.shifts is not none else '—' }}</b></span>
+                    <span title="Overtime added up off the {{ emp.days|length }} printed day(s)">
+                        On {{ emp.days|length }} day(s) <b>{{ '%.2f'|format(emp.days_overtime_hours) }}</b></span>
+                    {% if emp.variance_hours is not none %}
+                    <span title="Hours against target for the period">
+                        Variance <b class="{{ 'pct-hi' if emp.variance_hours < 0 }}">{{ '%.2f'|format(emp.variance_hours) }}</b></span>
+                    {% endif %}
+                </div>
+            </div>
+
+            {# ── Matching ── #}
+            {% if can_edit and emp.needs_match %}
+            <form class="match-form" method="POST" action="{{ url_for('timeclock.match_employee', employee_id=emp.id) }}">
+                {{ match_form.hidden_tag() }}
+                {% if unmatched_only %}<input type="hidden" name="return_unmatched" value="1">{% endif %}
+                <span style="font-size:.8rem; font-weight:700; color:#78350f;">
+                    <i class="bi bi-question-circle"></i> Who is this?
+                </span>
+                {{ match_form.personnel_id(class="app-select") }}
+                <label>{{ match_form.remember() }} remember for future imports</label>
+                <label>{{ match_form.apply_to_other_batches() }} apply to other imports</label>
+                <button type="submit" class="app-btn app-btn-warn app-btn-sm">
+                    <i class="bi bi-link-45deg"></i> Match
+                </button>
+                {% if emp.match_note %}
+                <span class="row-note" style="flex-basis:100%;">{{ emp.match_note }}</span>
+                {% endif %}
+            </form>
+            {% elif can_edit %}
+            <div class="match-form" style="background:#f8fafc; border-bottom-color:#eef2f7;">
+                <span style="font-size:.8rem; color:#64748b;">
+                    {% if emp.is_matched %}
+                        Matched to <strong>{{ emp.personnel.name }} {{ emp.personnel.surname or '' }}</strong>
+                        ({{ emp.personnel.clockno }}) — {{ emp.match_label|lower }}
+                        {%- if emp.matcher %}, by {{ emp.matcher.name }}{% endif %}.
+                    {% else %}
+                        Recorded as not one of ours.
+                    {% endif %}
+                    {% if emp.match_note %} {{ emp.match_note }}{% endif %}
+                </span>
+                <div class="spacer"></div>
+                <form method="POST" action="{{ url_for('timeclock.unmatch_employee', employee_id=emp.id) }}"
+                      style="display:inline;"
+                      data-confirm-title="Clear the match for {{ emp.emp_no }}?" data-confirm-label="Clear match">
+                    {{ confirm_form.hidden_tag() }}
+                    <label style="color:#64748b;">
+                        <input type="checkbox" name="forget" value="1"> also forget it for future imports
+                    </label>
+                    <button type="submit" class="app-btn app-btn-outline app-btn-sm">
+                        <i class="bi bi-x-lg"></i> Change
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+
+            {# ── The days ── #}
+            <div class="app-table-wrap">
+                <table class="app-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th><th>Day</th><th>Shift</th><th>In</th><th>Out</th>
+                            <th class="num">Normal</th><th class="num">OT 1</th><th class="num">OT 2</th>
+                            <th class="num">OT 3</th><th class="num">OT 4</th>
+                            <th class="num">Overtime</th><th class="num">Total</th>
+                            <th>Note</th>{% if can_edit %}<th></th>{% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for day in emp.days %}
+                        <tr class="{{ 'edited-row' if day.is_edited }}{{ ' not-worked' if not day.worked }}">
+                            <td>{{ day.work_date.strftime('%Y-%m-%d') }}</td>
+                            <td>{{ day.day_name or '—' }}</td>
+                            <td class="mono-sm">{{ day.shift or '—' }}</td>
+                            <td class="mono-sm">{{ day.time_in.strftime('%H:%M') if day.time_in else '—' }}</td>
+                            <td class="mono-sm">{{ day.time_out.strftime('%H:%M') if day.time_out else '—' }}</td>
+                            <td class="num">{{ '%.2f'|format(day.normal_hours) if day.normal_hours is not none else '—' }}</td>
+                            <td class="num">{{ '%.2f'|format(day.ot1_hours) if day.ot1_hours is not none else '—' }}</td>
+                            <td class="num">{{ '%.2f'|format(day.ot2_hours) if day.ot2_hours is not none else '—' }}</td>
+                            <td class="num">{{ '%.2f'|format(day.ot3_hours) if day.ot3_hours is not none else '—' }}</td>
+                            <td class="num">{{ '%.2f'|format(day.ot4_hours) if day.ot4_hours is not none else '—' }}</td>
+                            <td class="num"><strong>{{ '%.2f'|format(day.overtime_hours) }}</strong></td>
+                            <td class="num">{{ '%.2f'|format(day.total_hours) if day.total_hours is not none else '—' }}</td>
+                            <td>
+                                {{ day.description or '' }}
+                                {% if not day.worked and not day.description %}
+                                <span class="app-muted">not worked</span>
+                                {% endif %}
+                                {% if day.is_edited %}
+                                <div class="row-note">
+                                    <i class="bi bi-pencil-fill"></i> edited
+                                    {%- if day.editor %} by {{ day.editor.name }}{% endif %}
+                                    {%- if day.edit_note %} — {{ day.edit_note }}{% endif %}
+                                </div>
+                                {% endif %}
+                            </td>
+                            {% if can_edit %}
+                            <td style="white-space:nowrap;">
+                                <a class="app-btn app-btn-outline app-btn-sm"
+                                   href="{{ url_for('timeclock.edit_day', day_id=day.id) }}">Edit</a>
+                                {% if day.is_edited %}
+                                <form method="POST" action="{{ url_for('timeclock.revert_day', day_id=day.id) }}"
+                                      style="display:inline;"
+                                      data-confirm-title="Put this row back to exactly what the report printed?" data-confirm-label="Revert">
+                                    {{ confirm_form.hidden_tag() }}
+                                    <button type="submit" class="app-btn app-btn-warn app-btn-sm"
+                                            title="Restore the figures the file printed">Revert</button>
+                                </form>
+                                {% endif %}
+                            </td>
+                            {% endif %}
+                        </tr>
+
+                        {# The full punch list, where the clock printed one.
+                           The day row above shows only the first pair. #}
+                        {% if day.punches %}
+                        <tr class="punch-row">
+                            <td colspan="{{ 14 if can_edit else 13 }}">
+                                <span class="punch-label">
+                                    <i class="bi bi-exclamation-triangle-fill"></i>
+                                    Clocked {{ day.punches|length }} times this day —
+                                </span>
+                                {% for punch in day.punches %}
+                                <span class="punch {{ 'odd' if punch.is_odd }}"
+                                      {% if punch.is_odd %}title="The clock printed this pair as {{ punch.raw_in }} / {{ punch.raw_out }}"{% endif %}>
+                                    {{ punch.label }}
+                                </span>
+                                {% endfor %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% else %}
+                        <tr>
+                            <td colspan="{{ 14 if can_edit else 13 }}" class="app-muted">
+                                No days printed for this person — the report carried only their period total.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endfor %}
+
+        {% if pages > 1 %}{{ pager(page, pages, unmatched_only) }}{% endif %}
+    </div>
+</div>
+
+{% endblock %}

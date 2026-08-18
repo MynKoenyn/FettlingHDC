@@ -1,0 +1,83 @@
+{% extends "furnace/base_furnace.html" %}
+
+{% block title %}Metal Grades - Furnace Management System{% endblock %}
+
+{% block furnace_content %}
+<div class="row mb-4">
+    <div class="col">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1><i class="fas fa-weight-hanging me-2"></i>Metal Grades</h1>
+                <p class="text-muted">Manage metal grade specifications and compositions</p>
+            </div>
+            <a href="{{ url_for('furnace.new_metal_grade') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>Add Metal Grade
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if grades %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Description</th>
+                            <th>Notes</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for grade in grades %}
+                        <tr>
+                            <td><strong>{{ grade.name }}</strong></td>
+                            <td>
+                                {% if grade.description %}
+                                    {{ grade.description[:100] }}{% if grade.description|length > 100 %}...{% endif %}
+                                {% else %}
+                                    <span class="text-muted">No description</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if grade.notes %}
+                                    {{ grade.notes[:50] }}{% if grade.notes|length > 50 %}...{% endif %}
+                                {% else %}
+                                    <span class="text-muted">No notes</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ grade.created_at.strftime('%Y-%m-%d') }}</td>
+                            <td class="action-buttons">
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('furnace.edit_metal_grade', id=grade.id) }}" class="btn btn-outline-primary">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <form method="POST" action="{{ url_for('furnace.delete_metal_grade', id=grade.id) }}" style="display: inline;"
+                                          data-confirm-title="Remove this metal grade?" data-confirm-label="Remove">
+                                        <button type="submit" class="btn btn-outline-danger">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-weight-hanging fa-3x text-muted mb-3"></i>
+                <h4>No Metal Grades Found</h4>
+                <p class="text-muted">Get started by adding your first metal grade specification.</p>
+                <a href="{{ url_for('furnace.new_metal_grade') }}" class="btn btn-primary">
+                    <i class="fas fa-plus me-1"></i>Add First Metal Grade
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
