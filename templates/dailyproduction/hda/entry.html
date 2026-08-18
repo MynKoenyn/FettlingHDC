@@ -1,0 +1,279 @@
+{% extends "dailyproduction/base_dailyproduction.html" %}
+
+{% block title %}Production Entry - HDA Core Production{% endblock %}
+
+{% block dp_crumb %}
+<i class="bi bi-chevron-right" style="font-size:.65rem; opacity:.5;"></i>
+<span class="current">HDA Core Production</span>
+{% endblock %}
+
+{% block dp_subnav_links %}
+<a href="{{ url_for('daily_production.hda_dashboard') }}" class="{{ 'active' if request.endpoint == 'daily_production.hda_dashboard' }}"><i class="bi bi-speedometer2"></i> Dashboard</a>
+<a href="{{ url_for('daily_production.hda_entry') }}" class="{{ 'active' if request.endpoint == 'daily_production.hda_entry' }}"><i class="bi bi-pencil-square"></i> Entry</a>
+<a href="{{ url_for('daily_production.hda_history') }}" class="{{ 'active' if request.endpoint == 'daily_production.hda_history' }}"><i class="bi bi-clock-history"></i> History</a>
+<a href="{{ url_for('daily_production.hda_reports_page') }}" class="{{ 'active' if request.endpoint == 'daily_production.hda_reports_page' }}"><i class="bi bi-bar-chart"></i> Reports</a>
+{% if can('dailyproduction', 'admin') %}<a href="{{ url_for('daily_production.hda_targets') }}" class="{{ 'active' if request.endpoint == 'daily_production.hda_targets' }}"><i class="bi bi-sliders"></i> Targets</a>{% endif %}
+{% endblock %}
+
+{% block dp_content %}
+<div class="app-container wide">
+    <div class="app-card" style="margin-bottom: 1.4rem;">
+        <div class="app-card-body" style="display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
+            <h1 style="margin:0; font-size:1.35rem; font-weight:800; color:#0f172a;">Production Data Entry</h1>
+            <a href="{{ url_for('daily_production.hda_history') }}" class="app-btn app-btn-outline app-btn-sm">
+                <i class="bi bi-clock-history"></i> View History
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="app-card">
+                <div class="app-card-head"><h2 class="app-card-title">Enter Production Data</h2></div>
+                <div class="app-card-body">
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="app-field" style="margin-bottom:1rem;">
+                                    {{ form.date.label(class="app-label") }}
+                                    {{ form.date(class="app-input", id="dateInput") }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="app-field" style="margin-bottom:1rem;">
+                                    {{ form.shift.label(class="app-label") }}
+                                    {{ form.shift(class="app-select", id="shiftSelect") }}
+                                    {% if form.shift.errors %}
+                                    <div class="app-err">{% for error in form.shift.errors %}<div>{{ error }}</div>{% endfor %}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="app-field" style="margin-bottom:1rem;">
+                                    {{ form.hour.label(class="app-label") }}
+                                    {{ form.hour(class="app-select", id="hourSelect") }}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="app-field" style="margin-bottom:1rem;">
+                                    {{ form.machine.label(class="app-label") }}
+                                    {{ form.machine(class="app-select", id="machineSelect") }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="app-field" style="margin-bottom:1rem;">
+                            {{ form.cores_produced.label(class="app-label") }}
+                            {{ form.cores_produced(class="app-input", min="0", max="10000") }}
+                            {% if form.cores_produced.errors %}
+                            <div class="app-err">{% for error in form.cores_produced.errors %}<div>{{ error }}</div>{% endfor %}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="app-field" style="margin-bottom:1rem;">
+                                    {{ form.operator_id.label(class="app-label") }}
+                                    {{ form.operator_id(class="app-select") }}
+                                    {% if form.operator_id.errors %}
+                                    <div class="app-err">{% for error in form.operator_id.errors %}<div>{{ error }}</div>{% endfor %}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="app-field" style="margin-bottom:1rem;">
+                                    {{ form.supervisor_id.label(class="app-label") }}
+                                    {{ form.supervisor_id(class="app-select") }}
+                                    {% if form.supervisor_id.errors %}
+                                    <div class="app-err">{% for error in form.supervisor_id.errors %}<div>{{ error }}</div>{% endfor %}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="app-field" style="margin-bottom:1rem;">
+                                    {{ form.downtime_minutes.label(class="app-label") }}
+                                    {{ form.downtime_minutes(class="app-input", min="0", max="60") }}
+                                    {% if form.downtime_minutes.errors %}
+                                    <div class="app-err">{% for error in form.downtime_minutes.errors %}<div>{{ error }}</div>{% endfor %}</div>
+                                    {% endif %}
+                                    <div class="app-hint">Enter downtime in minutes (0-60)</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="app-field" style="margin-bottom:1rem;">
+                                    {{ form.defects.label(class="app-label") }}
+                                    {{ form.defects(class="app-input", min="0", max="1000") }}
+                                    {% if form.defects.errors %}
+                                    <div class="app-err">{% for error in form.defects.errors %}<div>{{ error }}</div>{% endfor %}</div>
+                                    {% endif %}
+                                    <div class="app-hint">Enter number of defects</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="app-field" style="margin-bottom:1rem;">
+                            {{ form.remark_category.label(class="app-label") }}
+                            {{ form.remark_category(class="app-select") }}
+                            <div class="app-hint">Leave as "No Issues" if production ran normally</div>
+                            {% if form.remark_category.errors %}
+                            <div class="app-err">{% for error in form.remark_category.errors %}<div>{{ error }}</div>{% endfor %}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="app-field" style="margin-bottom:1.2rem;">
+                            {{ form.remark_text.label(class="app-label") }}
+                            {{ form.remark_text(class="app-textarea", rows="3", placeholder="Enter detailed remarks about any production issues...") }}
+                            {% if form.remark_text.errors %}
+                            <div class="app-err">{% for error in form.remark_text.errors %}<div>{{ error }}</div>{% endfor %}</div>
+                            {% endif %}
+                        </div>
+
+                        <div style="text-align:right;">
+                            {{ form.submit(class="app-btn app-btn-primary") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="app-card" style="margin-bottom:1.4rem;">
+                <div class="app-card-head"><h2 class="app-card-title">Shift Information</h2></div>
+                <div class="app-card-body">
+                    <div style="margin-bottom:1rem;">
+                        <strong>Shift 1:</strong> 06:00 - 14:00<br>
+                        <strong>Shift 2:</strong> 14:00 - 22:00<br>
+                        <strong>Shift 3:</strong> 22:00 - 06:00
+                    </div>
+                    <div class="app-badge blue" style="display:flex; align-items:center; gap:.4rem; padding:.6rem .9rem; font-weight:600;">
+                        <i class="bi bi-info-circle"></i> Current Time: <span id="currentTime"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="app-card" style="margin-bottom:1.4rem;">
+                <div class="app-card-head"><h2 class="app-card-title">Available Machines</h2></div>
+                <div class="app-card-body">
+                    <ul style="list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:.5rem;">
+                        <li><i class="bi bi-gear" style="margin-right:.5rem;"></i>Lauds 1</li>
+                        <li><i class="bi bi-gear" style="margin-right:.5rem;"></i>Lauds 2</li>
+                        <li><i class="bi bi-gear" style="margin-right:.5rem;"></i>Lauds 3</li>
+                        <li><i class="bi bi-gear" style="margin-right:.5rem;"></i>Lauds 4</li>
+                        <li><i class="bi bi-gear" style="margin-right:.5rem;"></i>Lauds 5</li>
+                        <li><i class="bi bi-gear" style="margin-right:.5rem;"></i>Top</li>
+                        <li><i class="bi bi-gear" style="margin-right:.5rem;"></i>Bottom</li>
+                        <li><i class="bi bi-gear" style="margin-right:.5rem;"></i>Vick</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="app-card">
+                <div class="app-card-head"><h2 class="app-card-title">Remark Categories</h2></div>
+                <div class="app-card-body">
+                    <div style="display:flex; flex-wrap:wrap; gap:.4rem;">
+                        <span class="app-badge gray">Mechanical</span>
+                        <span class="app-badge gray">Chemical</span>
+                        <span class="app-badge gray">Sand</span>
+                        <span class="app-badge gray">Cleaning</span>
+                        <span class="app-badge gray">Tool</span>
+                        <span class="app-badge gray">Operator</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if missing_entries %}
+    <div class="app-card" style="margin-top:1.4rem;">
+        <div class="app-card-head"><h2 class="app-card-title">Outstanding Production Entries</h2></div>
+        <div class="app-card-body" style="padding:0;">
+            <div class="app-table-wrap" style="border:none; border-radius:0;">
+                <table class="app-table">
+                    <thead><tr><th>Machine</th><th>Shift</th><th>Date</th><th>Missing Hours</th></tr></thead>
+                    <tbody>
+                        {% for entry in missing_entries %}
+                        <tr>
+                            <td>{{ entry.machine }}</td>
+                            <td>{{ entry.shift }}</td>
+                            <td>{{ entry.date }}</td>
+                            <td>{{ entry.hours }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function updateTime() {
+    const el = document.getElementById('currentTime');
+    if (el) el.textContent = new Date().toLocaleTimeString();
+}
+setInterval(updateTime, 1000);
+updateTime();
+
+async function updateHours() {
+    const shift = document.getElementById('shiftSelect')?.value;
+    const machine = document.getElementById('machineSelect')?.value;
+    const date = document.getElementById('dateInput')?.value;
+    const hourSelect = document.getElementById('hourSelect');
+    if (!hourSelect) return;
+
+    hourSelect.innerHTML = '';
+    if (!shift || !machine || !date) {
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = 'Select shift, machine, and date';
+        hourSelect.appendChild(option);
+        return;
+    }
+
+    try {
+        const response = await fetch(`{{ url_for('daily_production.hda_api_missing_hours') }}?shift=${shift}&machine=${machine}&date=${date}`);
+        const data = await response.json();
+
+        if (!data.missing_hours || data.missing_hours.length === 0) {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = 'All hours submitted';
+            option.disabled = true;
+            hourSelect.appendChild(option);
+            return;
+        }
+
+        data.missing_hours.forEach(hour => {
+            const option = document.createElement('option');
+            const nextHour = (hour + 1) % 24;
+            option.value = hour;
+            option.textContent = `${hour.toString().padStart(2, '0')}:00 - ${nextHour.toString().padStart(2, '0')}:00`;
+            hourSelect.appendChild(option);
+        });
+    } catch (err) {
+        console.error('Error fetching missing hours:', err);
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = 'Error loading hours';
+        option.disabled = true;
+        hourSelect.appendChild(option);
+    }
+}
+
+['shiftSelect', 'machineSelect', 'dateInput'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('change', updateHours);
+});
+document.addEventListener('DOMContentLoaded', updateHours);
+</script>
+{% endblock %}

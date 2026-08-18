@@ -1,0 +1,106 @@
+{% extends "dailyproduction/base_dailyproduction.html" %}
+
+{% block title %}Production History - HDA Core Production{% endblock %}
+
+{% block dp_crumb %}
+<i class="bi bi-chevron-right" style="font-size:.65rem; opacity:.5;"></i>
+<span class="current">HDA Core Production</span>
+{% endblock %}
+
+{% block dp_subnav_links %}
+<a href="{{ url_for('daily_production.hda_dashboard') }}" class="{{ 'active' if request.endpoint == 'daily_production.hda_dashboard' }}"><i class="bi bi-speedometer2"></i> Dashboard</a>
+<a href="{{ url_for('daily_production.hda_entry') }}" class="{{ 'active' if request.endpoint == 'daily_production.hda_entry' }}"><i class="bi bi-pencil-square"></i> Entry</a>
+<a href="{{ url_for('daily_production.hda_history') }}" class="{{ 'active' if request.endpoint == 'daily_production.hda_history' }}"><i class="bi bi-clock-history"></i> History</a>
+<a href="{{ url_for('daily_production.hda_reports_page') }}" class="{{ 'active' if request.endpoint == 'daily_production.hda_reports_page' }}"><i class="bi bi-bar-chart"></i> Reports</a>
+{% if can('dailyproduction', 'admin') %}<a href="{{ url_for('daily_production.hda_targets') }}" class="{{ 'active' if request.endpoint == 'daily_production.hda_targets' }}"><i class="bi bi-sliders"></i> Targets</a>{% endif %}
+{% endblock %}
+
+{% block dp_content %}
+<div class="app-container wide">
+    <div class="app-card" style="margin-bottom: 1.4rem;">
+        <div class="app-card-body" style="display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
+            <h1 style="margin:0; font-size:1.35rem; font-weight:800; color:#0f172a;">Production History</h1>
+            <a href="{{ url_for('daily_production.hda_entry') }}" class="app-btn app-btn-primary app-btn-sm">
+                <i class="bi bi-plus-lg"></i> New Entry
+            </a>
+        </div>
+    </div>
+
+    <div class="app-card" style="margin-bottom: 1.4rem;">
+        <div class="app-card-head"><h2 class="app-card-title">Filters</h2></div>
+        <div class="app-card-body">
+            <form method="GET" class="app-form-grid" data-no-guard>
+                <div class="app-field">
+                    <label class="app-label">Date</label>
+                    <input type="date" name="date" class="app-input" value="{{ date_filter }}">
+                </div>
+                <div class="app-field">
+                    <label class="app-label">Shift</label>
+                    <select name="shift" class="app-select">
+                        <option value="">All Shifts</option>
+                        {% for shift in shifts %}
+                        <option value="{{ shift.value }}" {% if shift.value == shift_filter %}selected{% endif %}>{{ shift.value.replace('_', ' ').title() }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="app-field">
+                    <label class="app-label">Machine</label>
+                    <select name="machine" class="app-select">
+                        <option value="">All Machines</option>
+                        {% for machine in machines %}
+                        <option value="{{ machine.value }}" {% if machine.value == machine_filter %}selected{% endif %}>{{ machine.value.replace('_', ' ').title() }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="app-field" style="display:flex; align-items:end;">
+                    <button type="submit" class="app-btn app-btn-primary" style="width:100%; justify-content:center;"><i class="bi bi-funnel"></i> Apply Filters</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="app-card">
+        <div class="app-card-head"><h2 class="app-card-title">Production Entries</h2></div>
+        <div class="app-card-body" style="padding:0;">
+            <div class="app-table-wrap" style="border:none; border-radius:0;">
+                <table class="app-table app-table-stack">
+                    <thead>
+                        <tr><th>Date</th><th>Shift</th><th>Hour</th><th>Machine</th><th class="num">Cores</th><th>Operator</th><th>Supervisor</th><th>Remarks</th><th>Created</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in entries.items %}
+                        <tr>
+                            <td data-label="Date">{{ entry.date.strftime('%Y-%m-%d') }}</td>
+                            <td data-label="Shift"><span class="app-badge blue">{{ entry.shift.value.replace('_', ' ').title() }}</span></td>
+                            <td data-label="Hour">{{ entry.hour }}:00</td>
+                            <td data-label="Machine">{{ entry.machine.value.replace('_', ' ').title() }}</td>
+                            <td data-label="Cores" class="num">{{ "{:,}".format(entry.cores_produced) }}</td>
+                            <td data-label="Operator">{{ entry.operator.name }} {{ entry.operator.surname or '' }}</td>
+                            <td data-label="Supervisor">
+                                {% if entry.supervisor %}{{ entry.supervisor.name }}{% else %}<span class="app-muted">-</span>{% endif %}
+                            </td>
+                            <td data-label="Remarks">
+                                {% if entry.remark_category %}
+                                <span class="app-badge gray">{{ entry.remark_category.value.title() }}</span>
+                                {% if entry.remark_text %}
+                                <div style="font-size:.78rem;color:#94a3b8;margin-top:.25rem;">{{ entry.remark_text[:50] }}{% if entry.remark_text|length > 50 %}...{% endif %}</div>
+                                {% endif %}
+                                {% else %}<span class="app-muted">-</span>{% endif %}
+                            </td>
+                            <td data-label="Created" style="font-size:.78rem;color:#94a3b8;">{{ entry.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="9"><div class="app-empty"><i class="bi bi-inbox"></i> No production entries found</div></td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% set pagination = entries %}
+            {% set endpoint = 'daily_production.hda_history' %}
+            {% set args = {'date': date_filter, 'shift': shift_filter, 'machine': machine_filter} %}
+            {% include "_pagination.html" with context %}
+        </div>
+    </div>
+</div>
+{% endblock %}

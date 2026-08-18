@@ -1,0 +1,70 @@
+{% extends "dailyproduction/base_dailyproduction.html" %}
+
+{% block title %}Targets - HDA Core Production{% endblock %}
+
+{% block dp_crumb %}
+<i class="bi bi-chevron-right" style="font-size:.65rem; opacity:.5;"></i>
+<span class="current">HDA Core Production</span>
+{% endblock %}
+
+{% block dp_subnav_links %}
+<a href="{{ url_for('daily_production.hda_dashboard') }}" class="{{ 'active' if request.endpoint == 'daily_production.hda_dashboard' }}"><i class="bi bi-speedometer2"></i> Dashboard</a>
+<a href="{{ url_for('daily_production.hda_entry') }}" class="{{ 'active' if request.endpoint == 'daily_production.hda_entry' }}"><i class="bi bi-pencil-square"></i> Entry</a>
+<a href="{{ url_for('daily_production.hda_history') }}" class="{{ 'active' if request.endpoint == 'daily_production.hda_history' }}"><i class="bi bi-clock-history"></i> History</a>
+<a href="{{ url_for('daily_production.hda_reports_page') }}" class="{{ 'active' if request.endpoint == 'daily_production.hda_reports_page' }}"><i class="bi bi-bar-chart"></i> Reports</a>
+{% if can('dailyproduction', 'admin') %}<a href="{{ url_for('daily_production.hda_targets') }}" class="{{ 'active' if request.endpoint == 'daily_production.hda_targets' }}"><i class="bi bi-sliders"></i> Targets</a>{% endif %}
+{% endblock %}
+
+{% block dp_content %}
+<div class="app-container wide">
+    <div class="app-card" style="margin-bottom: 1.4rem;">
+        <div class="app-card-body">
+            <h1 style="margin:0; font-size:1.35rem; font-weight:800; color:#0f172a;">Production Targets</h1>
+        </div>
+    </div>
+
+    <div class="app-card" style="margin-bottom: 1.4rem;">
+        <div class="app-card-body">
+            <form method="get" data-no-guard>
+                <div class="app-field" style="max-width:320px;">
+                    <label class="app-label">Machine</label>
+                    <select name="machine" class="app-select" onchange="this.form.submit()">
+                        {% for m in machines %}
+                        <option value="{{ m.value }}" {% if m == selected_machine %}selected{% endif %}>{{ m.value.replace('_', ' ').title() }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="app-card">
+        <div class="app-card-head">
+            <h2 class="app-card-title">Hourly targets &mdash; {{ selected_machine.value.replace('_', ' ').title() }}</h2>
+        </div>
+        <div class="app-card-body">
+            <form method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="machine" value="{{ selected_machine.value }}">
+                <div class="app-table-wrap" style="margin-bottom:1.2rem;">
+                    <table class="app-table app-table-stack">
+                        <thead><tr><th>Hour</th><th>Hourly Target (cores)</th></tr></thead>
+                        <tbody>
+                            {% for row in hourly_rows %}
+                            <tr>
+                                <td data-label="Hour">{{ "%02d"|format(row.hour) }}:00 - {{ "%02d"|format((row.hour + 1) % 24) }}:00</td>
+                                <td data-label="Hourly Target (cores)">
+                                    <input type="number" min="0" class="app-input"
+                                           name="hourly_target_{{ row.hour }}" value="{{ row.hourly_target }}">
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <button type="submit" class="app-btn app-btn-primary"><i class="bi bi-save"></i> Save Targets</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

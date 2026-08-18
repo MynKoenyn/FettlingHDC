@@ -1,0 +1,253 @@
+{% extends "dailyproduction/base_dailyproduction.html" %}
+
+{% block title %}Dashboard - HDA Core Production{% endblock %}
+
+{% block dp_crumb %}
+<i class="bi bi-chevron-right" style="font-size:.65rem; opacity:.5;"></i>
+<span class="current">HDA Core Production</span>
+{% endblock %}
+
+{% block dp_subnav_links %}
+<a href="{{ url_for('daily_production.hda_dashboard') }}" class="{{ 'active' if request.endpoint == 'daily_production.hda_dashboard' }}"><i class="bi bi-speedometer2"></i> Dashboard</a>
+<a href="{{ url_for('daily_production.hda_entry') }}" class="{{ 'active' if request.endpoint == 'daily_production.hda_entry' }}"><i class="bi bi-pencil-square"></i> Entry</a>
+<a href="{{ url_for('daily_production.hda_history') }}" class="{{ 'active' if request.endpoint == 'daily_production.hda_history' }}"><i class="bi bi-clock-history"></i> History</a>
+<a href="{{ url_for('daily_production.hda_reports_page') }}" class="{{ 'active' if request.endpoint == 'daily_production.hda_reports_page' }}"><i class="bi bi-bar-chart"></i> Reports</a>
+{% if can('dailyproduction', 'admin') %}<a href="{{ url_for('daily_production.hda_targets') }}" class="{{ 'active' if request.endpoint == 'daily_production.hda_targets' }}"><i class="bi bi-sliders"></i> Targets</a>{% endif %}
+{% endblock %}
+
+{% block dp_content %}
+<div class="app-container wide">
+    <div class="app-card" style="margin-bottom: 1.4rem;">
+        <div class="app-card-body" style="display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
+            <h1 style="margin:0; font-size:1.35rem; font-weight:800; color:#0f172a;">Production Dashboard</h1>
+            <div style="display:flex; align-items:center; gap:.8rem; flex-wrap:wrap;">
+                <form method="get" action="{{ url_for('daily_production.hda_dashboard') }}" style="display:flex; align-items:center; gap:.5rem;" data-no-guard>
+                    <input type="date" name="date" class="app-input" style="max-width:170px;"
+                           value="{{ today.strftime('%Y-%m-%d') }}" max="{{ current_date.strftime('%Y-%m-%d') }}">
+                    <button type="submit" class="app-btn app-btn-primary app-btn-sm">View</button>
+                </form>
+                <span class="app-muted" style="font-size:.85rem;"><i class="bi bi-calendar3 me-1"></i>{{ today.strftime('%B %d, %Y') }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-kpi-row">
+        <div class="app-kpi ok">
+            <div class="v">{{ "{:,}".format(today_total) }}</div>
+            <div class="l">Today's Production</div>
+            <div class="s">Target: {{ "{:,}".format(total_target_today) }} cores</div>
+        </div>
+        <div class="app-kpi {{ 'ok' if overall_deficit_surplus >= 0 else 'crit' }}">
+            <div class="v">{{ "{:,}".format(overall_deficit_surplus|abs) }}</div>
+            <div class="l">{% if overall_deficit_surplus >= 0 %}Surplus{% else %}Deficit{% endif %}</div>
+            <div class="s">{{ "%.1f"|format(overall_performance_pct) }}% of target</div>
+        </div>
+        <div class="app-kpi">
+            <div class="v">{{ current_shift.value.replace('_', ' ').title() }}</div>
+            <div class="l">Current Shift</div>
+        </div>
+        <div class="app-kpi warn">
+            <div class="v">{{ machine_performance|length }}</div>
+            <div class="l">Active Machines</div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-xl-8">
+            <div class="app-card" style="margin-bottom:1.4rem;">
+                <div class="app-card-head">
+                    <h2 class="app-card-title">Hourly Production</h2>
+                    <div class="dropdown">
+                        <a class="dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"><i class="bi bi-three-dots"></i></a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#" onclick="updateChart('hourly', 1)">Today</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="updateChart('hourly', 7)">Last 7 Days</a></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="app-card-body"><canvas id="hourlyChart" height="100"></canvas></div>
+            </div>
+        </div>
+        <div class="col-xl-4">
+            <div class="app-card" style="margin-bottom:1.4rem;">
+                <div class="app-card-head"><h2 class="app-card-title">Machine Production</h2></div>
+                <div class="app-card-body"><canvas id="machineChart" height="200"></canvas></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-xl-6">
+            <div class="app-card" style="margin-bottom:1.4rem;">
+                <div class="app-card-head"><h2 class="app-card-title">Machine Performance (Today)</h2></div>
+                <div class="app-card-body" style="padding:0;">
+                    <div class="app-table-wrap" style="border:none; border-radius:0;">
+                        <table class="app-table">
+                            <thead><tr><th>Machine</th><th>Actual</th><th>Target</th><th>Deficit/Surplus</th><th>Performance</th></tr></thead>
+                            <tbody>
+                                {% for mp in machine_performance %}
+                                <tr>
+                                    <td>{{ mp.machine.value.replace('_', ' ').title() }}</td>
+                                    <td>{{ "{:,}".format(mp.actual) }}</td>
+                                    <td>{{ "{:,}".format(mp.target) }}</td>
+                                    <td class="{% if mp.deficit_surplus >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                        {% if mp.deficit_surplus >= 0 %}+{{ "{:,}".format(mp.deficit_surplus) }}{% else %}{{ "{:,}".format(mp.deficit_surplus) }}{% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar {% if mp.performance_pct >= 100 %}bg-success{% elif mp.performance_pct >= 80 %}bg-warning{% else %}bg-danger{% endif %}"
+                                                 role="progressbar" style="width: {{ mp.performance_pct|round(1) }}%">{{ "%.1f"|format(mp.performance_pct) }}%</div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="5" style="text-align:center;">No production data for today</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-6">
+            <div class="app-card" style="margin-bottom:1.4rem;">
+                <div class="app-card-head"><h2 class="app-card-title">Shift Performance (Today)</h2></div>
+                <div class="app-card-body" style="padding:0;">
+                    <div class="app-table-wrap" style="border:none; border-radius:0;">
+                        <table class="app-table">
+                            <thead><tr><th>Shift</th><th>Actual</th><th>Target</th><th>Deficit/Surplus</th><th>Performance</th></tr></thead>
+                            <tbody>
+                                {% for st in shift_targets %}
+                                <tr>
+                                    <td>{{ st.shift.value.replace('_', ' ').title() }}</td>
+                                    <td>{{ "{:,}".format(st.actual) }}</td>
+                                    <td>{{ "{:,}".format(st.target) }}</td>
+                                    <td class="{% if st.deficit_surplus >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                        {% if st.deficit_surplus >= 0 %}+{{ "{:,}".format(st.deficit_surplus) }}{% else %}{{ "{:,}".format(st.deficit_surplus) }}{% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar {% if st.performance_pct >= 100 %}bg-success{% elif st.performance_pct >= 80 %}bg-warning{% else %}bg-danger{% endif %}"
+                                                 role="progressbar" style="width: {{ st.performance_pct|round(1) }}%">{{ "%.1f"|format(st.performance_pct) }}%</div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="5" style="text-align:center;">No production data for today</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-card" style="margin-bottom:1.4rem;">
+        <div class="app-card-head"><h2 class="app-card-title">Hourly Performance (Today)</h2></div>
+        <div class="app-card-body" style="padding:0;">
+            <div class="app-table-wrap" style="border:none; border-radius:0;">
+                <table class="app-table">
+                    <thead><tr><th>Hour</th><th>Machine</th><th>Actual</th><th>Target</th><th>Deficit/Surplus</th><th>Defects</th><th>Performance</th><th>Operator</th></tr></thead>
+                    <tbody>
+                        {% for hp in hourly_performance %}
+                        <tr>
+                            <td>{{ hp.hour }}<br><small class="app-muted">{{ hp.date.strftime('%d-%m-%Y') }}</small></td>
+                            <td>{{ hp.machine.value.replace('_', ' ').title() }}</td>
+                            <td>{{ "{:,}".format(hp.actual) }}</td>
+                            <td>{{ "{:,}".format(hp.target) }}</td>
+                            <td class="{% if hp.deficit_surplus >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                {% if hp.deficit_surplus >= 0 %}+{{ "{:,}".format(hp.deficit_surplus) }}{% else %}{{ "{:,}".format(hp.deficit_surplus) }}{% endif %}
+                            </td>
+                            <td>{{ "{:,}".format(hp.defects) }}</td>
+                            <td>
+                                <div class="progress" style="height: 20px;">
+                                    <div class="progress-bar {% if hp.performance_pct >= 100 %}bg-success{% elif hp.performance_pct >= 80 %}bg-warning{% else %}bg-danger{% endif %}"
+                                         role="progressbar" style="width: {{ hp.performance_pct|round(1) }}%">{{ "%.1f"|format(hp.performance_pct) }}%</div>
+                                </div>
+                            </td>
+                            <td>{{ hp.operator.name }} {{ hp.operator.surname or '' }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="8" style="text-align:center;">No hourly production data for today</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-card">
+        <div class="app-card-head"><h2 class="app-card-title">Recent Production Entries</h2></div>
+        <div class="app-card-body" style="padding:0;">
+            <div class="app-table-wrap" style="border:none; border-radius:0;">
+                <table class="app-table">
+                    <thead><tr><th>Date</th><th>Shift</th><th>Hour</th><th>Machine</th><th>Cores</th><th>Defects</th><th>Down Time</th><th>Operator</th></tr></thead>
+                    <tbody>
+                        {% for entry in recent_entries %}
+                        <tr>
+                            <td>{{ entry.date.strftime('%Y-%m-%d') }}</td>
+                            <td>{{ entry.shift.value.replace('_', ' ').title() }}</td>
+                            <td>{{ entry.hour }}:00 - {{ (entry.hour + 1) }}:00</td>
+                            <td>{{ entry.machine.value.replace('_', ' ').title() }}</td>
+                            <td>{{ entry.cores_produced }}</td>
+                            <td>{{ entry.defects }}</td>
+                            <td>{{ entry.downtime_minutes }} mins</td>
+                            <td>{{ entry.operator.name }} {{ entry.operator.surname or '' }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="8" style="text-align:center;">No recent entries</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let hourlyChart, machineChart;
+
+document.addEventListener('DOMContentLoaded', function () {
+    initializeCharts();
+    updateChart('hourly', 1);
+    updateChart('machine', 1);
+});
+
+function initializeCharts() {
+    const hourlyCtx = document.getElementById('hourlyChart').getContext('2d');
+    hourlyChart = new Chart(hourlyCtx, {
+        type: 'line',
+        data: { labels: [], datasets: [{ label: 'Cores Produced', data: [], borderColor: '#2C5282', backgroundColor: 'rgba(44, 82, 130, 0.1)', tension: 0.1 }] },
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+    });
+
+    const machineCtx = document.getElementById('machineChart').getContext('2d');
+    machineChart = new Chart(machineCtx, {
+        type: 'doughnut',
+        data: { labels: [], datasets: [{ data: [], backgroundColor: ['#2C5282', '#38A169', '#D69E2E', '#E53E3E', '#805AD5', '#3182CE', '#D53F8C', '#4A5568'] }] },
+        options: { responsive: true, maintainAspectRatio: false }
+    });
+}
+
+function updateChart(type, days) {
+    fetch(`{{ url_for('daily_production.hda_production_charts') }}?type=${type}&days=${days}`)
+        .then(response => response.json())
+        .then(data => {
+            if (type === 'hourly') {
+                hourlyChart.data.labels = data.labels;
+                hourlyChart.data.datasets[0].data = data.data;
+                hourlyChart.update();
+            } else if (type === 'machine') {
+                machineChart.data.labels = data.labels;
+                machineChart.data.datasets[0].data = data.data;
+                machineChart.update();
+            }
+        })
+        .catch(error => console.error('Error fetching chart data:', error));
+}
+</script>
+{% endblock %}

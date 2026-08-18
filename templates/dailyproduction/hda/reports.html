@@ -1,0 +1,244 @@
+{% extends "dailyproduction/base_dailyproduction.html" %}
+
+{% block title %}Reports - HDA Core Production{% endblock %}
+
+{% block dp_crumb %}
+<i class="bi bi-chevron-right" style="font-size:.65rem; opacity:.5;"></i>
+<span class="current">HDA Core Production</span>
+{% endblock %}
+
+{% block dp_subnav_links %}
+<a href="{{ url_for('daily_production.hda_dashboard') }}" class="{{ 'active' if request.endpoint == 'daily_production.hda_dashboard' }}"><i class="bi bi-speedometer2"></i> Dashboard</a>
+<a href="{{ url_for('daily_production.hda_entry') }}" class="{{ 'active' if request.endpoint == 'daily_production.hda_entry' }}"><i class="bi bi-pencil-square"></i> Entry</a>
+<a href="{{ url_for('daily_production.hda_history') }}" class="{{ 'active' if request.endpoint == 'daily_production.hda_history' }}"><i class="bi bi-clock-history"></i> History</a>
+<a href="{{ url_for('daily_production.hda_reports_page') }}" class="{{ 'active' if request.endpoint == 'daily_production.hda_reports_page' }}"><i class="bi bi-bar-chart"></i> Reports</a>
+{% if can('dailyproduction', 'admin') %}<a href="{{ url_for('daily_production.hda_targets') }}" class="{{ 'active' if request.endpoint == 'daily_production.hda_targets' }}"><i class="bi bi-sliders"></i> Targets</a>{% endif %}
+{% endblock %}
+
+{% block dp_content %}
+<div class="app-container wide">
+    <div class="app-card" style="margin-bottom: 1.4rem;">
+        <div class="app-card-body">
+            <h1 style="margin:0; font-size:1.35rem; font-weight:800; color:#0f172a;">Reports</h1>
+        </div>
+    </div>
+
+    <div class="app-card" style="margin-bottom: 1.4rem;">
+        <div class="app-card-body">
+            <form id="reportForm" class="app-form-grid" data-no-guard>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="app-field">
+                    <label for="report_type" class="app-label">Report Type</label>
+                    <select class="app-select" id="report_type" name="report_type">
+                        <option value="machine_perf">Machine Performance</option>
+                        <option value="operator_perf">Operator Performance</option>
+                        <option value="operator_machine">Operator-Machine Drilldown</option>
+                        <option value="downtime">Downtime by Category</option>
+                        <option value="defects">Defects / Scrap</option>
+                        <option value="shift_agg">Shift Aggregates</option>
+                        <option value="normalized">Normalized Cores</option>
+                        <option value="daily_prod">Daily Production</option>
+                    </select>
+                </div>
+                <div class="app-field">
+                    <label for="start_date" class="app-label">Start Date</label>
+                    <input type="date" class="app-input" id="start_date" name="start_date" value="{{ today }}">
+                </div>
+                <div class="app-field">
+                    <label for="end_date" class="app-label">End Date</label>
+                    <input type="date" class="app-input" id="end_date" name="end_date" value="{{ today }}">
+                </div>
+                <div class="app-field">
+                    <label for="shift" class="app-label">Shift</label>
+                    <select class="app-select" id="shift" name="shift">
+                        <option value="">All</option>
+                        {% for s in shifts %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="app-field">
+                    <label for="machine" class="app-label">Machine</label>
+                    <select class="app-select" id="machine" name="machine">
+                        <option value="">All</option>
+                        {% for m in machines %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
+                    </select>
+                </div>
+                <input type="hidden" id="chartImageInput" name="chart_image">
+                <div class="app-field" style="display:flex; align-items:end;">
+                    <button type="button" class="app-btn app-btn-primary" style="width:100%; justify-content:center;" id="loadReport">Load</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="reportContent" class="app-card" style="margin-bottom: 1.4rem; padding: 1.5rem;">
+        <div class="app-empty"><i class="bi bi-bar-chart"></i> Select a report and click "Load" to view data.</div>
+    </div>
+
+    <div id="reportCharts">
+        <div class="app-card" style="margin-bottom: 1.4rem;">
+            <div class="app-card-head"><h2 class="app-card-title">Chart</h2></div>
+            <div class="app-card-body"><canvas id="reportChart" style="height:600px;"></canvas></div>
+        </div>
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; margin-bottom:1.4rem;">
+        <button id="exportPdf" class="app-btn app-btn-outline"><i class="bi bi-file-earmark-pdf"></i> Export PDF</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+<script>
+let reportChart;
+
+document.getElementById('loadReport').addEventListener('click', loadReport);
+document.getElementById('exportPdf').addEventListener('click', exportPDF);
+
+function loadReport() {
+    const form = document.getElementById('reportForm');
+    const params = new URLSearchParams(new FormData(form));
+    fetch(`{{ url_for('daily_production.hda_reports_data') }}?${params.toString()}`)
+        .then(r => r.json())
+        .then(data => renderTableAndChart(params.get('report_type'), data))
+        .catch(err => {
+            console.error(err);
+            document.getElementById('reportContent').innerHTML = `<div class="text-danger text-center py-5">Error loading report.</div>`;
+        });
+}
+
+function renderTableAndChart(reportType, data) {
+    let html = '';
+    if (!data.length) {
+        html = `<div class="app-empty"><i class="bi bi-inbox"></i> No data found.</div>`;
+    } else if (reportType === 'daily_prod') {
+        html += `<div class="app-table-wrap"><table class="app-table app-table-stack">
+                    <thead><tr><th>Date</th><th>Shift</th><th>Cores Produced</th></tr></thead><tbody>`;
+        data.forEach(day => {
+            day.shifts.forEach(shift => {
+                html += `<tr><td data-label="Date">${day.date}</td><td data-label="Shift">${shift.shift}</td><td data-label="Cores Produced">${shift.cores_produced}</td></tr>`;
+            });
+            html += `<tr style="background:#f8fafc;"><td data-label="" colspan="2"><strong>Total</strong></td><td data-label="Total"><strong>${day.total_cores}</strong></td></tr>`;
+        });
+        html += `</tbody></table></div>`;
+    } else {
+        html += `<div class="app-table-wrap"><table class="app-table app-table-stack"><thead><tr>`;
+        const headers = [];
+        for (const key in data[0]) {
+            let header = key.replace(/_/g, ' ').toUpperCase();
+            if (key === 'hours_worked') header = 'HOURS WORKED';
+            headers.push(header);
+            html += `<th>${header}</th>`;
+        }
+        html += `</tr></thead><tbody>`;
+        data.forEach(row => {
+            html += `<tr>`;
+            let i = 0;
+            for (const key in row) { html += `<td data-label="${headers[i]}">${row[key]}</td>`; i++; }
+            html += `</tr>`;
+        });
+        html += `</tbody></table></div>`;
+    }
+    document.getElementById('reportContent').innerHTML = html;
+
+    const ctx = document.getElementById('reportChart').getContext('2d');
+    if (reportChart) reportChart.destroy();
+
+    let labels = [];
+    let datasets = [];
+    let chartType = 'bar';
+    const barOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: true },
+            tooltip: { mode: 'index', intersect: false },
+            datalabels: { anchor: 'end', align: 'end', color: '#000', font: { weight: 'bold' }, formatter: val => val }
+        },
+        scales: { y: { beginAtZero: true }, x: { stacked: false, ticks: { autoSkip: false, maxRotation: 0 } } }
+    };
+
+    if (data.length) {
+        if (reportType === 'machine_perf' || reportType === 'operator_perf') {
+            labels = data.map(d => d.machine || d.operator_name);
+            datasets = [
+                { label: 'Cores Produced', data: data.map(d => d.cores_produced), backgroundColor: '#2C5282' },
+                { label: 'Defects', data: data.map(d => d.defects), backgroundColor: '#E53E3E' },
+                { label: 'Downtime (min)', data: data.map(d => d.downtime), backgroundColor: '#DD6B20' }
+            ];
+        } else if (reportType === 'operator_machine') {
+            labels = data.map(d => `${d.operator_name} - ${d.machine}`);
+            datasets = [
+                { label: 'Cores Produced', data: data.map(d => d.cores_produced), backgroundColor: '#2C5282' },
+                { label: 'Defects', data: data.map(d => d.defects), backgroundColor: '#E53E3E' },
+                { label: 'Downtime (min)', data: data.map(d => d.downtime), backgroundColor: '#DD6B20' }
+            ];
+            barOptions.indexAxis = 'y';
+        } else if (reportType === 'downtime') {
+            labels = data.map(d => d.remark_category);
+            datasets = [{ label: 'Downtime (min)', data: data.map(d => d.downtime_minutes), backgroundColor: '#DD6B20' }];
+        } else if (reportType === 'defects') {
+            labels = data.map(d => d.remark_category);
+            datasets = [{ label: 'Defects', data: data.map(d => d.defects), backgroundColor: '#E53E3E' }];
+        } else if (reportType === 'shift_agg') {
+            labels = data.map(d => d.shift);
+            datasets = [
+                { label: 'Cores Produced', data: data.map(d => d.cores_produced), backgroundColor: '#2C5282' },
+                { label: 'Defects', data: data.map(d => d.defects), backgroundColor: '#E53E3E' },
+                { label: 'Downtime (min)', data: data.map(d => d.downtime), backgroundColor: '#DD6B20' }
+            ];
+        } else if (reportType === 'normalized') {
+            chartType = 'line';
+            const grouped = {};
+            data.forEach(d => {
+                const key = `${d.shift} - ${d.machine}`;
+                if (!grouped[key]) grouped[key] = [];
+                grouped[key].push({ hour: d.hour, cores: d.cores_produced });
+            });
+            labels = Array.from(new Set(data.map(d => d.hour))).sort((a, b) => a - b);
+            datasets = Object.keys(grouped).map((key, i) => ({
+                label: key,
+                data: labels.map(hour => {
+                    const item = grouped[key].find(d => d.hour === hour);
+                    return item ? item.cores : 0;
+                }),
+                borderColor: `hsl(${i * 60 % 360}, 65%, 50%)`,
+                backgroundColor: `hsla(${i * 60 % 360}, 65%, 50%, 0.2)`,
+                fill: true,
+                tension: 0.2
+            }));
+            barOptions.plugins.datalabels.display = false;
+        } else if (reportType === 'daily_prod') {
+            chartType = 'bar';
+            barOptions.scales.y.stacked = true;
+            barOptions.scales.x.stacked = true;
+            const shiftsSet = new Set();
+            data.forEach(day => day.shifts.forEach(s => shiftsSet.add(s.shift)));
+            const shifts = Array.from(shiftsSet);
+            labels = data.map(d => d.date);
+            datasets = shifts.map((shift, i) => ({
+                label: shift,
+                data: data.map(day => {
+                    const s = day.shifts.find(sh => sh.shift === shift);
+                    return s ? s.cores_produced : 0;
+                }),
+                backgroundColor: `hsl(${i * 60 % 360}, 65%, 50%)`
+            }));
+        }
+    }
+
+    reportChart = new Chart(ctx, { type: chartType, data: { labels, datasets }, options: barOptions, plugins: [ChartDataLabels] });
+}
+
+function exportPDF() {
+    const form = document.getElementById('reportForm');
+    document.getElementById('chartImageInput').value = document.getElementById('reportChart').toDataURL('image/png');
+
+    const formData = new FormData(form);
+    fetch('{{ url_for("daily_production.hda_export_report_pdf") }}', { method: 'POST', body: formData })
+        .then(r => r.blob())
+        .then(blob => window.open(window.URL.createObjectURL(blob), '_blank'));
+}
+</script>
+{% endblock %}

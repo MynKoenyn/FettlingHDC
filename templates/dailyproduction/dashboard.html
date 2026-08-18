@@ -1,11 +1,9 @@
 {% extends "dailyproduction/base_dailyproduction.html" %}
 
 {% block content %}
-<div class="card nav-card" style="margin-bottom: 2rem;">
-    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
-        <h2>Welcome, {{ session['username'] }}</h2>
+<div class="app-card" style="margin-bottom: 1.4rem;">
+    <div class="app-card-body">
+        <h1 style="margin:0; font-size:1.35rem; font-weight:800; color:#0f172a;">Welcome, {{ current_user.username }}</h1>
     </div>
 </div>
-
-
 {% endblock %}
