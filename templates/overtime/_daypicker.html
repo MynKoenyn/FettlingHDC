@@ -1,0 +1,623 @@
+{#
+  Multi-day time picker — shared by New Request and New Actual
+  ===========================================================
+
+  A calendar to pick the days, and a block per day holding up to two time
+  ranges, because the common pattern is a stint before the shift and another
+  after it. Every filled range becomes its own overtime record.
+
+  Context it expects:
+    holidays   — list of ISO dates that pay double (from the route)
+    prefill    — {"days": [{"date","s1","e1","b1","l1","s2","e2","b2","l2"}, …]}
+    dp_lunch   — show the unpaid lunch row (actuals only, see below)
+    dp_verb    — button wording, "{n}" replaced by the entry count
+    dp_form_id — the form to guard against submitting with no days picked
+    dp_index   — optional. Set this when more than one picker sits on the same
+                 page (e.g. one per personnel member on New Request) so every
+                 element id and every field name is namespaced to that picker
+                 — "dates_2", "s1_2_2026-08-05" — instead of colliding with
+                 the others. Left unset, ids and field names are exactly what
+                 they always were ("dates", "s1_2026-08-05", …), so a page
+                 with a single picker (New Actual, and previously New Request)
+                 needs no changes at all.
+
+  Deductions — an unpaid lunch, and minutes lost to clocking in late or
+  leaving early — are captured on the actual and never on the request. Whoever
+  raises a request has no way of knowing whether a break will be taken or how
+  long it is; that differs by division and by shift. So a request is the
+  clock-on to clock-off window, and only the actual carries the deductions.
+
+  They are entered as plain minutes rather than as times, because that is how a
+  supervisor knows them: nobody records the clock time a break started.
+
+  Style and script sit here with the markup rather than in the page's head and
+  foot blocks, so a screen picks the whole component up with one include.
+#}
+{% set idsuf = ('-' ~ dp_index) if (dp_index is defined and dp_index is not none) else '' %}
+{#
+  A page with several pickers (New Request) passes its per-section prefill as
+  dp_prefill rather than overwriting the page-level `prefill` — reassigning
+  that inside a loop is easy to get subtly wrong across Jinja versions, so
+  it's avoided rather than relied on. A single-picker page keeps using
+  `prefill` exactly as before.
+#}
+{% set _dp_pf = dp_prefill if (dp_prefill is defined and dp_prefill is not none) else prefill %}
+{% if dp_index is not defined or dp_index is none or dp_index == 0 %}
+<style>
+  /* ── Date picker ── */
+  .ot-cal { border: 1.5px solid var(--ot-border); border-radius: 9px; overflow: hidden; max-width: 340px; }
+  .ot-cal-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: .5rem .6rem; background: #f8fafc;
+    border-bottom: 1px solid var(--ot-border);
+  }
+  .ot-cal-title { font-weight: 700; font-size: .85rem; }
+  .ot-cal-nav {
+    border: none; background: transparent; cursor: pointer;
+    color: var(--ot-muted); padding: .25rem .5rem; border-radius: 6px; line-height: 1;
+  }
+  .ot-cal-nav:hover { background: var(--ot-primary-lt); color: var(--ot-primary-dk); }
+  .ot-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; padding: .5rem; }
+  .ot-cal-dow {
+    text-align: center; font-size: .62rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .06em;
+    color: var(--ot-muted); padding: .2rem 0 .35rem;
+  }
+  .ot-cal-day {
+    border: 1px solid transparent; background: transparent;
+    border-radius: 6px; padding: .4rem 0;
+    font-family: 'Inter', sans-serif; font-size: .82rem; font-weight: 600;
+    color: var(--ot-text); cursor: pointer;
+  }
+  .ot-cal-day:hover { background: var(--ot-primary-lt); }
+  .ot-cal-day.dbl { color: var(--ot-danger); }        /* Sunday or public holiday */
+  .ot-cal-day.today { border-color: var(--ot-muted); }
+  .ot-cal-day.selected { background: var(--ot-primary); color: #fff; }
+  .ot-cal-blank { padding: .4rem 0; }
+
+  /* ── One day's block ── */
+  .ot-day { border: 1.5px solid var(--ot-border); border-radius: 9px; margin-bottom: .7rem; }
+  .ot-day-head {
+    display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+    padding: .55rem .85rem; background: #f8fafc;
+    border-bottom: 1px solid var(--ot-border);
+    border-radius: 7px 7px 0 0;
+    font-size: .875rem; font-weight: 700;
+  }
+  .ot-day-body { padding: .75rem .85rem; }
+  .ot-day-remove {
+    border: none; background: transparent; cursor: pointer;
+    color: var(--ot-muted); font-size: .78rem; font-weight: 600; padding: .15rem .4rem;
+    border-radius: 5px;
+  }
+  .ot-day-remove:hover { background: var(--ot-danger-lt); color: var(--ot-danger); }
+
+  .ot-range { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+  .ot-range + .ot-range { margin-top: .5rem; }
+  .ot-range-lbl {
+    width: 7.5rem; flex-shrink: 0;
+    font-size: .7rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .05em; color: var(--ot-muted);
+  }
+  .ot-range-lbl em { font-style: normal; font-weight: 600; text-transform: none; letter-spacing: 0; }
+  .ot-range input[type=time] { width: 7.5rem; padding: .4rem .55rem; font-size: .85rem; }
+  .ot-range-sep { color: var(--ot-muted); }
+  .ot-range-hrs { font-size: .78rem; font-weight: 700; color: var(--ot-success); min-width: 4rem; }
+  .ot-range-hrs.bad { color: var(--ot-danger); }
+
+  /* The deductions sit under their range and take hours away. */
+  .ot-range.deduct { margin-top: .35rem; }
+  .ot-range.deduct .ot-range-hrs { color: var(--ot-danger); }
+  .ot-range.deduct input[type=number] {
+    width: 5rem; padding: .4rem .55rem; font-size: .85rem;
+  }
+  .ot-range.deduct .unit { font-size: .74rem; color: var(--ot-muted); }
+  .ot-range-sub {
+    width: 7.5rem; flex-shrink: 0; text-align: right;
+    font-size: .7rem; font-weight: 600; color: var(--ot-muted);
+  }
+  .ot-day-net {
+    display: flex; justify-content: flex-end; gap: .4rem; align-items: baseline;
+    margin-top: .55rem; font-size: .78rem; color: var(--ot-muted);
+  }
+  .ot-day-net b { font-size: .9rem; color: var(--ot-text); }
+
+  .ot-mult {
+    display: inline-block; padding: .1rem .5rem; border-radius: 999px;
+    font-size: .66rem; font-weight: 700; letter-spacing: .04em;
+    background: var(--ot-danger-lt); color: var(--ot-danger);
+  }
+  .ot-summary { font-size: .85rem; font-weight: 600; color: var(--ot-muted); }
+  .ot-summary strong { color: var(--ot-text); }
+</style>
+{% endif %}
+
+<!-- ── Which days ── -->
+<div class="ot-card mb-3">
+  <div class="ot-card-header">
+    <span class="ot-card-title"><i class="bi bi-calendar3 me-2"></i>Days Worked</span>
+    <button type="button" class="ot-btn ot-btn-outline ot-btn-sm" id="clear-dates{{ idsuf }}">Clear all</button>
+  </div>
+  <div class="ot-card-body">
+    <div class="ot-cal" id="calendar{{ idsuf }}">
+      <div class="ot-cal-head">
+        <button type="button" class="ot-cal-nav" id="cal-prev{{ idsuf }}" aria-label="Previous month"><i class="bi bi-chevron-left"></i></button>
+        <span class="ot-cal-title" id="cal-title{{ idsuf }}"></span>
+        <button type="button" class="ot-cal-nav" id="cal-next{{ idsuf }}" aria-label="Next month"><i class="bi bi-chevron-right"></i></button>
+      </div>
+      <div class="ot-cal-grid" id="cal-grid{{ idsuf }}"></div>
+    </div>
+    <div style="font-size:.75rem;color:var(--ot-muted);margin-top:.5rem;">
+      Click a day to add it, click again to remove it. Days shown in red pay double
+      time (Sunday or a public holiday). You can move between months — the days you
+      picked stay selected.
+    </div>
+  </div>
+</div>
+
+<!-- ── The times for each day ── -->
+<div class="ot-card mb-3">
+  <div class="ot-card-header">
+    <span class="ot-card-title"><i class="bi bi-clock-history me-2"></i>Times</span>
+    <button type="button" class="ot-btn ot-btn-outline ot-btn-sm" id="copy-first{{ idsuf }}" style="display:none;">
+      <i class="bi bi-arrow-down-square"></i> Copy first day to all
+    </button>
+  </div>
+  <div class="ot-card-body">
+    <div id="day-blocks{{ idsuf }}"></div>
+    <div id="no-days{{ idsuf }}" class="empty-state" style="padding:1.5rem;">
+      Pick at least one day above.
+    </div>
+    <div class="ot-summary mt-2" id="summary{{ idsuf }}"></div>
+    {% if dp_lunch %}
+    <div style="font-size:.75rem;color:var(--ot-muted);margin-top:.5rem;">
+      Lunch and late in / early out are unpaid minutes that come off the range above
+      them. Enter them in minutes — 30, 45 — and leave them blank when there is
+      nothing to take off.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+/* ── Multi-day picker ─────────────────────────────────────────────────────
+   State is a map of ISO date → the day's two time ranges, each with its own
+   unpaid minutes on the actual side. The calendar adds and removes keys; the
+   blocks below are re-rendered from it. The inputs in those blocks are the
+   real form fields (s1_<date>, e1_<date>, b1_<date>, …) plus a hidden `dates`
+   entry per day, so removing a day removes it from the post.
+
+   NS namespaces every id and every field name to this one picker when several
+   sit on the same page (dp_index passed in). Left null, it behaves exactly as
+   a lone picker always has.
+
+   The deductions belong to a range rather than to the day, so a lunch taken
+   during the morning stint does not come off the evening one. The arithmetic
+   here mirrors overtime/calc.py so what the form shows is what gets saved.
+*/
+(function () {
+  var LUNCH    = {{ 'true' if dp_lunch else 'false' }};
+  var VERB     = {{ (dp_verb or "Save {n} Entries")|tojson }};
+  var FORM_ID  = {{ (dp_form_id or "ot-form")|tojson }};
+  var HOLIDAYS = new Set({{ holidays|tojson }});
+  var PREFILL  = {{ _dp_pf|tojson }};
+  var NS       = {{ (dp_index if (dp_index is defined and dp_index is not none) else none)|tojson }};
+
+  function fieldName(base, iso) {
+    return NS === null ? (base + "_" + iso) : (base + "_" + NS + "_" + iso);
+  }
+  function datesFieldName() {
+    return NS === null ? "dates" : ("dates_" + NS);
+  }
+
+  var DOW   = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  var MON   = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  var MONTH = ["January","February","March","April","May","June",
+               "July","August","September","October","November","December"];
+
+  var grid     = document.getElementById("cal-grid{{ idsuf }}");
+  var title    = document.getElementById("cal-title{{ idsuf }}");
+  var blocks   = document.getElementById("day-blocks{{ idsuf }}");
+  var noDays   = document.getElementById("no-days{{ idsuf }}");
+  var summary  = document.getElementById("summary{{ idsuf }}");
+  var copyBtn  = document.getElementById("copy-first{{ idsuf }}");
+  var submitLbl = document.getElementById("submit-label{{ idsuf }}");
+
+  // ISO date → {s1, e1, b1, l1, s2, e2, b2, l2}
+  var FIELDS = ["s1", "e1", "b1", "l1", "s2", "e2", "b2", "l2"];
+
+  var days = new Map();
+  (PREFILL.days || []).forEach(function (d) {
+    var rec = blank();
+    FIELDS.forEach(function (f) { rec[f] = d[f] || ""; });
+    days.set(d.date, rec);
+  });
+
+  function blank() {
+    return { s1: "", e1: "", b1: "", l1: "", s2: "", e2: "", b2: "", l2: "" };
+  }
+
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  function iso(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+  function fromIso(s) {
+    var p = s.split("-");
+    return new Date(+p[0], +p[1] - 1, +p[2]);   // local, so no timezone drift
+  }
+  function startOfMonth(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
+  function longLabel(d) {
+    return DOW[d.getDay()] + " " + pad(d.getDate()) + " " + MON[d.getMonth()] + " " + d.getFullYear();
+  }
+  function isDouble(s) { return fromIso(s).getDay() === 0 || HOLIDAYS.has(s); }
+  function sortedDates() { return Array.from(days.keys()).sort(); }
+
+  var todayIso = iso(new Date());
+  var firstPicked = sortedDates()[0];
+  var view = firstPicked ? startOfMonth(fromIso(firstPicked)) : startOfMonth(new Date());
+
+  /* Two "HH:MM" strings as [startMin, endMin], matching the server: an end at
+     or before the start means the range ran past midnight. Null when either
+     side is missing, and null for a zero-length range — the server rejects
+     that rather than reading it as a full 24 hours. */
+  function span(start, end) {
+    if (!start || !end) return null;
+    var a = start.split(":"), b = end.split(":");
+    var s = +a[0] * 60 + +a[1], e = +b[0] * 60 + +b[1];
+    if (e === s) return null;
+    if (e < s) e += 24 * 60;
+    return [s, e];
+  }
+
+  /* A deduction box as whole minutes; anything not a number reads as none. */
+  function mins(raw) {
+    var n = parseInt(raw, 10);
+    return isFinite(n) && n > 0 ? n : 0;
+  }
+
+  function fmtMins(mins) {
+    var h = Math.floor(mins / 60), m = mins % 60;
+    if (!h) return m + " min";
+    return h + "h" + (m ? " " + m + "m" : "");
+  }
+
+  // ── Calendar ──────────────────────────────────────────────────────────
+  function renderCalendar() {
+    title.textContent = MONTH[view.getMonth()] + " " + view.getFullYear();
+    grid.innerHTML = "";
+
+    ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].forEach(function (d) {
+      var cell = document.createElement("div");
+      cell.className = "ot-cal-dow";
+      cell.textContent = d;
+      grid.appendChild(cell);
+    });
+
+    var y = view.getFullYear(), m = view.getMonth();
+    var lead = (new Date(y, m, 1).getDay() + 6) % 7;        // Monday-first grid
+    var total = new Date(y, m + 1, 0).getDate();
+
+    for (var i = 0; i < lead; i++) {
+      var pre = document.createElement("div");
+      pre.className = "ot-cal-blank";
+      grid.appendChild(pre);
+    }
+
+    for (var d = 1; d <= total; d++) {
+      (function (dayNo) {
+        var key = iso(new Date(y, m, dayNo));
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "ot-cal-day";
+        btn.textContent = dayNo;
+        if (isDouble(key))      btn.classList.add("dbl");
+        if (key === todayIso)   btn.classList.add("today");
+        if (days.has(key))      btn.classList.add("selected");
+        btn.addEventListener("click", function () { toggle(key); });
+        grid.appendChild(btn);
+      })(d);
+    }
+  }
+
+  function toggle(key) {
+    if (days.has(key)) days.delete(key);
+    else days.set(key, blank());
+    renderCalendar();
+    renderBlocks();
+  }
+
+  // ── Day blocks ────────────────────────────────────────────────────────
+  /* One start → end line. `fields` are the two state keys (and form field
+     prefixes), `slot` names the cell that reports this line's hours. */
+  function rangeRow(key, fields, slot, label, optional, extraClass) {
+    var rec = days.get(key);
+    var row = document.createElement("div");
+    row.className = "ot-range" + (extraClass ? " " + extraClass : "");
+
+    var lbl = document.createElement("span");
+    lbl.className = "ot-range-lbl";
+    lbl.textContent = label;
+    if (optional) {
+      var em = document.createElement("em");
+      em.textContent = " optional";
+      lbl.appendChild(em);
+    }
+    row.appendChild(lbl);
+
+    fields.forEach(function (field, i) {
+      if (i === 1) {
+        var sep = document.createElement("span");
+        sep.className = "ot-range-sep";
+        sep.textContent = "→";
+        row.appendChild(sep);
+      }
+      var input = document.createElement("input");
+      input.type = "time";
+      input.step = 900;
+      input.className = "ot-form-control";
+      input.name = fieldName(field, key);
+      input.dataset.slot = field;
+      input.value = rec[field] || "";
+      row.appendChild(input);
+    });
+
+    var hrs = document.createElement("span");
+    hrs.className = "ot-range-hrs";
+    hrs.dataset.hoursFor = slot;
+    row.appendChild(hrs);
+
+    return row;
+  }
+
+  /* The two unpaid-minute boxes that belong to one range. */
+  function deductRow(key, slot) {
+    var rec = days.get(key);
+    var row = document.createElement("div");
+    row.className = "ot-range deduct";
+
+    var pad = document.createElement("span");
+    pad.className = "ot-range-sub";
+    pad.textContent = "less";
+    row.appendChild(pad);
+
+    [["b" + slot, "lunch"], ["l" + slot, "late in / early out"]].forEach(function (pair) {
+      var input = document.createElement("input");
+      input.type = "number";
+      input.min = 0;
+      input.step = 5;
+      input.className = "ot-form-control";
+      input.name = fieldName(pair[0], key);
+      input.dataset.slot = pair[0];
+      input.placeholder = "0";
+      input.value = rec[pair[0]] || "";
+      row.appendChild(input);
+
+      var unit = document.createElement("span");
+      unit.className = "unit";
+      unit.textContent = "min " + pair[1];
+      row.appendChild(unit);
+    });
+
+    var off = document.createElement("span");
+    off.className = "ot-range-hrs";
+    off.dataset.deductFor = slot;
+    row.appendChild(off);
+
+    return row;
+  }
+
+  function renderBlocks() {
+    blocks.innerHTML = "";
+    var keys = sortedDates();
+
+    keys.forEach(function (key) {
+      var when = fromIso(key);
+
+      var block = document.createElement("div");
+      block.className = "ot-day";
+      block.dataset.date = key;
+
+      var head = document.createElement("div");
+      head.className = "ot-day-head";
+
+      var left = document.createElement("div");
+      left.textContent = longLabel(when) + " ";
+      if (isDouble(key)) {
+        var badge = document.createElement("span");
+        badge.className = "ot-mult";
+        badge.textContent = HOLIDAYS.has(key) ? "×2 public holiday" : "×2 Sunday";
+        left.appendChild(badge);
+      }
+      head.appendChild(left);
+
+      var remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "ot-day-remove";
+      remove.innerHTML = '<i class="bi bi-x-lg"></i> Remove';
+      remove.addEventListener("click", function () { toggle(key); });
+      head.appendChild(remove);
+
+      block.appendChild(head);
+
+      var hidden = document.createElement("input");
+      hidden.type = "hidden";
+      hidden.name = datesFieldName();
+      hidden.value = key;
+      block.appendChild(hidden);
+
+      var body = document.createElement("div");
+      body.className = "ot-day-body";
+      body.appendChild(rangeRow(key, ["s1", "e1"], "1", "Start / finish", false));
+      if (LUNCH) body.appendChild(deductRow(key, "1"));
+      body.appendChild(rangeRow(key, ["s2", "e2"], "2", "Second range", true));
+      if (LUNCH) body.appendChild(deductRow(key, "2"));
+
+      var net = document.createElement("div");
+      net.className = "ot-day-net";
+      net.dataset.netFor = key;
+      body.appendChild(net);
+
+      block.appendChild(body);
+
+      blocks.appendChild(block);
+    });
+
+    noDays.style.display  = keys.length ? "none" : "";
+    copyBtn.style.display = keys.length > 1 ? "" : "none";
+    updateTotals();
+  }
+
+  /* Typing in any time field writes straight back to the state, so a
+     re-render (adding or removing a day) never loses what was entered. */
+  blocks.addEventListener("input", function (e) {
+    var input = e.target;
+    var block = input.closest("[data-date]");
+    if (!block || !input.dataset.slot) return;
+    var rec = days.get(block.dataset.date);
+    if (rec) rec[input.dataset.slot] = input.value;
+    updateTotals();
+  });
+
+  function updateTotals() {
+    var entries = 0, totalHours = 0, filledDays = 0, totalBreak = 0;
+
+    sortedDates().forEach(function (key) {
+      var rec = days.get(key);
+      var block = blocks.querySelector('[data-date="' + key + '"]');
+      var dayHasEntry = false, dayBreak = 0, dayNet = 0;
+
+      ["1", "2"].forEach(function (slot) {
+        var start = rec["s" + slot], end = rec["e" + slot];
+        var cell = block ? block.querySelector('[data-hours-for="' + slot + '"]') : null;
+        var offCell = block ? block.querySelector('[data-deduct-for="' + slot + '"]') : null;
+
+        var off = mins(rec["b" + slot]) + mins(rec["l" + slot]);
+        if (offCell) {
+          offCell.textContent = off ? "− " + fmtMins(off) : "";
+          offCell.classList.remove("bad");
+        }
+
+        if (!start && !end) {                       // left blank — ignored on submit
+          if (cell) { cell.textContent = ""; cell.classList.remove("bad"); }
+          return;
+        }
+        if (!start || !end) {
+          if (cell) { cell.textContent = "needs both"; cell.classList.add("bad"); }
+          return;
+        }
+
+        var range = span(start, end);
+        if (!range) {
+          if (cell) { cell.textContent = "same time"; cell.classList.add("bad"); }
+          return;
+        }
+
+        var hours = (range[1] - range[0] - off) / 60;
+        if (hours <= 0) {
+          if (cell) { cell.textContent = "all deducted"; cell.classList.add("bad"); }
+          if (offCell) offCell.classList.add("bad");
+          return;
+        }
+
+        if (cell) { cell.textContent = hours.toFixed(2) + " h"; cell.classList.remove("bad"); }
+        entries += 1;
+        totalHours += hours;
+        dayBreak += off;
+        dayNet += hours;
+        dayHasEntry = true;
+      });
+
+      totalBreak += dayBreak;
+
+      var netCell = block ? block.querySelector('[data-net-for="' + key + '"]') : null;
+      if (netCell) {
+        netCell.innerHTML = dayHasEntry
+          ? (dayBreak ? "less " + fmtMins(dayBreak) + " unpaid · " : "") +
+            "payable <b>" + dayNet.toFixed(2) + " h</b>"
+          : "";
+      }
+
+      if (dayHasEntry) filledDays += 1;
+    });
+
+    var picked = days.size;
+    if (!picked) {
+      summary.textContent = "";
+    } else {
+      summary.innerHTML =
+        "<strong>" + entries + "</strong> " + (entries === 1 ? "entry" : "entries") +
+        " over <strong>" + filledDays + "</strong> of " + picked +
+        " selected day" + (picked === 1 ? "" : "s") +
+        (totalBreak ? " · less <strong>" + fmtMins(totalBreak) + "</strong> unpaid" : "") +
+        " · <strong>" + totalHours.toFixed(2) + "</strong> " +
+        (LUNCH ? "payable hours" : "hours");
+    }
+
+    if (submitLbl) {
+      submitLbl.textContent = VERB.replace("{n}", entries)
+                                  .replace("{s}", entries === 1 ? "" : "s");
+    }
+  }
+
+  // ── Toolbar ───────────────────────────────────────────────────────────
+  copyBtn.addEventListener("click", function () {
+    var keys = sortedDates();
+    if (keys.length < 2) return;
+    var source = days.get(keys[0]);
+    keys.slice(1).forEach(function (key) {
+      var copy = blank();
+      FIELDS.forEach(function (f) { copy[f] = source[f]; });
+      days.set(key, copy);
+    });
+    renderBlocks();
+  });
+
+  document.getElementById("clear-dates{{ idsuf }}").addEventListener("click", function () {
+    days.clear();
+    renderCalendar();
+    renderBlocks();
+  });
+
+  document.getElementById("cal-prev{{ idsuf }}").addEventListener("click", function () {
+    view = new Date(view.getFullYear(), view.getMonth() - 1, 1);
+    renderCalendar();
+  });
+  document.getElementById("cal-next{{ idsuf }}").addEventListener("click", function () {
+    view = new Date(view.getFullYear(), view.getMonth() + 1, 1);
+    renderCalendar();
+  });
+
+  // Lets a page with several pickers (dp_index set) drive one from outside —
+  // "Remove this personnel" clears their calendar without touching the rest.
+  if (NS !== null) {
+    window.__otDayPickers = window.__otDayPickers || {};
+    window.__otDayPickers[NS] = {
+      clear: function () { days.clear(); renderCalendar(); renderBlocks(); },
+      count: function () { return days.size; }
+    };
+  }
+
+  var form = document.getElementById(FORM_ID);
+  if (form) {
+    form.addEventListener("submit", function (e) {
+      if (NS !== null) {
+        // One picker among several — only this personnel member's own
+        // section needs a day picked, and only if that section is in use.
+        var pidEl = document.getElementById("personnel_id_" + NS);
+        if (!pidEl || !pidEl.value) return;
+        if (!days.size) {
+          e.preventDefault();
+          var who = pidEl.selectedOptions[0] ? pidEl.selectedOptions[0].text : "that personnel member";
+          alert("Pick at least one day worked for " + who + ".");
+        }
+        return;
+      }
+      if (!days.size) {
+        e.preventDefault();
+        alert("Pick at least one day worked.");
+      }
+    });
+  }
+
+  renderCalendar();
+  renderBlocks();
+})();
+</script>

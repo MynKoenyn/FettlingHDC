@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{% block title %}Overtime{% endblock %} — OT Manager</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" />
   <!-- app-shell.css only for its .app-pagination component — this module's
@@ -15,17 +15,20 @@
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <style>
     :root {
+      /* Aligned to the house palette (templates/base.html / app-shell.css)
+         so Overtime's own .ot-* components render in the same blue/Inter
+         as the rest of the app instead of their own DM Sans + brand-blue. */
       --ot-bg:       #f4f7fb;
       --ot-surface:  #ffffff;
       --ot-border:   #e2e8f0;
-      --ot-primary:  #2563eb;
-      --ot-primary-dk: #1d4ed8;
-      --ot-primary-lt: #dbeafe;
-      --ot-success:  #059669;
-      --ot-success-lt: #d1fae5;
-      --ot-danger:   #dc2626;
+      --ot-primary:  #2C5282;
+      --ot-primary-dk: #1F3A61;
+      --ot-primary-lt: #dbe5ee;
+      --ot-success:  #166534;
+      --ot-success-lt: #dcfce7;
+      --ot-danger:   #991B1B;
       --ot-danger-lt: #fee2e2;
-      --ot-warning:  #d97706;
+      --ot-warning:  #B45309;
       --ot-warning-lt: #fef3c7;
       --ot-muted:    #64748b;
       --ot-text:     #1e293b;
@@ -35,7 +38,7 @@
     * { box-sizing: border-box; }
 
     body {
-      font-family: 'DM Sans', sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
       background: var(--ot-bg);
       color: var(--ot-text);
       margin: 0;
@@ -57,7 +60,8 @@
       border-bottom: 1px solid rgba(255,255,255,.07);
     }
     .ot-brand .brand-name {
-      font-family: 'DM Serif Display', serif;
+      font-family: 'Inter', sans-serif;
+      font-weight: 800;
       font-size: 1.2rem;
       color: #fff;
     }
@@ -126,7 +130,8 @@
       box-shadow: 0 1px 3px rgba(0,0,0,.05);
     }
     .ot-topbar-title {
-      font-family: 'DM Serif Display', serif;
+      font-family: 'Inter', sans-serif;
+      font-weight: 800;
       font-size: 1.25rem;
       color: var(--ot-text);
     }
@@ -200,7 +205,7 @@
     .ot-btn {
       display: inline-flex; align-items: center; gap: .4rem;
       padding: .5rem 1.1rem; border-radius: 7px;
-      font-family: 'DM Sans', sans-serif;
+      font-family: 'Inter', sans-serif;
       font-size: .875rem; font-weight: 600;
       border: none; cursor: pointer; text-decoration: none;
       transition: all .15s;
@@ -228,7 +233,7 @@
     .ot-form-control {
       width: 100%; padding: .65rem .9rem;
       border: 1.5px solid var(--ot-border); border-radius: 7px;
-      font-family: 'DM Sans', sans-serif; font-size: .9rem; color: var(--ot-text);
+      font-family: 'Inter', sans-serif; font-size: .9rem; color: var(--ot-text);
       background: var(--ot-surface); outline: none;
       transition: border-color .15s, box-shadow .15s;
     }
