@@ -1,0 +1,554 @@
+{% extends "furnace/base_furnace.html" %}
+
+{% block title %}Entry Detail - {{ entry.heat_number }} - Furnace Management System{% endblock %}
+
+{% block furnace_content %}
+
+{# ---------- Macros ---------- #}
+{% macro kg(value) %}
+  {{ "%.2f"|format(value or 0) }} kg
+{% endmacro %}
+
+{% macro num(value, decimals=2) %}
+  {{ ("%." ~ decimals ~ "f")|format(value or 0) }}
+{% endmacro %}
+
+<div class="row mb-4">
+    <div class="col">
+        <h1><i class="bi bi-eye me-2"></i>Entry Detail - {{ entry.heat_number }}</h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('furnace.dashboard') }}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('furnace.entries') }}">Entries</a></li>
+                <li class="breadcrumb-item active">{{ entry.heat_number }}</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-list-task me-2"></i>Furnace Timeline</h5>
+        {% if concurrent_entries %}
+        <span class="badge bg-warning text-dark">
+            <i class="bi bi-exclamation-triangle me-1"></i>
+            {{ concurrent_entries|length }} concurrent furnace{{ 's' if concurrent_entries|length != 1 else '' }}
+        </span>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        {% if gantt %}
+            <div class="gantt-legend mb-1 small">
+                <span class="gantt-swatch gantt-color-current"></span>This Entry
+                {% if concurrent_entries %}
+                <span class="gantt-swatch gantt-color-other ms-3"></span>Other Furnace
+                {% endif %}
+            </div>
+            <div class="gantt-legend gantt-legend-markers mb-2 small">
+                <span class="gantt-legend-start"></span>Start Charging
+                <span class="gantt-legend-additions ms-3"></span>Additions Added
+                <span class="gantt-legend-endmelt ms-3"></span>End Melt
+                <span class="gantt-legend-tap ms-3"></span>Tap
+            </div>
+            <div class="gantt-chart">
+                <div class="gantt-axis">
+                    <div class="gantt-row-label"></div>
+                    <div class="gantt-axis-track">
+                        {% for g in gantt.gridlines %}
+                        <div class="gantt-axis-label" data-x="{{ g.x }}">{{ g.label }}</div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% for row in gantt.rows %}
+                <div class="gantt-row">
+                    <div class="gantt-row-label">
+                        <strong>{{ row.furnace_name }}</strong>
+                        <span class="text-muted d-block">Heat {{ row.heat_number }}</span>
+                    </div>
+                    <div class="gantt-row-track {{ row.color_class }}">
+                        {% for g in gantt.gridlines %}
+                        <div class="gantt-gridline {{ 'gantt-gridline-day' if g.is_day_start else '' }}" data-x="{{ g.x }}"></div>
+                        {% endfor %}
+                        <div class="gantt-bar
+                                    {{ 'gantt-bar-muted' if row.muted else '' }}
+                                    {{ 'gantt-bar-clip-start' if row.clipped_start else '' }}
+                                    {{ 'gantt-bar-clip-end' if row.clipped_end else '' }}"
+                             data-x="{{ row.x }}" data-w="{{ row.w }}"
+                             title="{{ row.title }}">
+                            {% if not row.clipped_start %}
+                            <span class="gantt-bar-time gantt-bar-time-start">{{ row.start_label }}</span>
+                            {% endif %}
+                            {% if not row.clipped_end %}
+                            <span class="gantt-bar-time gantt-bar-time-end">{{ row.end_label }}</span>
+                            {% endif %}
+                        </div>
+                        {% for m in row.marker_points %}
+                        <div class="gantt-marker gantt-marker-{{ m.kind }}"
+                             data-x="{{ m.x }}" title="{{ row.furnace_name }} — {{ m.label }} — {{ m.time }}"></div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% if concurrent_entries %}
+            <p class="small text-muted mt-2 mb-0">
+                <i class="bi bi-info-circle me-1"></i>
+                {{ concurrent_entries|length }} other furnace entr{{ 'y' if concurrent_entries|length == 1 else 'ies' }}
+                had an overlapping active window (start charging &rarr; last tap) during this heat.
+            </p>
+            {% else %}
+            <p class="small text-muted mt-2 mb-0">No other furnace was active during this heat's window.</p>
+            {% endif %}
+        {% else %}
+            <p class="text-muted mb-0">Start charging time has not been recorded yet — the timeline chart will appear once charging begins.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row">
+    <!-- Left Column -->
+    <div class="col-lg-8">
+
+        <!-- Basic Information -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="bi bi-info-circle me-2"></i>Basic Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <td><strong>Heat Number:</strong></td>
+                                <td>{{ entry.heat_number }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Date:</strong></td>
+                                <td>{{ entry.date.strftime('%Y-%m-%d') if entry.date else '—' }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Furnace:</strong></td>
+                                <td>{{ entry.furnace_ref.name if entry.furnace_ref else 'Not assigned' }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Lining Number:</strong></td>
+                                <td>{{ entry.lining_number if entry.lining_number else 'Not specified' }}</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <td><strong>Metal Grade:</strong></td>
+                                <td>{{ entry.metal_grade_ref.name if entry.metal_grade_ref else 'Not selected' }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Melt Technician:</strong></td>
+                                <td>
+                                    {% if entry.melt_technician %}
+                                        {{ entry.melt_technician.name }} ({{ entry.melt_technician.clockno }})
+                                    {% else %}
+                                        <span class="text-muted">Not assigned</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Furnace Operator:</strong></td>
+                                <td>
+                                    {% if entry.furnace_operator %}
+                                        {{ entry.furnace_operator.name }} ({{ entry.furnace_operator.clockno }})
+                                    {% else %}
+                                        <span class="text-muted">Not assigned</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Created:</strong></td>
+                                <td>{{ entry.created_at.strftime('%d-%m-%Y %H:%M') if entry.created_at else '—' }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Last Updated:</strong></td>
+                                <td>{{ entry.updated_at.strftime('%d-%m-%Y %H:%M') if entry.updated_at else '—' }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Materials -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="bi bi-box me-2"></i>Materials</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+
+                    <!-- Base Materials -->
+                    <div class="col-md-6">
+                        <h6 class="text-muted">Base Materials</h6>
+                        <table class="table table-sm">
+                            <tr><td>Cast Iron:</td><td class="text-end">{{ kg(entry.cast_iron) }}</td></tr>
+                            <tr><td>Steel Scrap:</td><td class="text-end">{{ kg(entry.steel_scrap) }}</td></tr>
+                            <tr><td>Pig Iron:</td><td class="text-end">{{ kg(entry.pig_iron) }}</td></tr>
+                            <tr><td>Recarb:</td><td class="text-end">{{ kg(entry.recarb) }}</td></tr>
+                            <tr><td>Ferrosilicon:</td><td class="text-end">{{ kg(entry.ferrosilicon) }}</td></tr>
+                            <tr><td>Ferromanganese:</td><td class="text-end">{{ kg(entry.ferromanganese) }}</td></tr>
+                            <tr><td>Iron Sulfide:</td><td class="text-end">{{ kg(entry.iron_sulfide) }}</td></tr>
+                            <tr class="table-primary">
+                                <td><strong>Base Total:</strong></td>
+                                <td class="text-end"><strong>{{ kg(entry.total_base_materials) }}</strong></td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <!-- Additional Materials -->
+                    <div class="col-md-6">
+                        <h6 class="text-muted">Additional Materials</h6>
+                        <table class="table table-sm">
+                            <tr><td>Additional Recarb:</td><td class="text-end">{{ kg(entry.additional_recarb) }}</td></tr>
+                            <tr><td>Additional FeSi:</td><td class="text-end">{{ kg(entry.additional_fesi) }}</td></tr>
+                            <tr><td>Additional FeMn:</td><td class="text-end">{{ kg(entry.additional_femn) }}</td></tr>
+                            <tr><td>Additional Iron Sulfide:</td><td class="text-end">{{ kg(entry.additional_iron_sulfide) }}</td></tr>
+                            <tr><td>Tin:</td><td class="text-end">{{ kg(entry.tin) }}</td></tr>
+                            <tr><td>Copper:</td><td class="text-end">{{ kg(entry.copper) }}</td></tr>
+                            <tr class="table-info">
+                                <td><strong>Additional Total:</strong></td>
+                                <td class="text-end"><strong>{{ kg(entry.total_additional_materials) }}</strong></td>
+                            </tr>
+                        </table>
+
+                        <div class="mt-3 p-3 bg-light border rounded">
+                            <h6 class="mb-2">Grand Total Materials</h6>
+                            <h4 class="mb-0 text-primary">{{ kg(entry.total_materials) }}</h4>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- Process Details -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="bi bi-thermometer-half me-2"></i>Process Details</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr>
+                        <td><strong>Melt Temperature:</strong></td>
+                        <td>
+                            {% if entry.melt_temperature %}
+                                {{ num(entry.melt_temperature, 1) }} °C
+                            {% else %}
+                                <span class="text-muted">Not recorded</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+
+                {% if entry.remarks %}
+                <div class="mt-3">
+                    <h6>Remarks:</h6>
+                    <div class="p-3 bg-light border rounded">
+                        {{ entry.remarks }}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+<h5>Spectro Results</h5>
+
+{% for r in spectro_results %}
+<div class="card mb-4">
+    <div class="card-body">
+
+        <!-- BASIC INFO -->
+        <table class="uniform-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Time</th>
+                    <th>Sample Type</th>
+                    <th>Melt Technician</th>
+                    <th>Grade ID</th>
+                    <th>Heat Number</th>
+                    <th>Furnace</th>
+                    <th>Pot #</th>
+                    <th>Metal Grade</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>{{ r.measure_date }}</td>
+                    <td>{{ r.measure_time.strftime('%H:%M:%S') if r.measure_time }}</td>
+                    <td>{{ r.sample_type }}</td>
+                    <td>{{ r.melt_technician }}</td>
+                    <td>{{ r.grade_id }}</td>
+                    <td>{{ r.heat_number }}</td>
+                    <td>{{ r.furnace }}</td>
+                    <td>{{ r.pot_number }}</td>
+                    <td>{{ r.metal_grade }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- ELEMENTS -->
+        <h6 class="text-muted mt-3 mb-2">Elements (%)</h6>
+
+        <!-- BLOCK 1 -->
+        <table class="uniform-table element-block">
+            <thead>
+                <tr>
+                    <th>C</th>
+                    <th>Si</th>
+                    <th>Mn</th>
+                    <th>P</th>
+                    <th>S</th>
+                    <th>Cr</th>
+                    <th>Mo</th>
+                    <th>Ni</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>{{ r.ele_c }}</td>
+                    <td>{{ r.ele_si }}</td>
+                    <td>{{ r.ele_mn }}</td>
+                    <td>{{ r.ele_p }}</td>
+                    <td>{{ r.ele_s }}</td>
+                    <td>{{ r.ele_cr }}</td>
+                    <td>{{ r.ele_mo }}</td>
+                    <td>{{ r.ele_ni }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- BLOCK 2 -->
+        <table class="uniform-table element-block">
+            <thead>
+                <tr>
+                    <th>Al</th>
+                    <th>Cu</th>
+                    <th>Ti</th>
+                    <th>Pb</th>
+                    <th>Sn</th>
+                    <th>Mg</th>
+                    <th>Zr</th>
+                    <th>Ce</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>{{ r.ele_al }}</td>
+                    <td>{{ r.ele_cu }}</td>
+                    <td>{{ r.ele_ti }}</td>
+                    <td>{{ r.ele_pb }}</td>
+                    <td>{{ r.ele_sn }}</td>
+                    <td>{{ r.ele_mg }}</td>
+                    <td>{{ r.ele_zr }}</td>
+                    <td>{{ r.ele_ce }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+    </div>
+</div>
+{% else %}
+<p class="text-muted">No spectro results available.</p>
+{% endfor %}
+
+
+
+    </div>
+
+    <!-- Right Column -->
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="bi bi-clock me-2"></i>Process Timeline</h5>
+            </div>
+            <div class="card-body">
+                <div class="timeline">
+
+                    {% set events = [
+                        ('Start Charging', entry.start_charging_time, 'bi-play-fill'),
+                        ('End Melt', entry.end_melt_time, 'bi-stop-fill'),
+                        ('Additions Added', entry.additions_added_time, 'bi-plus-lg')
+                    ] %}
+
+                    {% for label, time, icon in events %}
+                    <div class="timeline-item {{ 'completed' if time else 'pending' }}">
+                        <div class="timeline-marker">
+                            <i class="bi {{ icon }}"></i>
+                        </div>
+                        <div class="timeline-content">
+                            <h6>{{ label }}</h6>
+                            {% if time %}
+                                <small>{{ time.strftime('%d-%m-%Y %H:%M:%S') }}</small>
+                            {% else %}
+                                <small class="text-muted">Not recorded</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    <div class="timeline-item {{ 'completed' if tap_times else 'pending' }}">
+                        <div class="timeline-marker">
+                            <i class="bi bi-droplet-half"></i>
+                        </div>
+                        <div class="timeline-content">
+                            <h6>Tap Times</h6>
+                            {% if tap_times %}
+                                {% for tap, gap in taps_with_gaps %}
+                                    <div class="small text-danger">
+                                        Tap {{ loop.index }}:
+                                        {{ tap.tap_time.strftime('%H:%M:%S') }}
+                                        @ {{ tap.temperature }}°C
+                                        {% if tap.innoculate %}with {{ tap.innoculate }}{% endif %}
+                                        {% if tap.department %}&rarr; {{ tap.department }}{% endif %}
+                                        {% if gap %}
+                                            <br><span class="text-muted">+{{ gap }} since Tap {{ loop.index - 1 }}</span>
+                                        {% endif %}
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <small class="text-muted">No tap times recorded</small>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5><i class="bi bi-stopwatch me-2"></i>Process Durations</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless mb-0">
+                    <tr>
+                        <td><strong>Melt Time:</strong></td>
+                        <td class="text-end">{{ entry.melt_time }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Corrections:</strong></td>
+                        <td class="text-end">{{ entry.corrections_time }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Furnace Emptying:</strong></td>
+                        <td class="text-end">{{ entry.furnace_emptying_time }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Full Melt:</strong></td>
+                        <td class="text-end">{{ entry.full_melt_time }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="bi bi-tools me-2"></i>Actions</h5>
+            </div>
+            <div class="card-body d-grid gap-2">
+                <a href="{{ url_for('furnace.entries') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-list-ul me-1"></i>Back to Entries
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+{% block scripts %}
+<style>
+/* Shared table look */
+.uniform-table {
+    width: 100%;
+    table-layout: fixed; /* 🔑 forces equal column widths */
+    border-collapse: collapse;
+    margin-bottom: 16px;
+}
+
+.uniform-table th,
+.uniform-table td {
+    border: 1px solid #bfc6ce;
+    text-align: center;
+    vertical-align: middle;
+    padding: 10px 6px;
+    font-size: 14px;
+}
+
+/* Headers */
+.uniform-table th {
+    background-color: #2f4153;
+    color: #ffffff;
+    font-weight: 600;
+    text-transform: uppercase;
+    height: 48px; /* 🔑 same header height */
+}
+
+/* Value cells */
+.uniform-table td {
+    background-color: #ffffff;
+    height: 44px; /* 🔑 same value height */
+}
+
+/* Iron emphasis */
+.fe-strong {
+    font-weight: 700;
+}
+
+.timeline {
+    position: relative;
+    padding-left: 2rem;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 0.75rem;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #dee2e6;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 1.5rem;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -2.25rem;
+    top: 0;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    color: white;
+}
+
+.timeline-item.completed .timeline-marker {
+    background-color: #198754;
+}
+
+.timeline-item.pending .timeline-marker {
+    background-color: #6c757d;
+}
+
+.timeline-content h6 {
+    margin-bottom: 0.25rem;
+    font-size: 0.875rem;
+}
+</style>
+<script src="{{ url_for('static', filename='js/gantt-chart.js') }}"></script>
+{% endblock %}

@@ -7,11 +7,11 @@
     <div class="col">
         <div class="d-flex justify-content-between align-items-center">
             <div>
-                <h1><i class="fas fa-flask me-2"></i>Tin &amp; Copper Calculations</h1>
+                <h1><i class="bi bi-droplet-half me-2"></i>Tin &amp; Copper Calculations</h1>
                 <p class="text-muted">Track base readings, calculated additions, and actual amounts added</p>
             </div>
             <a href="{{ url_for('furnace.tin_copper_new') }}" class="btn btn-primary">
-                <i class="fas fa-plus me-1"></i>New Record
+                <i class="bi bi-plus-lg me-1"></i>New Record
             </a>
         </div>
     </div>
@@ -20,7 +20,7 @@
 <!-- Filters -->
 <div class="card mb-4">
     <div class="card-header">
-        <h5 class="mb-0"><i class="fas fa-filter me-2"></i>Filters</h5>
+        <h5 class="mb-0"><i class="bi bi-funnel me-2"></i>Filters</h5>
     </div>
     <div class="card-body">
         <form method="GET">
@@ -44,10 +44,10 @@
             </div>
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-outline-primary">
-                    <i class="fas fa-search me-1"></i>Apply
+                    <i class="bi bi-search me-1"></i>Apply
                 </button>
                 <a href="{{ url_for('furnace.tin_copper') }}" class="btn btn-outline-secondary">
-                    <i class="fas fa-times me-1"></i>Clear
+                    <i class="bi bi-x-lg me-1"></i>Clear
                 </a>
             </div>
         </form>
@@ -142,14 +142,14 @@
                             <div class="d-flex gap-1">
                                 <a href="{{ url_for('furnace.tin_copper_edit', record_id=r.id) }}"
                                    class="btn btn-sm btn-outline-primary" title="Edit">
-                                    <i class="fas fa-edit"></i>
+                                    <i class="bi bi-pencil"></i>
                                 </a>
                                 {% if can('furnace', 'admin') %}
                                 <form method="POST" action="{{ url_for('furnace.tin_copper_delete', record_id=r.id) }}"
                                       data-confirm-title="Delete this record?" data-confirm-label="Delete">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete">
-                                        <i class="fas fa-trash"></i>
+                                        <i class="bi bi-trash3"></i>
                                     </button>
                                 </form>
                                 {% endif %}
@@ -182,8 +182,8 @@
         <div class="d-flex flex-wrap gap-3 align-items-center small mt-2">
             <span class="text-muted">{{ records|length }} record(s) found</span>
             <span class="text-muted">|</span>
-            <span><i class="fas fa-square text-success me-1"></i>Added within &plusmn;10% of required</span>
-            <span><i class="fas fa-square text-danger me-1"></i>Added outside &plusmn;10% of required</span>
+            <span><i class="bi bi-square text-success me-1"></i>Added within &plusmn;10% of required</span>
+            <span><i class="bi bi-square text-danger me-1"></i>Added outside &plusmn;10% of required</span>
         </div>
         <p class="text-muted small mt-2 mb-0">
             Totals cover the filtered records above; negative <em>To Add</em> values
@@ -191,7 +191,7 @@
         </p>
         {% else %}
         <div class="text-center py-5 text-muted">
-            <i class="fas fa-flask fa-3x mb-3"></i>
+            <i class="bi bi-droplet-half mb-3"></i>
             <p>No records found. <a href="{{ url_for('furnace.tin_copper_new') }}">Add the first one.</a></p>
         </div>
         {% endif %}

@@ -1,0 +1,123 @@
+{% extends "furnace/base_furnace.html" %}
+
+{% block title %}{{ title }} - Furnace Management System{% endblock %}
+
+{% block furnace_content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1><i class="bi bi-fire me-2"></i>{{ title }}</h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('furnace.dashboard') }}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('furnace.furnaces') }}">Furnaces</a></li>
+                <li class="breadcrumb-item active">{{ title }}</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5>Furnace Details</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.name.label(class="form-label") }}
+                            {{ form.name(class="form-control") }}
+                            {% if form.name.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.name.errors %}
+                                        <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            {{ form.status.label(class="form-label") }}
+                            {{ form.status(class="form-select") }}
+                            {% if form.status.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.status.errors %}
+                                        <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            {{ form.capacity.label(class="form-label") }}
+                            {{ form.capacity(class="form-control", step="0.1") }}
+                            {% if form.capacity.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.capacity.errors %}
+                                        <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            {{ form.capacity_unit.label(class="form-label") }}
+                            {{ form.capacity_unit(class="form-select") }}
+                            {% if form.capacity_unit.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.capacity_unit.errors %}
+                                        <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.current_lining_number.label(class="form-label") }}
+                            {{ form.current_lining_number(class="form-control") }}
+                            {% if form.current_lining_number.errors %}
+                                <div class="text-danger small">
+                                    {% for error in form.current_lining_number.errors %}
+                                        <div>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                        {{ form.submit(class="btn btn-primary") }}
+                        <a href="{{ url_for('furnace.furnaces') }}" class="btn btn-secondary">
+                            <i class="bi bi-x-lg me-1"></i>Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="bi bi-info-circle me-1"></i>Help</h6>
+            </div>
+            <div class="card-body">
+                <h6>Furnace Settings</h6>
+                <ul class="list-unstyled small">
+                    <li><strong>Name:</strong> Unique identifier for the furnace</li>
+                    <li><strong>Capacity:</strong> Maximum material capacity</li>
+                    <li><strong>Lining Number:</strong> Current refractory lining sequence</li>
+                    <li><strong>Status:</strong> Current operational status</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,219 @@
+{% extends "furnace/base_furnace.html" %}
+
+{% block title %}Furnace Activity Report - Furnace Management System{% endblock %}
+
+{% block styles %}
+<style>
+/* ---- Print / PDF layout: a clean header + the timeline only ---- */
+@media print {
+    /* Timelines are wide — landscape gives the bars room */
+    @page { size: landscape; margin: 12mm; }
+
+    /* Strip the app chrome and interactive controls; keep just header + chart */
+    .navbar, footer, .report-screen-header, .report-filters { display: none !important; }
+    .container-fluid { padding: 0 !important; }
+
+    /* Flatten the timeline card so it reads as part of the sheet, not a boxed widget */
+    .report-timeline-card { border: none !important; box-shadow: none !important; }
+    .report-timeline-card > .card-body { padding: 0 !important; }
+
+    /* Don't split a furnace lane across two pages */
+    .gantt-row { break-inside: avoid; }
+
+    a { text-decoration: none !important; color: inherit !important; }
+    body { font-size: 12px; }
+}
+
+/* The print-only header is hidden on screen; @media print reveals it (below) */
+.report-print-header { display: none; }
+@media print {
+    .report-print-header { display: block !important; }
+}
+.report-print-header .rph-title { font-size: 20px; font-weight: 700; margin: 0; }
+.report-print-header .rph-sub { color: #52514e; font-size: 12px; }
+.report-print-header .rph-meta { font-size: 13px; }
+.report-print-header hr { margin: 8px 0 14px; border-top: 2px solid #2f4153; opacity: 1; }
+</style>
+{% endblock %}
+
+{% block furnace_content %}
+
+<!-- Print-only header: title, then the selected date range beneath it -->
+<div class="report-print-header">
+    <div class="rph-title"><i class="bi bi-fire me-2"></i>Furnace Activity Report</div>
+    <div class="rph-sub">Furnace Management System</div>
+    <div class="d-flex justify-content-between align-items-baseline rph-meta mt-1">
+        <div>
+            {% if single_day %}
+                <strong>Date:</strong> {{ date_from_display }}
+            {% else %}
+                <strong>Date range:</strong> {{ date_from_display }} &ndash; {{ date_to_display }}
+            {% endif %}
+            {% if activity %}
+                <span class="text-muted ms-2">
+                    · {{ activity.entry_count }} heat{{ 's' if activity.entry_count != 1 else '' }}
+                    across {{ activity.lanes|length }} furnace{{ 's' if activity.lanes|length != 1 else '' }}
+                </span>
+            {% endif %}
+        </div>
+        <div class="text-muted">Generated {{ generated_at }}</div>
+    </div>
+    <hr>
+</div>
+
+<div class="row mb-4 report-screen-header">
+    <div class="col">
+        <h1><i class="bi bi-list-task me-2"></i>Furnace Activity Report</h1>
+        <p class="text-muted">Every furnace's heats over a date range on one timeline — each furnace in its own colour</p>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('furnace.dashboard') }}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('furnace.reports') }}">Reports</a></li>
+                <li class="breadcrumb-item active">Furnace Activity</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4 report-filters">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-funnel me-2"></i>Select Date Range</h5>
+    </div>
+    <div class="card-body">
+        <form method="GET">
+            <div class="row align-items-end">
+                <div class="col-md-3 mb-3">
+                    <label class="form-label" for="date_from">Date From</label>
+                    <input type="date" id="date_from" name="date_from" class="form-control" value="{{ date_from }}">
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label" for="date_to">Date To</label>
+                    <input type="date" id="date_to" name="date_to" class="form-control" value="{{ date_to }}">
+
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-play-fill me-1"></i>Generate
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="d-grid">
+                        <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
+                            <i class="bi bi-printer me-1"></i>Print / PDF
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Timeline -->
+<div class="card mb-4 report-timeline-card">
+    <div class="card-header d-flex justify-content-between align-items-center report-screen-header">
+        <h5 class="mb-0"><i class="bi bi-list-task me-2"></i>Timeline</h5>
+        {% if activity %}
+        <span class="badge bg-primary">
+            {{ activity.entry_count }} heat{{ 's' if activity.entry_count != 1 else '' }}
+            across {{ activity.lanes|length }} furnace{{ 's' if activity.lanes|length != 1 else '' }}
+        </span>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        {% if activity %}
+            <!-- Furnace colour legend -->
+            <div class="gantt-legend mb-1 small">
+                {% for lane in activity.lanes %}
+                <span class="{{ lane.color_class }}">
+                    <span class="gantt-swatch"></span>{{ lane.furnace_name }}
+                </span>
+                {% if not loop.last %}<span class="me-3"></span>{% endif %}
+                {% endfor %}
+            </div>
+            {% if activity.show_markers %}
+            <!-- Event-marker legend (shapes are the same for every furnace; colour = the furnace) -->
+            <div class="gantt-legend gantt-legend-markers mb-2 small">
+                <span class="gantt-legend-start"></span>Start Charging
+                <span class="gantt-legend-additions ms-3"></span>Additions Added
+                <span class="gantt-legend-endmelt ms-3"></span>End Melt
+                <span class="gantt-legend-tap ms-3"></span>Tap
+            </div>
+            {% else %}
+            <div class="mb-2 small text-muted">
+                <i class="bi bi-info-circle me-1"></i>Overview mode — too many heats to show the individual
+                event icons legibly, so each bar is one heat. Narrow the date range (or open a single day) to see
+                the Start / Additions / End Melt / Tap markers. Hover any bar for its heat number and times.
+            </div>
+            {% endif %}
+
+            <div class="gantt-chart">
+                {% if activity.day_bands %}
+                <div class="gantt-axis gantt-axis-days">
+                    <div class="gantt-row-label"></div>
+                    <div class="gantt-axis-track">
+                        {% for d in activity.day_bands %}
+                        <div class="gantt-axis-label gantt-axis-label-day" data-x="{{ d.x }}">{{ d.label }}</div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                <div class="gantt-axis">
+                    <div class="gantt-row-label"></div>
+                    <div class="gantt-axis-track">
+                        {% for g in activity.gridlines %}
+                        <div class="gantt-axis-label" data-x="{{ g.x }}">{{ g.label }}</div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                {% for lane in activity.lanes %}
+                <div class="gantt-row">
+                    <div class="gantt-row-label">
+                        <strong>{{ lane.furnace_name }}</strong>
+                        <span class="text-muted d-block">{{ lane.entry_count }} heat{{ 's' if lane.entry_count != 1 else '' }}</span>
+                    </div>
+                    <div class="gantt-row-track {{ lane.color_class }}">
+                        {% for g in activity.gridlines %}
+                        <div class="gantt-gridline {{ 'gantt-gridline-day' if g.is_day_start else '' }}" data-x="{{ g.x }}"></div>
+                        {% endfor %}
+
+                        {% for seg in lane.segments %}
+                        <div class="gantt-bar
+                                    {{ 'gantt-bar-clip-start' if seg.clipped_start else '' }}
+                                    {{ 'gantt-bar-clip-end' if seg.clipped_end else '' }}"
+                             data-x="{{ seg.x }}" data-w="{{ seg.w }}"
+                             title="{{ seg.title }}"></div>
+                        {% for m in seg.marker_points %}
+                        <div class="gantt-marker gantt-marker-{{ m.kind }}"
+                             data-x="{{ m.x }}" title="{{ lane.furnace_name }} — Heat {{ seg.heat_number }} — {{ m.label }} — {{ m.time }}"></div>
+                        {% endfor %}
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <p class="small text-muted mt-3 mb-0">
+                <i class="bi bi-info-circle me-1"></i>
+                Each bar is one heat's active window (start charging &rarr; last tap). A flat bar edge means the heat
+                runs beyond the shown window (e.g. an overnight melt crossing midnight).
+                {% if activity.show_markers %}
+                Marker shapes mark the key process points; their colour matches the furnace.
+                {% endif %}
+            </p>
+        {% else %}
+            <p class="text-muted mb-0">
+                <i class="bi bi-info-circle me-1"></i>
+                No furnace activity recorded in this date range. Try widening the dates above.
+            </p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/gantt-chart.js') }}"></script>
+{% endblock %}

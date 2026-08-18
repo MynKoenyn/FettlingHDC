@@ -1,0 +1,400 @@
+{% extends "furnace/base_furnace.html" %}
+
+{% block title %}Temp Data - Furnace Management System{% endblock %}
+
+{% block furnace_content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1><i class="bi bi-thermometer-half me-2"></i>Temp Data</h1>
+        <p class="text-muted">Live measurement data from MeltControl (vw_measurement_details)</p>
+    </div>
+</div>
+
+{% if error %}
+<div class="alert alert-danger">
+    <i class="bi bi-exclamation-triangle me-2"></i>{{ error }}
+</div>
+{% endif %}
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-funnel me-2"></i>Filters</h5>
+    </div>
+    <div class="card-body">
+        <form method="GET">
+            <input type="hidden" name="columns_submitted" value="1">
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <label class="form-label" for="date_from">Date From</label>
+                    <input type="date" id="date_from" name="date_from" class="form-control" value="{{ date_from }}">
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label" for="date_to">Date To</label>
+                    <input type="date" id="date_to" name="date_to" class="form-control" value="{{ date_to }}">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label" for="station_name">Station Name</label>
+                    <select id="station_name" name="station_name" class="form-select">
+                        <option value="">-- All Stations --</option>
+                        {% for s in stations %}
+                            <option value="{{ s }}" {% if s == station_name %}selected{% endif %}>{{ s }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <!-- Column picker -->
+            <div class="mb-3">
+                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#columnPicker">
+                    <i class="bi bi-layout-split me-1"></i>Choose Columns ({{ selected_columns|length }}/{{ all_columns|length }})
+                </button>
+            </div>
+            <div class="collapse mb-3" id="columnPicker">
+                <div class="border rounded p-3">
+                    <div class="d-flex gap-3 mb-2">
+                        <button type="button" class="btn btn-sm btn-link p-0" onclick="setAllColumns(true)">Select All</button>
+                        <button type="button" class="btn btn-sm btn-link p-0" onclick="setAllColumns(false)">Select None</button>
+                    </div>
+                    <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-6 g-2">
+                        {% for col in all_columns %}
+                        <div class="col">
+                            <div class="form-check">
+                                <input class="form-check-input col-checkbox" type="checkbox" name="columns" value="{{ col }}" id="col_{{ loop.index }}" {% if col in selected_columns %}checked{% endif %}>
+                                <label class="form-check-label small" for="col_{{ loop.index }}">{{ col }}</label>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-outline-primary">
+                    <i class="bi bi-search me-1"></i>Apply
+                </button>
+                <a href="{{ url_for('furnace.temp_data') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-lg me-1"></i>Clear
+                </a>
+                <button type="submit" formaction="{{ url_for('furnace.export_temp_data') }}" class="btn btn-outline-success ms-auto">
+                    <i class="bi bi-filetype-csv me-1"></i>Export CSV
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Results -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-table me-2"></i>Results</h5>
+        {% if not error %}
+        <span class="text-muted small">
+            Showing {{ row_count }}{% if row_count == display_limit %}+ (limited to {{ display_limit }} most recent){% endif %} record{{ 's' if row_count != 1 }}
+            &mdash; use Export CSV for the complete filtered dataset.
+        </span>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        {% if not error %}
+            {% if rows %}
+            <div class="table-responsive">
+                <table class="table table-striped table-hover table-sm">
+                    <thead>
+                        <tr>
+                            {% for col in columns %}
+                            <th class="text-nowrap">{{ col }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in rows %}
+                        <tr>
+                            {% for value in row %}
+                            <td class="text-nowrap">{{ value | temp_cell }}</td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted mb-0">No temperature data found for this date range / station.</p>
+            {% endif %}
+        {% endif %}
+    </div>
+</div>
+
+<!-- Graph -->
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-graph-up me-2"></i>Temperature Trend</h5>
+    </div>
+    <div class="card-body">
+        {% if error %}
+        <p class="text-muted mb-0">Chart unavailable.</p>
+        {% else %}
+        <div id="tempChartLegend" class="d-flex flex-wrap gap-3 mb-2 small"></div>
+        <div id="tempChartWrap" style="position:relative;">
+            <svg id="tempChartSvg" viewBox="0 0 960 380" style="width:100%; height:auto; display:block;"></svg>
+            <div id="tempChartTooltip" class="temp-chart-tooltip" style="display:none;"></div>
+        </div>
+        <p id="tempChartEmpty" class="text-muted mb-0" style="display:none;">No temperature readings to plot for this filter.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+.temp-chart-tooltip {
+    position: absolute;
+    background: #ffffff;
+    border: 1px solid rgba(11,11,11,0.10);
+    border-radius: 6px;
+    padding: 6px 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    pointer-events: none;
+    z-index: 10;
+    min-width: 120px;
+}
+</style>
+<script>
+function setAllColumns(checked) {
+    document.querySelectorAll('.col-checkbox').forEach(function(cb) { cb.checked = checked; });
+}
+
+var TEMP_CHART_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#e34948'];
+var TEMP_CHART_OTHER = '#898781';
+
+function niceDomain(min, max) {
+    if (min === max) { min -= 1; max += 1; }
+    var span = max - min;
+    var steps = [10, 25, 50, 100, 200, 250, 500, 1000];
+    var step = steps[steps.length - 1];
+    for (var i = 0; i < steps.length; i++) {
+        if (span / steps[i] <= 6) { step = steps[i]; break; }
+    }
+    var niceMin = Math.floor(min / step) * step;
+    var niceMax = Math.ceil(max / step) * step;
+    var ticks = [];
+    for (var v = niceMin; v <= niceMax + 1e-9; v += step) ticks.push(Math.round(v * 100) / 100);
+    return { min: niceMin, max: niceMax, ticks: ticks };
+}
+
+function formatTempChartTime(ms, spansMultipleDays) {
+    var d = new Date(ms);
+    var hh = String(d.getHours()).padStart(2, '0');
+    var mm = String(d.getMinutes()).padStart(2, '0');
+    if (spansMultipleDays) {
+        var month = d.toLocaleString(undefined, { month: 'short' });
+        return month + ' ' + d.getDate() + ' ' + hh + ':' + mm;
+    }
+    return hh + ':' + mm;
+}
+
+function renderTempChart(points, stationOrder) {
+    var svg = document.getElementById('tempChartSvg');
+    var legend = document.getElementById('tempChartLegend');
+    var tooltip = document.getElementById('tempChartTooltip');
+    var emptyMsg = document.getElementById('tempChartEmpty');
+    if (!svg) return;
+
+    if (!points || !points.length) {
+        svg.style.display = 'none';
+        if (emptyMsg) emptyMsg.style.display = 'block';
+        return;
+    }
+
+    var svgNS = 'http://www.w3.org/2000/svg';
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+    // Color assignment is keyed to each station's fixed position in the
+    // full station list (from the DB), so a station keeps the same color
+    // no matter which stations happen to be in the current filter.
+    var colorByStation = {};
+    stationOrder.forEach(function(s, i) {
+        colorByStation[s] = i < TEMP_CHART_COLORS.length ? TEMP_CHART_COLORS[i] : TEMP_CHART_OTHER;
+    });
+
+    var seenSeries = [];
+    points.forEach(function(p) {
+        if (seenSeries.indexOf(p.s) === -1) seenSeries.push(p.s);
+    });
+    var seriesNames = stationOrder.filter(function(s) { return seenSeries.indexOf(s) !== -1; })
+        .concat(seenSeries.filter(function(s) { return stationOrder.indexOf(s) === -1; }));
+
+    var times = points.map(function(p) { return p.t; });
+    var values = points.map(function(p) { return p.v; });
+    var tMin = Math.min.apply(null, times);
+    var tMax = Math.max.apply(null, times);
+    if (tMin === tMax) { tMin -= 60000; tMax += 60000; }
+
+    var yDomain = niceDomain(Math.min(1300, Math.min.apply(null, values)), Math.max(1500, Math.max.apply(null, values)));
+
+    var width = 960, height = 380;
+    var marginLeft = 60, marginRight = 20, marginTop = 16, marginBottom = 40;
+    var plotLeft = marginLeft, plotRight = width - marginRight;
+    var plotTop = marginTop, plotBottom = height - marginBottom;
+
+    function xScale(t) { return plotLeft + (t - tMin) / (tMax - tMin) * (plotRight - plotLeft); }
+    function yScale(v) { return plotBottom - (v - yDomain.min) / (yDomain.max - yDomain.min) * (plotBottom - plotTop); }
+
+    var spansMultipleDays = new Date(tMax).toDateString() !== new Date(tMin).toDateString();
+
+    function el(name, attrs) {
+        var e = document.createElementNS(svgNS, name);
+        for (var k in attrs) e.setAttribute(k, attrs[k]);
+        return e;
+    }
+
+    // Gridlines + y ticks
+    yDomain.ticks.forEach(function(v) {
+        var y = yScale(v);
+        svg.appendChild(el('line', { x1: plotLeft, x2: plotRight, y1: y, y2: y, stroke: '#e1e0d9', 'stroke-width': 1 }));
+        var label = el('text', { x: plotLeft - 8, y: y + 4, 'text-anchor': 'end', 'font-size': 11, fill: '#898781' });
+        label.textContent = v;
+        svg.appendChild(label);
+    });
+
+    // X ticks
+    var xTickCount = 6;
+    for (var i = 0; i <= xTickCount; i++) {
+        var t = tMin + (tMax - tMin) * (i / xTickCount);
+        var x = xScale(t);
+        var label = el('text', { x: x, y: plotBottom + 20, 'text-anchor': 'middle', 'font-size': 11, fill: '#898781' });
+        label.textContent = formatTempChartTime(t, spansMultipleDays);
+        svg.appendChild(label);
+    }
+
+    // Axis baseline
+    svg.appendChild(el('line', { x1: plotLeft, x2: plotRight, y1: plotBottom, y2: plotBottom, stroke: '#c3c2b7', 'stroke-width': 1 }));
+
+    // Group points by series, sorted by time
+    var bySeries = {};
+    points.forEach(function(p) {
+        if (!bySeries[p.s]) bySeries[p.s] = [];
+        bySeries[p.s].push(p);
+    });
+    Object.keys(bySeries).forEach(function(s) {
+        bySeries[s].sort(function(a, b) { return a.t - b.t; });
+    });
+
+    var allPixelPoints = [];
+
+    seriesNames.forEach(function(s) {
+        var seriesPoints = bySeries[s];
+        if (!seriesPoints) return;
+        var color = colorByStation.hasOwnProperty(s) ? colorByStation[s] : TEMP_CHART_OTHER;
+        var pathD = seriesPoints.map(function(p, i) {
+            var x = xScale(p.t);
+            var y = yScale(p.v);
+            allPixelPoints.push({ x: x, y: y, s: s, t: p.t, v: p.v, color: color });
+            return (i === 0 ? 'M' : 'L') + x.toFixed(2) + ',' + y.toFixed(2);
+        }).join(' ');
+        svg.appendChild(el('path', { d: pathD, fill: 'none', stroke: color, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+    });
+
+    // Dots, drawn after lines so their surface ring sits on top
+    allPixelPoints.forEach(function(p) {
+        svg.appendChild(el('circle', { cx: p.x, cy: p.y, r: 4, fill: p.color, stroke: '#fcfcfb', 'stroke-width': 2 }));
+    });
+
+    // Legend (skip for a single series - the card title already names it)
+    legend.innerHTML = '';
+    if (seriesNames.length > 1) {
+        seriesNames.forEach(function(s) {
+            var color = colorByStation.hasOwnProperty(s) ? colorByStation[s] : TEMP_CHART_OTHER;
+            var item = document.createElement('span');
+            item.className = 'd-inline-flex align-items-center gap-1';
+            var swatch = document.createElement('span');
+            swatch.style.display = 'inline-block';
+            swatch.style.width = '14px';
+            swatch.style.height = '2px';
+            swatch.style.background = color;
+            var label = document.createElement('span');
+            label.className = 'text-secondary';
+            label.textContent = s;
+            item.appendChild(swatch);
+            item.appendChild(label);
+            legend.appendChild(item);
+        });
+    }
+
+    // Crosshair + nearest-point tooltip (stations sample on their own,
+    // unaligned timestamps, so this snaps to the closest point overall
+    // rather than assuming every series shares an X)
+    var crosshair = el('line', { x1: 0, x2: 0, y1: plotTop, y2: plotBottom, stroke: '#c3c2b7', 'stroke-width': 1 });
+    crosshair.style.display = 'none';
+    svg.appendChild(crosshair);
+    var highlight = el('circle', { r: 6, fill: 'none', stroke: '#0b0b0b', 'stroke-width': 1.5 });
+    highlight.style.display = 'none';
+    svg.appendChild(highlight);
+
+    function nearestPoint(mx, my) {
+        var best = null, bestDist = Infinity;
+        allPixelPoints.forEach(function(p) {
+            var dx = p.x - mx, dy = p.y - my;
+            var dist = dx * dx + dy * dy;
+            if (dist < bestDist) { bestDist = dist; best = p; }
+        });
+        return best;
+    }
+
+    function handleMove(evt) {
+        var pt = svg.createSVGPoint();
+        pt.x = evt.clientX; pt.y = evt.clientY;
+        var svgPoint = pt.matrixTransform(svg.getScreenCTM().inverse());
+        var nearest = nearestPoint(svgPoint.x, svgPoint.y);
+        if (!nearest) return;
+
+        crosshair.setAttribute('x1', nearest.x); crosshair.setAttribute('x2', nearest.x);
+        crosshair.style.display = 'block';
+        highlight.setAttribute('cx', nearest.x); highlight.setAttribute('cy', nearest.y);
+        highlight.style.display = 'block';
+
+        tooltip.innerHTML = '';
+        var valueEl = document.createElement('div');
+        valueEl.className = 'fw-semibold';
+        valueEl.style.color = '#0b0b0b';
+        valueEl.textContent = nearest.v.toFixed(1) + ' °C';
+        var stationEl = document.createElement('div');
+        stationEl.className = 'small';
+        stationEl.style.color = nearest.color;
+        stationEl.textContent = nearest.s;
+        var timeEl = document.createElement('div');
+        timeEl.className = 'small text-muted';
+        timeEl.textContent = new Date(nearest.t).toLocaleString();
+        tooltip.appendChild(valueEl);
+        tooltip.appendChild(stationEl);
+        tooltip.appendChild(timeEl);
+
+        var wrapRect = svg.parentElement.getBoundingClientRect();
+        var svgRect = svg.getBoundingClientRect();
+        var scaleX = svgRect.width / width;
+        var scaleY = svgRect.height / height;
+        var left = nearest.x * scaleX + 12;
+        var top = nearest.y * scaleY - 10;
+        if (left + 140 > wrapRect.width) left = nearest.x * scaleX * 1 - 150;
+        tooltip.style.left = Math.max(0, left) + 'px';
+        tooltip.style.top = Math.max(0, top) + 'px';
+        tooltip.style.display = 'block';
+    }
+
+    function handleLeave() {
+        crosshair.style.display = 'none';
+        highlight.style.display = 'none';
+        tooltip.style.display = 'none';
+    }
+
+    svg.addEventListener('pointermove', handleMove);
+    svg.addEventListener('pointerleave', handleLeave);
+}
+
+(function() {
+    var chartPoints = {{ chart_points | tojson }};
+    var stationOrder = {{ stations | tojson }};
+    renderTempChart(chartPoints, stationOrder);
+})();
+</script>
+{% endblock %}

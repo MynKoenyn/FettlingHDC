@@ -7,11 +7,11 @@
     <div class="col">
         <div class="d-flex justify-content-between align-items-center">
             <div>
-                <h1><i class="fas fa-fire me-2"></i>Furnaces</h1>
+                <h1><i class="bi bi-fire me-2"></i>Furnaces</h1>
                 <p class="text-muted">Manage furnace inventory and configurations</p>
             </div>
             <a href="{{ url_for('furnace.new_furnace') }}" class="btn btn-primary">
-                <i class="fas fa-plus me-1"></i>Add Furnace
+                <i class="bi bi-plus-lg me-1"></i>Add Furnace
             </a>
         </div>
     </div>
@@ -57,13 +57,13 @@
                             <td class="action-buttons">
                                 <div class="btn-group btn-group-sm">
                                     <a href="{{ url_for('furnace.edit_furnace', id=furnace.id) }}" class="btn btn-outline-primary">
-                                        <i class="fas fa-edit"></i>
+                                        <i class="bi bi-pencil"></i>
                                     </a>
                                     {% if furnace.status != 'Inactive' %}
                                     <form method="POST" action="{{ url_for('furnace.delete_furnace', id=furnace.id) }}" style="display: inline;"
                                           data-confirm-title="Deactivate this furnace?" data-confirm-label="Deactivate">
                                         <button type="submit" class="btn btn-outline-danger">
-                                            <i class="fas fa-power-off"></i>
+                                            <i class="bi bi-power"></i>
                                         </button>
                                     </form>
                                     {% endif %}
@@ -76,11 +76,11 @@
             </div>
         {% else %}
             <div class="text-center py-5">
-                <i class="fas fa-fire fa-3x text-muted mb-3"></i>
+                <i class="bi bi-fire text-muted mb-3"></i>
                 <h4>No Furnaces Found</h4>
                 <p class="text-muted">Get started by adding your first furnace.</p>
                 <a href="{{ url_for('furnace.new_furnace') }}" class="btn btn-primary">
-                    <i class="fas fa-plus me-1"></i>Add First Furnace
+                    <i class="bi bi-plus-lg me-1"></i>Add First Furnace
                 </a>
             </div>
         {% endif %}

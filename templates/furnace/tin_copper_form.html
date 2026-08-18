@@ -1,0 +1,356 @@
+{% extends "furnace/base_furnace.html" %}
+
+{% block title %}{% if record %}Edit{% else %}New{% endif %} Tin &amp; Copper Record - Furnace Management System{% endblock %}
+
+{% block furnace_content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1><i class="bi bi-droplet-half me-2"></i>{% if record %}Edit{% else %}New{% endif %} Tin &amp; Copper Record</h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('furnace.dashboard') }}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('furnace.tin_copper') }}">Tin &amp; Copper</a></li>
+                <li class="breadcrumb-item active">{% if record %}Edit #{{ record.id }}{% else %}New{% endif %}</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<form method="POST">
+    {{ form.hidden_tag() }}
+
+    <!-- Header Info -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Heat Information</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-2 mb-3">
+                    {{ form.date.label(class="form-label fw-semibold") }}
+                    {{ form.date(class="form-control") }}
+                    {% for e in form.date.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                </div>
+                <div class="col-md-2 mb-3">
+                    {{ form.heat_number.label(class="form-label fw-semibold") }}
+                    {{ form.heat_number(class="form-control", placeholder="e.g. 0245") }}
+                    {% for e in form.heat_number.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                </div>
+                <div class="col-md-3 mb-3">
+                    {{ form.operator_id.label(class="form-label fw-semibold") }}
+                    {{ form.operator_id(class="form-select") }}
+                    {% for e in form.operator_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                </div>
+                <div class="col-md-2 mb-3">
+                    {{ form.furnace_id.label(class="form-label fw-semibold") }}
+                    {{ form.furnace_id(class="form-select") }}
+                    {% for e in form.furnace_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                </div>
+                <div class="col-md-2 mb-3">
+                    {{ form.metal_grade_id.label(class="form-label fw-semibold") }}
+                    {{ form.metal_grade_id(class="form-select", id="metal_grade_id") }}
+                    {% for e in form.metal_grade_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                </div>
+                <div class="col-md-1 mb-3">
+                    {{ form.weight.label(class="form-label fw-semibold") }}
+                    {{ form.weight(class="form-select", id="weight") }}
+                    {% for e in form.weight.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Tin Section -->
+        <div class="col-md-6">
+            <div class="card mb-4 border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="bi bi-diagram-3 me-2"></i>Tin (Sn)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        {{ form.base_tin.label(class="form-label fw-semibold") }}
+                        <div class="input-group">
+                            {{ form.base_tin(class="form-control", id="base_tin", placeholder="0.0000", step="0.0001") }}
+                            <span class="input-group-text">%</span>
+                        </div>
+                        {% for e in form.base_tin.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Tin To Be Added (kg) <span class="badge bg-info">calculated</span></label>
+                        <div class="input-group">
+                            <input type="text" class="form-control bg-light" id="tin_to_be_added_display" readonly placeholder="—">
+                            <span class="input-group-text">kg</span>
+                        </div>
+                        <div class="form-text">Based on grade target vs. base reading × weight</div>
+                    </div>
+                    <div class="mb-3">
+                        {{ form.tin_added.label(class="form-label fw-semibold") }}
+                        <div class="input-group">
+                            {{ form.tin_added(class="form-control", id="tin_added", placeholder="0.0000", step="0.0001") }}
+                            <span class="input-group-text">kg</span>
+                        </div>
+                        <div class="form-text">Actual amount added (close to calculated)</div>
+                        {% for e in form.tin_added.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Copper Section -->
+        <div class="col-md-6">
+            <div class="card mb-4 border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0"><i class="bi bi-diagram-3 me-2"></i>Copper (Cu)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        {{ form.base_copper.label(class="form-label fw-semibold") }}
+                        <div class="input-group">
+                            {{ form.base_copper(class="form-control", id="base_copper", placeholder="0.0000", step="0.0001") }}
+                            <span class="input-group-text">%</span>
+                        </div>
+                        {% for e in form.base_copper.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Copper To Be Added (kg) <span class="badge bg-info">calculated</span></label>
+                        <div class="input-group">
+                            <input type="text" class="form-control bg-light" id="copper_to_be_added_display" readonly placeholder="—">
+                            <span class="input-group-text">kg</span>
+                        </div>
+                        <div class="form-text">Based on grade target vs. base reading × weight</div>
+                    </div>
+                    <div class="mb-3">
+                        {{ form.copper_added.label(class="form-label fw-semibold") }}
+                        <div class="input-group">
+                            {{ form.copper_added(class="form-control", id="copper_added", placeholder="0.0000", step="0.0001") }}
+                            <span class="input-group-text">kg</span>
+                        </div>
+                        <div class="form-text">Actual amount added (close to calculated)</div>
+                        {% for e in form.copper_added.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Grade Target Reference -->
+    <div class="card mb-4 border-info">
+        <div class="card-header bg-info text-white">
+            <h6 class="mb-0"><i class="bi bi-table me-2"></i>Grade Target Reference</h6>
+        </div>
+        <div class="card-body py-2">
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered mb-0 small">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Grade</th>
+                            <th class="text-center">Sn Target (%)</th>
+                            <th class="text-center">Cu Target (%)</th>
+                            <th class="text-center">Cu Divisor</th>
+                            <th class="text-center">Sn Formula</th>
+                            <th class="text-center">Cu Formula</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><strong>GG25</strong></td><td class="text-center">0.075</td><td class="text-center">0.200</td><td class="text-center">99</td><td class="text-center">(0.075 − Base) × W ÷ 100</td><td class="text-center">(0.200 − Base) × W ÷ 99</td></tr>
+                        <tr><td><strong>GG30</strong></td><td class="text-center">0.075</td><td class="text-center">0.900</td><td class="text-center">99</td><td class="text-center">(0.075 − Base) × W ÷ 100</td><td class="text-center">(0.900 − Base) × W ÷ 99</td></tr>
+                        <tr><td><strong>SG50</strong></td><td class="text-center text-muted">N/A (0)</td><td class="text-center">0.400</td><td class="text-center">99</td><td class="text-center text-muted">0</td><td class="text-center">(0.400 − Base) × W ÷ 99</td></tr>
+                        <tr><td><strong>SG60</strong></td><td class="text-center text-muted">N/A (0)</td><td class="text-center">0.450</td><td class="text-center">99</td><td class="text-center text-muted">0</td><td class="text-center">(0.450 − Base) × W ÷ 99</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stock Tracking -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="bi bi-building me-2"></i>Stock Tracking</h5>
+        </div>
+        <div class="card-body">
+            <p class="text-muted small mb-3">
+                <i class="bi bi-info-circle me-1"></i>
+                <strong>Formula:</strong> Ending Stock = Starting + Issued − Added.
+                Starting stock auto-fills from the previous record's ending balance on new entries.
+            </p>
+            {% if daily_issued %}
+            <div class="alert alert-warning d-flex align-items-center mb-3" role="alert">
+                <i class="bi bi-exclamation-triangle me-2 flex-shrink-0"></i>
+                <div>
+                    <strong>Issued values already recorded today</strong> on record
+                    <a href="{{ url_for('furnace.tin_copper_edit', record_id=daily_issued.id) }}" class="alert-link">#{{ daily_issued.id }}</a>
+                    {% if daily_issued.tin_issued %}&nbsp;— Sn Issued: <strong>{{ daily_issued.tin_issued }} kg</strong>{% endif %}
+                    {% if daily_issued.copper_issued %}&nbsp;— Cu Issued: <strong>{{ daily_issued.copper_issued }} kg</strong>{% endif %}.
+                    Leave the Issued fields blank on this record.
+                </div>
+            </div>
+            {% endif %}
+            <!-- Row 1: Starting & Issued -->
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    {{ form.starting_tin.label(class="form-label fw-semibold") }}
+                    <div class="input-group">
+                        {{ form.starting_tin(class="form-control", id="starting_tin", placeholder="0.00") }}
+                        <span class="input-group-text">kg</span>
+                    </div>
+                    {% for e in form.starting_tin.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                </div>
+                <div class="col-md-3 mb-3">
+                    {{ form.tin_issued.label(class="form-label fw-semibold") }}
+                    <div class="input-group">
+                        {{ form.tin_issued(class="form-control", id="tin_issued", placeholder="0.00") }}
+                        <span class="input-group-text">kg</span>
+                    </div>
+                    <div class="form-text">Collected from store today</div>
+                    {% for e in form.tin_issued.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                </div>
+                <div class="col-md-3 mb-3">
+                    {{ form.starting_copper.label(class="form-label fw-semibold") }}
+                    <div class="input-group">
+                        {{ form.starting_copper(class="form-control", id="starting_copper", placeholder="0.00") }}
+                        <span class="input-group-text">kg</span>
+                    </div>
+                    {% for e in form.starting_copper.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                </div>
+                <div class="col-md-3 mb-3">
+                    {{ form.copper_issued.label(class="form-label fw-semibold") }}
+                    <div class="input-group">
+                        {{ form.copper_issued(class="form-control", id="copper_issued", placeholder="0.00") }}
+                        <span class="input-group-text">kg</span>
+                    </div>
+                    <div class="form-text">Collected from store today</div>
+                    {% for e in form.copper_issued.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+                </div>
+            </div>
+            <!-- Row 2: Ending Stock (calculated display) -->
+            <div class="row">
+                <div class="col-md-3 mb-2">
+                    <label class="form-label fw-semibold text-success">Ending Tin Stock <span class="badge bg-success">calculated</span></label>
+                    <div class="input-group">
+                        <input type="text" class="form-control bg-light fw-bold" id="ending_tin_display" readonly placeholder="—">
+                        <span class="input-group-text">kg</span>
+                    </div>
+                    <div class="form-text">Starting + Issued − Added. Becomes next record's Starting.</div>
+                </div>
+                <div class="col-md-3 mb-2 offset-md-3">
+                    <label class="form-label fw-semibold text-success">Ending Copper Stock <span class="badge bg-success">calculated</span></label>
+                    <div class="input-group">
+                        <input type="text" class="form-control bg-light fw-bold" id="ending_copper_display" readonly placeholder="—">
+                        <span class="input-group-text">kg</span>
+                    </div>
+                    <div class="form-text">Starting + Issued − Added. Becomes next record's Starting.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2">
+        {{ form.submit(class="btn btn-primary") }}
+        <a href="{{ url_for('furnace.tin_copper') }}" class="btn btn-secondary">Cancel</a>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Grade name lookup built server-side so JS doesn't need extra requests
+const GRADE_NAMES = {
+    {% for g in grades %}"{{ g.id }}": "{{ g.name }}"{% if not loop.last %},{% endif %}{% endfor %}
+};
+
+// Targets: [sn_target, cu_target], null sn_target means Sn = 0
+const CU_TARGETS = { GG25: 0.2, GG30: 0.9, SG60: 0.45, SG50: 0.4 };
+const SN_TARGETS = { GG25: 0.075, GG30: 0.075 };  // SG50/SG60 → 0
+
+function recalculate() {
+    const gradeId = document.getElementById('metal_grade_id').value;
+    const gradeName = GRADE_NAMES[gradeId] || '';
+    const weight = parseInt(document.getElementById('weight').value, 10);
+    const baseTin = parseFloat(document.getElementById('base_tin').value);
+    const baseCu = parseFloat(document.getElementById('base_copper').value);
+
+    // Tin
+    const snDisplay = document.getElementById('tin_to_be_added_display');
+    if (!isNaN(weight) && !isNaN(baseTin)) {
+        let snResult;
+        if (gradeName === 'GG25' || gradeName === 'GG30') {
+            snResult = (0.075 - baseTin) * weight / 100;
+        } else if (gradeName === 'SG60' || gradeName === 'SG50') {
+            snResult = 0;
+        } else {
+            snResult = baseTin;
+        }
+        snDisplay.value = snResult.toFixed(4);
+        snDisplay.classList.toggle('text-danger', snResult < 0);
+        snDisplay.classList.toggle('fw-bold', snResult < 0);
+    } else {
+        snDisplay.value = '';
+        snDisplay.classList.remove('text-danger', 'fw-bold');
+    }
+
+    // Copper
+    const cuDisplay = document.getElementById('copper_to_be_added_display');
+    if (!isNaN(weight) && !isNaN(baseCu)) {
+        let cuResult;
+        if (CU_TARGETS[gradeName] !== undefined) {
+            cuResult = (CU_TARGETS[gradeName] - baseCu) * weight / 99;
+        } else {
+            cuResult = baseCu;
+        }
+        cuDisplay.value = cuResult.toFixed(4);
+        cuDisplay.classList.toggle('text-danger', cuResult < 0);
+        cuDisplay.classList.toggle('fw-bold', cuResult < 0);
+    } else {
+        cuDisplay.value = '';
+        cuDisplay.classList.remove('text-danger', 'fw-bold');
+    }
+}
+
+function recalcStock() {
+    const startSn = parseFloat(document.getElementById('starting_tin').value) || 0;
+    const issuedSn = parseFloat(document.getElementById('tin_issued').value) || 0;
+    const addedSn  = parseFloat(document.getElementById('tin_added').value) || 0;
+    const endSn = startSn + issuedSn - addedSn;
+
+    const startCu = parseFloat(document.getElementById('starting_copper').value) || 0;
+    const issuedCu = parseFloat(document.getElementById('copper_issued').value) || 0;
+    const addedCu  = parseFloat(document.getElementById('copper_added').value) || 0;
+    const endCu = startCu + issuedCu - addedCu;
+
+    const snEnd = document.getElementById('ending_tin_display');
+    snEnd.value = endSn.toFixed(4);
+    snEnd.classList.toggle('text-danger', endSn < 0);
+
+    const cuEnd = document.getElementById('ending_copper_display');
+    cuEnd.value = endCu.toFixed(4);
+    cuEnd.classList.toggle('text-danger', endCu < 0);
+}
+
+['metal_grade_id', 'weight', 'base_tin', 'base_copper'].forEach(function(id) {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', recalculate);
+    if (el) el.addEventListener('change', recalculate);
+});
+
+['starting_tin', 'tin_issued', 'tin_added', 'starting_copper', 'copper_issued', 'copper_added'].forEach(function(id) {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', recalcStock);
+    if (el) el.addEventListener('change', recalcStock);
+});
+
+// Run on page load (edit mode — populate calculated fields)
+document.addEventListener('DOMContentLoaded', function() {
+    recalculate();
+    recalcStock();
+    {% if record and record.tin_to_be_added is not none %}
+    const snDisplay = document.getElementById('tin_to_be_added_display');
+    if (!snDisplay.value) snDisplay.value = '{{ "%.4f" % record.tin_to_be_added }}';
+    {% endif %}
+    {% if record and record.copper_to_be_added is not none %}
+    const cuDisplay = document.getElementById('copper_to_be_added_display');
+    if (!cuDisplay.value) cuDisplay.value = '{{ "%.4f" % record.copper_to_be_added }}';
+    {% endif %}
+});
+</script>
+{% endblock %}

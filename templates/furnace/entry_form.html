@@ -1,0 +1,662 @@
+{% extends "furnace/base_furnace.html" %}
+
+{% block title %}New Furnace Entry - Furnace Management System{% endblock %}
+
+{% block furnace_content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1><i class="bi bi-plus-circle me-2"></i>New Furnace Entry</h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('furnace.dashboard') }}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('furnace.entries') }}">Entries</a></li>
+                <li class="breadcrumb-item active">New Entry</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<form method="POST">
+    {{ form.hidden_tag() }}
+    <input type="hidden" name="entry_id" id="entry_id" value="{{ entry_id }}">
+    <div class="row">
+        <!-- Left Column: Main Form -->
+        <div class="col-lg-8">
+            <!-- Basic Information Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="bi bi-info-circle me-2"></i>Basic Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.date.label(class="form-label") }}
+                            {{ form.date(class="form-control") }}
+                            {% for error in form.date.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.heat_number.label(class="form-label") }}
+                            {{ form.heat_number(class="form-control") }}
+                            {% for error in form.heat_number.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Furnace</label>
+                            <input type="text" class="form-control" 
+                                id="furnace_name_display" 
+
+                                value="{{ entry.furnace_ref.name if entry.furnace_ref else '' }}" 
+                                readonly>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            {{ form.lining_number.label(class="form-label", for="lining_number_field") }}
+                            {{ form.lining_number(class="form-control", id="lining_number_field") }}
+                            {% for error in form.lining_number.errors %}
+                                <div class="text-danger small">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            {{ form.metal_grade_id.label(class="form-label") }}
+                            {{ form.metal_grade_id(class="form-select") }}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            {{ form.melt_technician_id.label(class="form-label") }}
+                            {{ form.melt_technician_id(class="form-select") }}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            {{ form.furnace_operator_id.label(class="form-label") }}
+                            {{ form.furnace_operator_id(class="form-select") }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Base Materials Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="bi bi-box me-2"></i>Base Materials</h5>
+                </div>
+                <div class="card-body material-section">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.cast_iron.label(class="form-label") }}
+                            {{ form.cast_iron(class="form-control", step="0.01") }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.steel_scrap.label(class="form-label") }}
+                            {{ form.steel_scrap(class="form-control", step="0.01") }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.pig_iron.label(class="form-label") }}
+                            {{ form.pig_iron(class="form-control", step="0.01") }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.recarb.label(class="form-label") }}
+                            {{ form.recarb(class="form-control", step="0.01") }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.ferrosilicon.label(class="form-label") }}
+                            {{ form.ferrosilicon(class="form-control", step="0.01") }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.ferromanganese.label(class="form-label") }}
+                            {{ form.ferromanganese(class="form-control", step="0.01") }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.iron_sulfide.label(class="form-label") }}
+                            {{ form.iron_sulfide(class="form-control", step="0.01") }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Additional Materials Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="bi bi-plus-square me-2"></i>Additional Materials</h5>
+                </div>
+                <div class="card-body material-section">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.additional_recarb.label(class="form-label") }}
+                            {{ form.additional_recarb(class="form-control", step="0.01") }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.additional_fesi.label(class="form-label") }}
+                            {{ form.additional_fesi(class="form-control", step="0.01") }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.additional_femn.label(class="form-label") }}
+                            {{ form.additional_femn(class="form-control", step="0.01") }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.additional_iron_sulfide.label(class="form-label") }}
+                            {{ form.additional_iron_sulfide(class="form-control", step="0.01") }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.tin.label(class="form-label") }}
+                            {{ form.tin(class="form-control", step="0.01") }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.copper.label(class="form-label") }}
+                            {{ form.copper(class="form-control", step="0.01") }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Process Details Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="bi bi-thermometer-half me-2"></i>Process Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                             {{ form.melt_temperature.label(class="form-label") }}
+                        {{ form.melt_temperature(class="form-control") }}
+                        {% if form.melt_temperature.errors %}
+                            {% for error in form.melt_temperature.errors %}
+                                <div class="text-danger">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                       
+                    </div>
+                    <div class="mb-3">
+                        {{ form.remarks.label(class="form-label") }}
+                        {{ form.remarks(class="form-control", rows="3") }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Timestamp Controls -->
+        <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="bi bi-clock me-2"></i>Process Timestamps</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <button type="button" class="btn btn-success w-100 mb-2" 
+                                    onclick="recordTimestamp('start_charging', this)">
+                                <i class="bi bi-play-fill me-1"></i> Step 1. Start Charging ( Charge Time)
+                            </button>
+                            
+                            <div class="card bg-light mb-2 text-center py-2">
+                                <div class="card-body p-1">
+                                    <small class="text-dark fw-bold">
+                                        Start of filling Furnace with Metal
+                                    </small>
+                                </div>
+                            </div>
+                            <small class="text-muted d-block text-center" id="start_charging_display" style="display:none;"></small>
+                        </div>
+                        <div class="col-6">
+                            <button type="button" class="btn btn-danger w-100 mb-2" 
+                                    onclick="recordTimestamp('end_melt', this)">
+                                <i class="bi bi-stop-fill me-1"></i> Step 2. Furnace Full - End Melt
+                            </button>
+                            <div class="card bg-light mb-2 text-center py-2">
+                            <div class="card-body p-1">
+                                <small class="text-dark fw-bold">
+                                    Full furnace ready to test base
+                                </small>
+                            </div>
+                        </div>
+                            <small class="text-muted d-block text-center" id="end_melt_display" style="display:none;"></small>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <button type="button" class="btn btn-info w-100 mb-2" 
+                                    onclick="recordTimestamp('additions_added', this)">
+                                <i class="bi bi-plus-lg me-1"></i> Step 3. Additions Added - After Final
+                                
+                            </button>
+                            <div class="card bg-light mb-2 text-center py-2">
+                            <div class="card-body p-1">
+                                <small class="text-dark fw-bold">
+                                    Record after Final Additions made
+                                </small>
+                            </div>
+                        </div>
+                            
+                            <small class="text-muted d-block text-center" id="additions_added_display" style="display:none;"></small>
+                        </div>
+                        <div class="col-6">
+                           <button type="button" class="btn btn-warning w-100 mb-2" onclick="openTapModal()" id="tap_button">
+                            <i class="bi bi-droplet-half me-1"></i> Step 4. Tap Times
+                        </button>
+                        <small class="text-black fw-bold"></small>
+                         <div class="card bg-light mb-2 text-center py-2">
+                            <div class="card-body p-1">
+                                <small class="text-dark fw-bold">
+                                    Tap for each pot
+                                </small>
+                            </div>
+                        </div>
+                            <div id="tap_times_list" class="mt-2"></div>
+                        </div>
+                      <div id="autosave_status" class="text-muted small mt-2">Autosave not yet triggered.</div>
+  
+                    </div>
+
+                    <!-- Hidden Fields -->
+                    <!-- Hidden Fields -->
+                  <input type="hidden" id="start_charging_time" name="start_charging_time"
+                    value="{{ form.start_charging_time.data or request.form.get('start_charging_time', '') }}">
+                <input type="hidden" id="additions_added_time" name="additions_added_time"
+                    value="{{ form.additions_added_time.data or request.form.get('additions_added_time', '') }}">
+                <input type="hidden" id="tap_times" name="tap_times"
+                    value='{{ tap_times_json|safe }}'>
+                <input type="hidden" id="end_melt_time" name="end_melt_time"
+                    value="{{ form.end_melt_time.data or request.form.get('end_melt_time', '') }}">
+
+
+                </div>
+            </div>
+
+            <!-- Submit -->
+            <div class="card">
+                <div class="card-body d-flex gap-2">
+                    {{ form.submit(class="btn btn-primary") }}
+                    <a href="{{ url_for('furnace.entries') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-list-ul me-1"></i>Back to Entries
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+<!-- Tap Modal -->
+<div class="modal fade" id="tapModal" tabindex="-1" aria-labelledby="tapModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="tapModalLabel"><i class="bi bi-droplet-half me-2"></i>Record Tap</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label for="tapTempInput" class="form-label">Temperature (°C)</label>
+          <input type="number" class="form-control" id="tapTempInput" placeholder="Enter temperature" required>
+        </div>
+        <div class="mb-3">
+          <label for="tapInnoculate" class="form-label">Innoculant</label>
+          <select class="form-select" id="tapInnoculate">
+            <option value="">-- Select Innoculant --</option>
+            <option value="Inostrong 125">Inostrong 125</option>
+            <option value="Zl-80">Zl-80</option>
+            <option value="Ultra Seed">Ultra Seed</option>
+            <option value="Super Seed">Super Seed</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label for="tapDepartment" class="form-label">Where is metal going</label>
+          <select class="form-select" id="tapDepartment" required>
+            <option value="">-- Please select department --</option>
+            <option value="HDA">HDA</option>
+            <option value="Unit 1">Unit 1</option>
+            <option value="Unit 2">Unit 2</option>
+            <option value="Unit 3">Unit 3</option>
+            <option value="Floor Moulding">Floor Moulding</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="saveTapBtn" class="btn btn-primary">Save Tap</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+console.log("SCRIPT BLOCK LOADED");
+
+document.addEventListener("DOMContentLoaded", () => {
+
+    // ------------------------------
+    // Entry ID + Storage Key
+    // ------------------------------
+    const entryId = document.getElementById('entry_id')?.value;
+    const STORAGE_KEY = `tap_times_draft_${entryId}`;
+
+    // ------------------------------
+    // Replace commas in number inputs
+    // ------------------------------
+    document.querySelectorAll('input[type="number"], input.form-control').forEach(input => {
+        input.addEventListener("input", () => {
+            if (input.value.includes(",")) {
+                input.value = input.value.replace(",", ".");
+            }
+        });
+    });
+
+    // ------------------------------
+    // Timestamp state
+    // ------------------------------
+    let timestamps = {
+        start_charging: document.getElementById('start_charging_time')?.value || null,
+        additions_added: document.getElementById('additions_added_time')?.value || null,
+        end_melt: document.getElementById('end_melt_time')?.value || null,
+        tap_times: []
+    };
+
+    // ------------------------------
+    // Load saved taps FIRST
+    // ------------------------------
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+        try { timestamps.tap_times = JSON.parse(saved); }
+        catch { timestamps.tap_times = []; }
+    } else {
+        try { timestamps.tap_times = JSON.parse(document.getElementById('tap_times')?.value || "[]"); }
+        catch { timestamps.tap_times = []; }
+    }
+
+    // ------------------------------
+    // Restore timestamp displays
+    // ------------------------------
+    function restoreTimestampDisplay(action, displayId) {
+        if (timestamps[action]) {
+            const display = document.getElementById(displayId);
+            if (!display) return;
+            display.textContent = new Date(timestamps[action]).toLocaleTimeString();
+            display.style.display = 'block';
+            const btn = document.querySelector(`button[onclick*='${action}']`);
+            if (btn) btn.disabled = true;
+        }
+    }
+
+    restoreTimestampDisplay('start_charging','start_charging_display');
+    restoreTimestampDisplay('additions_added','additions_added_display');
+    restoreTimestampDisplay('end_melt','end_melt_display');
+
+    // ------------------------------
+    // Restore tap UI
+    // ------------------------------
+    function restoreTapTimes() {
+        const tapList = document.getElementById('tap_times_list');
+        if (!tapList) return;
+
+        tapList.innerHTML = '';
+
+        timestamps.tap_times.forEach((tap, index) => {
+            const div = document.createElement('div');
+            div.className = 'small text-success mb-1 d-flex align-items-center';
+            div.innerHTML =
+                `<i class="bi bi-droplet-half me-2"></i>
+                Tap ${index + 1}: ${new Date(tap.time).toLocaleTimeString()}
+                @ ${tap.temp}°C | Innoculant: ${tap.innoculate} | To: ${tap.department}
+                <i class="bi bi-check-lg ms-2 text-success"></i>`;
+            tapList.appendChild(div);
+        });
+
+        const button = document.getElementById('tap_button');
+        if (button) {
+            button.innerHTML = timestamps.tap_times.length
+                ? `<i class="bi bi-droplet-half me-1"></i>Add Tap (${timestamps.tap_times.length})`
+                : `<i class="bi bi-droplet-half me-1"></i>Step 4. Tap Times`;
+        }
+
+        const hidden = document.getElementById('tap_times');
+        if (hidden) hidden.value = JSON.stringify(timestamps.tap_times);
+    }
+
+    restoreTapTimes();
+
+    // ------------------------------
+    // Record main timestamps
+    // ------------------------------
+    function recordTimestamp(action, button) {
+        const now = new Date();
+        const iso = now.toISOString();
+
+        timestamps[action] = iso;
+        button.disabled = true;
+        button.innerHTML = `<i class="bi bi-check-lg me-1"></i>Recorded`;
+
+        const display = document.getElementById(`${action}_display`);
+        if (display) {
+            display.textContent = now.toLocaleTimeString();
+            display.style.display = 'block';
+        }
+
+        document.getElementById(`${action}_time`).value = iso;
+
+        showToast(`${action.replace('_',' ')} recorded at ${now.toLocaleTimeString()}`);
+        autosaveEntry();
+    }
+
+    // ------------------------------
+    // Tap modal
+    // ------------------------------
+    function openTapModal() {
+        const modal = new bootstrap.Modal(document.getElementById('tapModal'));
+        document.getElementById('tapTempInput').value = '';
+        document.getElementById('tapInnoculate').value = '';
+        document.getElementById('tapDepartment').value = '';
+        modal.show();
+
+        document.getElementById('saveTapBtn').onclick = () => {
+            const temp = parseFloat(document.getElementById('tapTempInput').value);
+            const innoculate = document.getElementById('tapInnoculate').value;
+            const department = document.getElementById('tapDepartment').value;
+
+            if (isNaN(temp) || !innoculate || !department) {
+                alert("Enter valid temperature, inoculant & department.");
+                return;
+            }
+
+            recordTap(temp, innoculate, department);
+            modal.hide();
+        };
+    }
+
+    // ------------------------------
+    // Record tap
+    // ------------------------------
+    function recordTap(temp, innoculate, department) {
+        const now = new Date();
+
+        timestamps.tap_times.push({
+            time: now.toISOString(),
+            temp,
+            innoculate,
+            department
+        });
+
+        // SAVE LOCAL DRAFT
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(timestamps.tap_times));
+
+        restoreTapTimes();
+
+        showToast(`Tap ${timestamps.tap_times.length} recorded @ ${temp}°C`);
+        autosaveEntry();
+    }
+
+    // ------------------------------
+    // Toast
+    // ------------------------------
+    function showToast(msg) {
+        const toast = document.createElement('div');
+        toast.className = 'toast position-fixed top-0 end-0 m-3';
+        toast.style.zIndex = '1050';
+
+        toast.innerHTML = `
+        <div class="toast-header bg-success text-white">
+            <strong class="me-auto">Saved</strong>
+            <button class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body">${msg}</div>`;
+
+        document.body.appendChild(toast);
+        const t = new bootstrap.Toast(toast);
+        t.show();
+        toast.addEventListener('hidden.bs.toast',()=>toast.remove());
+    }
+
+    // ------------------------------
+    // Lining number fetch
+    // ------------------------------
+    function updateLiningNumber() {
+        const furnaceSelect = document.getElementById('furnace_id');
+        const liningField = document.getElementById('lining_number_field');
+
+        if (!furnaceSelect.value || furnaceSelect.value === '0') {
+            liningField.value = '';
+            return;
+        }
+
+        fetch(`/furnace/api/furnace/${furnaceSelect.value}`)
+        .then(r=>r.json())
+        .then(data=>{
+            liningField.value = data.current_lining_number;
+            autosaveEntry();
+        })
+        .catch(err=>console.error(err));
+    }
+
+    // ------------------------------
+    // Autosave
+    // ------------------------------
+    let autosaveTimeout;
+
+    function autosaveEntry() {
+        clearTimeout(autosaveTimeout);
+
+        autosaveTimeout = setTimeout(() => {
+
+            if (!entryId) return;
+
+            // Update timestamp fields from your timestamps object
+            ['start_charging', 'additions_added', 'end_melt'].forEach(f => {
+                const el = document.getElementById(`${f}_time`);
+                if (el) el.value = timestamps[f] || '';
+            });
+
+            const form = document.querySelector("form");
+            if (!form) return;
+
+            const fd = new FormData(form);
+            fd.set('status', 'In Progress');
+
+            // -------------------------
+            // Include tap_times JSON
+            // -------------------------
+            fd.set('tap_times', JSON.stringify(timestamps.tap_times));
+
+
+            // CSRF token
+            const csrf = document.querySelector('input[name="csrf_token"]')?.value;
+            if (csrf) fd.set('csrf_token', csrf);
+
+            fetch(`/furnace/entries/autosave/${entryId}`, {
+                method: 'POST',
+                body: fd
+            })
+            .then(r => r.json())
+            .then(data => {
+                const label = document.getElementById('autosave_status');
+                if (label) {
+                    label.textContent = data.success
+                        ? `Autosaved ${new Date().toLocaleTimeString()}`
+                        : `Autosave failed`;
+                }
+            })
+            .catch(console.error);
+
+        }, 500); // debounce slightly to avoid too many calls
+    }
+
+    // Autosave every 20s in case nothing changes
+    setInterval(autosaveEntry, 20000);
+
+    // Trigger autosave on input/change events
+    document.querySelectorAll('input,select,textarea').forEach(el => {
+        el.addEventListener('input', autosaveEntry);
+        el.addEventListener('change', autosaveEntry);
+    });
+
+
+    // -------------------------
+    // Submit validation
+    // -------------------------
+    document.querySelector("form").addEventListener("submit", e => {
+        const missing = [];
+        
+        // DEBUG: Get furnace name from data attribute or value
+        const furnaceDisplay = document.getElementById('furnace_name_display');
+        const furnaceName = furnaceDisplay?.dataset?.furnaceName 
+            || furnaceDisplay?.value 
+            || 'UNKNOWN';
+        
+        const furnaceId = document.getElementById('furnace_id')?.value || 'NOT_FOUND';
+        
+        console.log(`=== SUBMIT VALIDATION DEBUG ===`);
+        console.log(`DEBUG: Furnace ID = ${furnaceId}`);
+        console.log(`DEBUG: Furnace name = "${furnaceName}"`);
+        console.log(`DEBUG: Current tap count = ${timestamps.tap_times.length}`);
+
+        if (!document.getElementById("start_charging_time").value) missing.push("Start Charging");
+        if (!document.getElementById("additions_added_time").value) missing.push("Additions Added");
+        if (!document.getElementById("end_melt_time").value) missing.push("End Melt");
+        
+        // Check for Rosmacol
+        const isRosmacol = furnaceName.toLowerCase().includes('rosmacol');
+        const minTaps = isRosmacol ? 2 : 7;
+        
+        console.log(`DEBUG: Is Rosmacol = ${isRosmacol}, Min taps = ${minTaps}`);
+
+        if (timestamps.tap_times.length < minTaps) {
+            missing.push(`At least ${minTaps} Tap Times required for ${furnaceName}`);
+        }
+
+        if (missing.length) {
+            e.preventDefault();
+            console.log(`DEBUG: VALIDATION FAILED:`, missing);
+            alert("Missing:\n• " + missing.join("\n• "));
+            return;
+        }
+
+        console.log(`DEBUG: VALIDATION PASSED`);
+        localStorage.removeItem(STORAGE_KEY);
+    });
+
+    // ------------------------------
+    // Expose globals
+    // ------------------------------
+    window.recordTimestamp=recordTimestamp;
+    window.openTapModal=openTapModal;
+    window.updateLiningNumber=updateLiningNumber;
+
+});
+</script>
+{% endblock %}
+

@@ -1,0 +1,750 @@
+{% extends "furnace/base_furnace.html" %}
+
+{% block title %}User Manual - Furnace Management System{% endblock %}
+
+{% block styles %}
+<style>
+    .manual-toc {
+        top: 1rem;
+        max-height: calc(100vh - 2rem);
+        overflow-y: auto;
+    }
+
+    .manual-toc .list-group-item {
+        border: none;
+        padding: 0.45rem 0.75rem;
+        font-size: 0.9rem;
+        color: var(--dark-slate);
+    }
+
+    .manual-toc .list-group-item:hover {
+        background-color: rgba(44, 62, 80, 0.07);
+        color: var(--primary-blue);
+    }
+
+    .manual-toc .list-group-item.active {
+        background-color: var(--primary-blue);
+        border-color: var(--primary-blue);
+        color: var(--white);
+    }
+
+    .manual-section {
+        scroll-margin-top: 1rem;
+    }
+
+    .manual-step {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.75rem;
+        height: 1.75rem;
+        min-width: 1.75rem;
+        border-radius: 50%;
+        background-color: var(--primary-blue);
+        color: var(--white);
+        font-weight: 700;
+        font-size: 0.85rem;
+        margin-right: 0.75rem;
+    }
+
+    .manual-key {
+        font-family: 'Courier New', monospace;
+        background-color: var(--light-grey);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        padding: 0.1rem 0.4rem;
+        font-size: 0.85rem;
+        color: var(--primary-blue);
+    }
+
+    .manual-role {
+        font-size: 0.7rem;
+        vertical-align: middle;
+    }
+
+    @media print {
+        .manual-toc,
+        .manual-no-print {
+            display: none !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block furnace_content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1><i class="bi bi-book me-2"></i>User Manual</h1>
+        <p class="text-muted mb-0">How every feature of the Furnace Management System works, start to finish.</p>
+    </div>
+    <button type="button" class="btn btn-outline-primary manual-no-print" onclick="window.print()">
+        <i class="bi bi-printer me-1"></i>Print Manual
+    </button>
+</div>
+
+<div class="row">
+    <!-- Table of contents -->
+    <div class="col-lg-3">
+        <div class="card sticky-top manual-toc manual-no-print">
+            <div class="card-header">
+                <h6><i class="bi bi-list-ul me-2"></i>Contents</h6>
+            </div>
+            <div class="list-group list-group-flush">
+                <a class="list-group-item list-group-item-action" href="#overview">Overview</a>
+                <a class="list-group-item list-group-item-action" href="#access">Logging In &amp; Roles</a>
+                <a class="list-group-item list-group-item-action" href="#dashboard">Dashboard</a>
+                <a class="list-group-item list-group-item-action" href="#entries">Entries List</a>
+                <a class="list-group-item list-group-item-action" href="#entry-workflow">Recording a Heat</a>
+                <a class="list-group-item list-group-item-action" href="#entry-detail">Entry Detail</a>
+                <a class="list-group-item list-group-item-action" href="#lab-linker">Lab Linker</a>
+                <a class="list-group-item list-group-item-action" href="#tin-copper">Sn &amp; Cu Calculator</a>
+                <a class="list-group-item list-group-item-action" href="#temp-data">Temp Data</a>
+                <a class="list-group-item list-group-item-action" href="#history">History <span class="badge bg-danger manual-role">Admin</span></a>
+                <a class="list-group-item list-group-item-action" href="#reports">Reports <span class="badge bg-danger manual-role">Admin</span></a>
+                <a class="list-group-item list-group-item-action" href="#activity-report">Furnace Activity Report</a>
+                <a class="list-group-item list-group-item-action" href="#setup">Setup Data <span class="badge bg-danger manual-role">Admin</span></a>
+                <a class="list-group-item list-group-item-action" href="#users">Users <span class="badge bg-danger manual-role">Admin</span></a>
+                <a class="list-group-item list-group-item-action" href="#reference">Field Reference</a>
+                <a class="list-group-item list-group-item-action" href="#troubleshooting">Troubleshooting</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manual body -->
+    <div class="col-lg-9">
+
+        <!-- OVERVIEW -->
+        <div class="card manual-section" id="overview">
+            <div class="card-header">
+                <h5><i class="bi bi-fire me-2"></i>Overview</h5>
+            </div>
+            <div class="card-body">
+                <p>
+                    The Furnace Management System records every heat produced on the melt floor: which furnace and
+                    lining it ran on, who ran it, what was charged into it, when each stage of the melt happened, and
+                    what the lab measured. It also carries the tin &amp; copper trim calculation, live temperature data
+                    from MeltControl, and reporting over the whole lot.
+                </p>
+                <p class="mb-0">
+                    A normal shift looks like this:
+                </p>
+                <ul class="mb-0 mt-2">
+                    <li><strong>Entry</strong> &mdash; open a heat on a furnace, capture materials, press the four process buttons as they happen, record each tap, then save.</li>
+                    <li><strong>Lab Linker</strong> &mdash; attach the base and final spectro samples to that heat.</li>
+                    <li><strong>Sn &amp; Cu</strong> &mdash; work out the tin and copper additions and keep the daily stock straight.</li>
+                    <li><strong>Reports</strong> &mdash; supervisors pull cycle times, material usage and lab results afterwards.</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- ACCESS -->
+        <div class="card manual-section" id="access">
+            <div class="card-header">
+                <h5><i class="bi bi-shield-check me-2"></i>Logging In &amp; Roles</h5>
+            </div>
+            <div class="card-body">
+                <p>
+                    Every page except the login screen requires a signed-in user. Tick <span class="manual-key">Remember Me</span>
+                    on the login form to stay signed in &mdash; sessions last 30 days and refresh on each use, so a shop-floor
+                    terminal will not log itself out mid-shift.
+                </p>
+                <p>Two roles exist, set per user by an administrator:</p>
+                <div class="table-responsive">
+                    <table class="table table-striped table-sm mb-3">
+                        <thead>
+                            <tr>
+                                <th>Role</th>
+                                <th>Can use</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><span class="badge bg-info">Operator</span></td>
+                                <td>Dashboard, Entry, Sn &amp; Cu, Temp Data, Lab Linker, entry detail views</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge bg-danger">Admin</span></td>
+                                <td>Everything above, plus Furnaces, Personnel, Metal Grades, History, Reports and Users</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="mb-0">
+                    Your name and role show in the top-right of the navigation bar. Log out from that same dropdown.
+                    A deactivated account cannot log in &mdash; an administrator has to switch it back on.
+                </p>
+            </div>
+        </div>
+
+        <!-- DASHBOARD -->
+        <div class="card manual-section" id="dashboard">
+            <div class="card-header">
+                <h5><i class="bi bi-speedometer2 me-2"></i>Dashboard</h5>
+            </div>
+            <div class="card-body">
+                <p>The landing page after login. It answers "what is happening right now" in one screen:</p>
+                <ul>
+                    <li><strong>Summary tiles</strong> &mdash; active furnaces, active personnel, metal grades on file, total entries, and entries recorded today.</li>
+                    <li><strong>Per-furnace cards</strong> &mdash; for each <em>active</em> furnace, the materials accumulated <em>today</em> across every heat on that furnace, plus how many heats have run.</li>
+                    <li><strong>Combined totals</strong> &mdash; the same material breakdown summed across all furnaces for the day.</li>
+                    <li><strong>Jump to the open heat</strong> &mdash; if a furnace has an entry still <span class="badge bg-warning">In Progress</span>, the card links straight into it, so an operator returning to a terminal lands on the right heat.</li>
+                </ul>
+                <div class="alert alert-info mb-0">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Dashboard totals cover <strong>today only</strong> and reset at midnight. For any other period use
+                    Reports or History.
+                </div>
+            </div>
+        </div>
+
+        <!-- ENTRIES -->
+        <div class="card manual-section" id="entries">
+            <div class="card-header">
+                <h5><i class="bi bi-plus-circle me-2"></i>Entries List</h5>
+            </div>
+            <div class="card-body">
+                <p>
+                    <span class="manual-key">Entry</span> in the navigation bar lists every heat, newest first, and is
+                    where new heats are started.
+                </p>
+                <p><strong>Filters.</strong> Narrow the list by furnace, metal grade, and a from/to date range.</p>
+                <p><strong>Row actions.</strong></p>
+                <ul>
+                    <li><i class="bi bi-eye me-1"></i><strong>View</strong> &mdash; the read-only detail page with timings, taps and lab results.</li>
+                    <li><i class="bi bi-pencil me-1"></i><strong>Edit</strong> &mdash; reopen the entry form to keep capturing or to correct it.</li>
+                    <li><i class="bi bi-droplet-half me-1"></i><strong>Lab Linker</strong> &mdash; attach spectro samples to the heat.</li>
+                </ul>
+                <p><strong>Starting a new heat.</strong> Choose the furnace in the new-entry dialog. The system creates the
+                    entry with today's date, the furnace's current lining number, and the standard starting charge
+                    (1700 kg cast iron, 300 kg steel scrap, 0 kg pig iron), then drops you straight into the entry form.</p>
+                <div class="alert alert-warning mb-0">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    <strong>One open heat per furnace.</strong> If that furnace already has an entry that is not
+                    Completed, no second entry is created &mdash; you are redirected into the existing one. Finish or
+                    correct that heat first.
+                </div>
+            </div>
+        </div>
+
+        <!-- ENTRY WORKFLOW -->
+        <div class="card manual-section" id="entry-workflow">
+            <div class="card-header">
+                <h5><i class="bi bi-clipboard-check me-2"></i>Recording a Heat (the Entry Form)</h5>
+            </div>
+            <div class="card-body">
+                <p>
+                    The entry form is the core of the system. The left side captures what went into the furnace; the
+                    right side captures when things happened.
+                </p>
+
+                <h6 class="fw-bold mt-3">1. Basic Information</h6>
+                <p>
+                    Heat number (digits only, e.g. <span class="manual-key">0408</span>), furnace, metal grade, melt
+                    technician, furnace operator and lining number. The four dropdowns are <strong>required</strong> before
+                    the entry can be saved as complete &mdash; the technician and operator lists only show active personnel
+                    in the matching role, and the furnace list only shows active furnaces.
+                </p>
+
+                <h6 class="fw-bold mt-3">2. Base Materials (kg)</h6>
+                <p class="mb-0">
+                    Cast iron, steel scrap, pig iron, recarb, ferrosilicon, ferromanganese and iron sulfide &mdash;
+                    the charge made up at the start of the melt.
+                </p>
+
+                <h6 class="fw-bold mt-3">3. Additional Materials (kg)</h6>
+                <p>
+                    Additional recarb, FeSi, FeMn and iron sulfide, plus tin and copper &mdash; the corrections made after
+                    the base sample comes back. Use the <a href="{{ url_for('furnace.tin_copper') }}">Sn &amp; Cu calculator</a>
+                    to work out the tin and copper figures.
+                </p>
+
+                <h6 class="fw-bold mt-3">4. Process Details</h6>
+                <p>
+                    Melt temperature (accepted between <strong>1300&deg;C and 1560&deg;C</strong>) and free-text remarks
+                    for anything the fields do not cover &mdash; delays, breakdowns, quality notes.
+                </p>
+
+                <h6 class="fw-bold mt-3">5. Process Timestamps &mdash; press as it happens</h6>
+                <p>
+                    These four buttons stamp the current time the moment you press them. Press them in real time; do not
+                    fill them in afterwards from memory, because every cycle-time report is built from them.
+                </p>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm">
+                        <thead>
+                            <tr>
+                                <th style="width: 22%;">Button</th>
+                                <th>Press it when&hellip;</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><span class="badge bg-success">Step 1 &mdash; Start Charging</span></td>
+                                <td>You begin filling the furnace with metal.</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge bg-danger">Step 2 &mdash; End Melt</span></td>
+                                <td>The furnace is full and ready for the base sample to be taken.</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge bg-info">Step 3 &mdash; Additions Added</span></td>
+                                <td>The final additions have been made after the final sample.</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge bg-warning">Step 4 &mdash; Tap Times</span></td>
+                                <td>Each pot is tapped. Opens a dialog to record that tap &mdash; press it once per pot.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>
+                    The tap dialog records the tap time along with its temperature, which inoculant was used, and
+                    where the metal is going (HDA, Unit 1, Unit 2, Unit 3 or Floor Moulding), so each pot carries its
+                    own reading rather than one figure for the whole heat.
+                </p>
+
+                <h6 class="fw-bold mt-3">6. Autosave</h6>
+                <p>
+                    The form saves itself in the background: whenever you type or change a field, whenever you press a
+                    timestamp button, and every 20 seconds regardless. The <em>Autosave</em> line under the timestamp
+                    buttons shows when the last save went through. A dropped connection or a closed browser does not
+                    lose the heat &mdash; reopen it from the Entries list or the dashboard and carry on.
+                </p>
+
+                <h6 class="fw-bold mt-3">7. Save Entry</h6>
+                <p class="mb-0">
+                    <span class="manual-key">Save Entry</span> completes the heat. Three things happen: the status
+                    changes to <span class="badge bg-success">Completed</span>, the furnace's lining counter is
+                    <strong>incremented by one</strong>, and you are returned to the Entries list. Only completed entries
+                    are counted in Reports.
+                </p>
+                <div class="alert alert-warning mt-3 mb-0">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    Because saving bumps the lining number, do not press <em>Save Entry</em> repeatedly on the same heat
+                    to "re-save" it &mdash; every save advances that furnace's lining count. Autosave keeps your work
+                    safe while the heat is still running.
+                </div>
+            </div>
+        </div>
+
+        <!-- ENTRY DETAIL -->
+        <div class="card manual-section" id="entry-detail">
+            <div class="card-header">
+                <h5><i class="bi bi-eye me-2"></i>Entry Detail</h5>
+            </div>
+            <div class="card-body">
+                <p>The read-only view of a single heat. It brings together:</p>
+                <ul>
+                    <li><strong>All captured data</strong> &mdash; personnel, materials, process details and remarks.</li>
+                    <li><strong>Tap list</strong> &mdash; every tap with its temperature, inoculant flag, and the gap since the previous tap.</li>
+                    <li><strong>Calculated durations</strong> &mdash; melt time, corrections time, furnace emptying time and full melt time (defined under <a href="#reference">Field Reference</a>).</li>
+                    <li><strong>Lab results</strong> &mdash; the base and final spectro samples linked to this heat.</li>
+                    <li><strong>Timeline chart</strong> &mdash; this heat drawn as a bar with markers for additions, end melt and each tap.</li>
+                    <li><strong>Concurrent activity</strong> &mdash; heats running on <em>other</em> furnaces whose window overlaps this one, so you can see what else the floor was doing at the time.</li>
+                </ul>
+                <p class="mb-0">The page prints cleanly &mdash; navigation and buttons are dropped from the printout.</p>
+            </div>
+        </div>
+
+        <!-- LAB LINKER -->
+        <div class="card manual-section" id="lab-linker">
+            <div class="card-header">
+                <h5><i class="bi bi-droplet-half me-2"></i>Lab Linker</h5>
+            </div>
+            <div class="card-body">
+                <p>
+                    Spectrometer results arrive in the system on their own, without knowing which heat they belong to.
+                    The Lab Linker is where you make that connection: open it from the <i class="bi bi-droplet-half"></i> button
+                    on any row of the Entries list.
+                </p>
+                <p>You are shown two lists of <strong>unlinked</strong> results, newest first:</p>
+                <ul>
+                    <li><strong>BASE</strong> &mdash; the sample taken when the furnace was full, before corrections.</li>
+                    <li><strong>FINAL</strong> &mdash; the sample taken after the corrections were made.</li>
+                </ul>
+                <p class="mb-0">
+                    Pick one of each and save. Both are attached to the heat and disappear from the unlinked lists, and
+                    the results appear on that heat's detail page and in the Reports lab tables. Match on measurement
+                    date and time against the heat's own timestamps if the heat number on the sample is ambiguous.
+                </p>
+            </div>
+        </div>
+
+        <!-- TIN & COPPER -->
+        <div class="card manual-section" id="tin-copper">
+            <div class="card-header">
+                <h5><i class="bi bi-droplet-half me-2"></i>Sn &amp; Cu Calculator</h5>
+            </div>
+            <div class="card-body">
+                <p>
+                    Works out how much tin and copper to add to hit the grade target, and tracks the daily stock of both.
+                    Records are listed newest first and can be filtered by furnace, grade and date range.
+                </p>
+
+                <h6 class="fw-bold mt-3">Creating a record</h6>
+                <p>
+                    Capture the date, heat number, operator, furnace, grade and the ladle weight
+                    (<span class="manual-key">250</span>, <span class="manual-key">500</span> or
+                    <span class="manual-key">2000</span> kg), then enter the <strong>base tin %</strong> and
+                    <strong>base copper %</strong> from the base spectro sample. The system calculates the kilograms to
+                    be added from the grade target; you then enter what was <strong>actually added</strong>, which is what
+                    the stock figures work from.
+                </p>
+
+                <h6 class="fw-bold mt-3">Grade targets</h6>
+                <div class="table-responsive">
+                    <table class="table table-striped table-sm">
+                        <thead>
+                            <tr>
+                                <th>Grade</th>
+                                <th>Tin target</th>
+                                <th>Copper target</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>GG25</td><td>0.075&nbsp;%</td><td>0.20&nbsp;%</td></tr>
+                            <tr><td>GG30</td><td>0.075&nbsp;%</td><td>0.90&nbsp;%</td></tr>
+                            <tr><td>SG50</td><td>no tin added</td><td>0.40&nbsp;%</td></tr>
+                            <tr><td>SG60</td><td>no tin added</td><td>0.45&nbsp;%</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>
+                    The addition is <em>(target &minus; base) &times; weight</em>, allowing for the purity of the
+                    material. A grade outside this list has no target on file, so check the figure by hand before adding.
+                </p>
+
+                <h6 class="fw-bold mt-3">Stock tracking</h6>
+                <p class="mb-0">
+                    <strong>Starting</strong> stock on a new record is carried forward automatically from the previous
+                    record: <em>previous starting + previous issued &minus; previous added</em>. Enter
+                    <strong>Issued</strong> only on the record covering the day's draw from the store &mdash;
+                    <strong>tin and copper issued may be recorded once per day only</strong>. If issued figures already
+                    exist for that date, the system refuses the save and tells you which record already holds them.
+                </p>
+            </div>
+        </div>
+
+        <!-- TEMP DATA -->
+        <div class="card manual-section" id="temp-data">
+            <div class="card-header">
+                <h5><i class="bi bi-thermometer-half me-2"></i>Temp Data</h5>
+            </div>
+            <div class="card-body">
+                <p>
+                    A live read-only window onto the <strong>MeltControl</strong> measurement database &mdash; a separate
+                    system. Nothing here is edited or stored by the Furnace Management System.
+                </p>
+                <ul>
+                    <li><strong>Filters</strong> &mdash; date range (defaults to today) and measuring station.</li>
+                    <li><strong>Column picker</strong> &mdash; tick only the columns you care about. Untick everything and you get them all back.</li>
+                    <li><strong>Chart</strong> &mdash; temperature against time, split by station. It always plots timestamp, station and temperature no matter which columns are ticked.</li>
+                    <li><strong>Table</strong> &mdash; capped at <strong>500 rows</strong> on screen so the page stays fast.</li>
+                    <li><strong>Export CSV</strong> &mdash; exports the <em>full</em> filtered result with no row cap, using your chosen columns. The file opens correctly in Excel including degree symbols in the headers.</li>
+                </ul>
+                <div class="alert alert-info mb-0">
+                    <i class="bi bi-info-circle me-1"></i>
+                    If this page shows a connection error, MeltControl is unreachable rather than the Furnace system
+                    being down &mdash; every other page keeps working.
+                </div>
+            </div>
+        </div>
+
+        <!-- HISTORY -->
+        <div class="card manual-section" id="history">
+            <div class="card-header">
+                <h5><i class="bi bi-clock-history me-2"></i>History <span class="badge bg-danger ms-2">Admin only</span></h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-0">
+                    A read-only archive of every entry with the same furnace / grade / date filters as the Entries list,
+                    but no edit or delete actions &mdash; use it for looking things up without any risk of changing a
+                    record. Each row links through to its detail page.
+                </p>
+            </div>
+        </div>
+
+        <!-- REPORTS -->
+        <div class="card manual-section" id="reports">
+            <div class="card-header">
+                <h5><i class="bi bi-bar-chart me-2"></i>Reports <span class="badge bg-danger ms-2">Admin only</span></h5>
+            </div>
+            <div class="card-body">
+                <p>
+                    Choose a <strong>date range</strong>, optionally a <strong>furnace</strong>, and optionally a
+                    <strong>time-of-day window</strong>, then generate. Only <strong>completed</strong> entries are
+                    included &mdash; heats still in progress are left out.
+                </p>
+
+                <h6 class="fw-bold mt-3">Shift filtering</h6>
+                <p>
+                    The time window filters on <em>Start Charging</em> clock time, so it isolates a shift across the whole
+                    date range. It handles a window that crosses midnight &mdash; <span class="manual-key">22:00</span> to
+                    <span class="manual-key">06:00</span> gives you the night shift. Setting both times the same (or
+                    leaving them blank) means a full 24 hours, i.e. no time filtering.
+                </p>
+
+                <h6 class="fw-bold mt-3">What you get</h6>
+                <ul>
+                    <li><strong>Headline figures</strong> &mdash; total entries, total materials, average materials per heat, and the date range covered.</li>
+                    <li><strong>Material usage breakdown</strong> &mdash; consumption per material across the period.</li>
+                    <li><strong>Furnace usage statistics</strong> &mdash; how the work was split between furnaces.</li>
+                    <li><strong>Cycle time statistics</strong> &mdash; melt, corrections, emptying and full melt times.</li>
+                    <li><strong>Detailed entries table</strong> &mdash; every heat in the period, each linking to its detail page.</li>
+                    <li><strong>Lab results</strong> &mdash; spectro readings for the period across all 30 measured elements, exportable to CSV.</li>
+                </ul>
+                <p class="mb-0">
+                    Reports also links across to the Furnace Activity Report described next.
+                </p>
+            </div>
+        </div>
+
+        <!-- ACTIVITY REPORT -->
+        <div class="card manual-section" id="activity-report">
+            <div class="card-header">
+                <h5><i class="bi bi-list-task me-2"></i>Furnace Activity Report</h5>
+            </div>
+            <div class="card-body">
+                <p>
+                    A swim-lane timeline &mdash; one lane per furnace, each heat drawn as a coloured bar from start
+                    charging to its last tap, with markers for additions, end melt and each tap along the way. It is the
+                    quickest way to see furnace utilisation, overlaps and gaps across a shift or a week.
+                </p>
+                <ul>
+                    <li>Reached from the button at the top of the Reports page, or directly at <span class="manual-key">/reports/furnace-activity</span>.</li>
+                    <li>Pick any date range; it defaults to today.</li>
+                    <li><strong>Overnight melts are handled</strong> &mdash; a heat that starts before the range or runs past the end of it still appears, as long as its active window overlaps the range.</li>
+                    <li>Each furnace keeps its own colour, and day bands separate the dates on a multi-day range.</li>
+                    <li>A heat only appears once it has a Start Charging timestamp.</li>
+                </ul>
+                <p class="mb-0">
+                    The page carries the generation time, so a printed copy is self-documenting.
+                </p>
+            </div>
+        </div>
+
+        <!-- SETUP -->
+        <div class="card manual-section" id="setup">
+            <div class="card-header">
+                <h5><i class="bi bi-gear-fill me-2"></i>Setup Data <span class="badge bg-danger ms-2">Admin only</span></h5>
+            </div>
+            <div class="card-body">
+                <p>
+                    These three lists feed the dropdowns on every other page. Keep them tidy and the rest of the system
+                    stays tidy.
+                </p>
+
+                <h6 class="fw-bold mt-3"><i class="bi bi-fire me-2"></i>Furnaces</h6>
+                <ul>
+                    <li>Name (must be unique), capacity and unit (tons or kg).</li>
+                    <li><strong>Current lining number</strong> &mdash; stamped onto each new heat and advanced automatically every time an entry is saved. Set it by hand only when a lining is physically replaced.</li>
+                    <li><strong>Status</strong> &mdash; Active, Maintenance or Inactive. Only <em>Active</em> furnaces can have new heats started on them or appear on the dashboard.</li>
+                </ul>
+
+                <h6 class="fw-bold mt-3"><i class="bi bi-people me-2"></i>Personnel</h6>
+                <ul>
+                    <li>Name, unique clock number, and role &mdash; <strong>Melt Technician</strong> or <strong>Furnace Operator</strong>. The role decides which dropdown a person appears in on the entry form.</li>
+                    <li>Deactivate rather than delete when someone leaves &mdash; they drop out of the dropdowns while their history stays intact.</li>
+                </ul>
+
+                <h6 class="fw-bold mt-3"><i class="bi bi-sliders me-2"></i>Metal Grades</h6>
+                <ul class="mb-0">
+                    <li>Grade name (must be unique), description and notes.</li>
+                    <li>The name matters: the Sn &amp; Cu calculator matches on it exactly (<span class="manual-key">GG25</span>, <span class="manual-key">GG30</span>, <span class="manual-key">SG50</span>, <span class="manual-key">SG60</span>) to pick the target. A renamed or misspelt grade silently loses its target.</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- USERS -->
+        <div class="card manual-section" id="users">
+            <div class="card-header">
+                <h5><i class="bi bi-person-gear me-2"></i>Users <span class="badge bg-danger ms-2">Admin only</span></h5>
+            </div>
+            <div class="card-body">
+                <p>
+                    Create login accounts, set first and last name, choose the role (Operator or Admin), and set or reset
+                    a password &mdash; minimum six characters, and required when creating a new account. Usernames must
+                    be unique.
+                </p>
+                <p class="mb-0">
+                    Accounts are <strong>deactivated, not deleted</strong>. A deactivated user is refused at login but
+                    every entry they captured keeps their name against it. The list shows each user's role and last login.
+                </p>
+            </div>
+        </div>
+
+        <!-- REFERENCE -->
+        <div class="card manual-section" id="reference">
+            <div class="card-header">
+                <h5><i class="bi bi-table me-2"></i>Field Reference</h5>
+            </div>
+            <div class="card-body">
+                <h6 class="fw-bold">Calculated durations</h6>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm">
+                        <thead>
+                            <tr>
+                                <th style="width: 28%;">Duration</th>
+                                <th>Measured from &rarr; to</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Melt Time</strong></td>
+                                <td>Start Charging &rarr; End Melt</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Corrections Time</strong></td>
+                                <td>End Melt &rarr; first tap</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Furnace Emptying Time</strong></td>
+                                <td>First tap &rarr; last tap</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Full Melt Time</strong></td>
+                                <td>Start Charging &rarr; last tap</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p>
+                    All are shown as <span class="manual-key">Hh Mm Ss</span>. A duration that cannot be worked out
+                    &mdash; because a timestamp was never pressed &mdash; shows as
+                    <span class="manual-key">0h 0m 0s</span>. This is the single biggest reason to press the buttons in
+                    real time.
+                </p>
+
+                <h6 class="fw-bold mt-4">Entry status</h6>
+                <ul>
+                    <li><span class="badge bg-warning">In Progress</span> &mdash; the heat is open. It blocks a new entry on that furnace, and it is excluded from Reports.</li>
+                    <li><span class="badge bg-success">Completed</span> &mdash; Save Entry has been pressed. Counted in Reports; the lining number has been advanced.</li>
+                </ul>
+
+                <h6 class="fw-bold mt-4">Materials recorded per heat (kg)</h6>
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="fw-bold mb-1">Base</p>
+                        <ul>
+                            <li>Cast Iron</li>
+                            <li>Steel Scrap</li>
+                            <li>Pig Iron</li>
+                            <li>Recarb</li>
+                            <li>Ferrosilicon</li>
+                            <li>Ferromanganese</li>
+                            <li>Iron Sulfide</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="fw-bold mb-1">Additional</p>
+                        <ul>
+                            <li>Additional Recarb</li>
+                            <li>Additional FeSi</li>
+                            <li>Additional FeMn</li>
+                            <li>Additional Iron Sulfide</li>
+                            <li>Tin</li>
+                            <li>Copper</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <h6 class="fw-bold mt-2">Lab elements</h6>
+                <p class="mb-0">
+                    Spectro results carry 30 elements: C, Si, Mn, P, S, Cr, Mo, Ni, Al, Co, Cu, Nb, Ti, V, W, Pb, Sn, Mg,
+                    As, Zr, Bi, Ce, Sb, Se, Te, B, Zn, La, N and Fe, each as a percentage, along with the sample type
+                    (BASE or FINAL), pot number and measurement date and time.
+                </p>
+            </div>
+        </div>
+
+        <!-- TROUBLESHOOTING -->
+        <div class="card manual-section" id="troubleshooting">
+            <div class="card-header">
+                <h5><i class="bi bi-life-preserver me-2"></i>Troubleshooting</h5>
+            </div>
+            <div class="card-body">
+                <dl class="mb-0">
+                    <dt>"There is already an entry in progress for this furnace."</dt>
+                    <dd class="mb-3">
+                        That furnace has an open heat. You were redirected into it &mdash; finish it with
+                        <em>Save Entry</em>, or correct it, before starting another.
+                    </dd>
+
+                    <dt>The entry will not save.</dt>
+                    <dd class="mb-3">
+                        Furnace, metal grade, melt technician and furnace operator are all required. The heat number must
+                        be digits only, and the melt temperature must fall between 1300&deg;C and 1560&deg;C. The page
+                        shows which field is at fault at the top.
+                    </dd>
+
+                    <dt>A person or furnace is missing from a dropdown.</dt>
+                    <dd class="mb-3">
+                        They are deactivated, or the person is filed under the other role. An administrator can fix this
+                        under Personnel or Furnaces.
+                    </dd>
+
+                    <dt>A duration shows as 0h 0m 0s.</dt>
+                    <dd class="mb-3">
+                        One of the timestamps it depends on was never captured. Reopen the entry and check which of the
+                        four steps is blank.
+                    </dd>
+
+                    <dt>Lab results are not showing against a heat.</dt>
+                    <dd class="mb-3">
+                        They have not been linked yet. Open the Lab Linker from that heat's row in the Entries list and
+                        attach the base and final samples.
+                    </dd>
+
+                    <dt>"Tin/Copper Issued already recorded for this date."</dt>
+                    <dd class="mb-3">
+                        Issued quantities are recorded once per day. The message names the record that already holds
+                        them &mdash; edit that record instead of adding a second one.
+                    </dd>
+
+                    <dt>Temp Data shows a connection error.</dt>
+                    <dd class="mb-3">
+                        The MeltControl database is unreachable. This is external to the Furnace system; report it to IT.
+                        Everything else keeps working.
+                    </dd>
+
+                    <dt>The lining number looks too high.</dt>
+                    <dd class="mb-0">
+                        It advances by one on <em>every</em> entry save for that furnace. An administrator can set the
+                        correct value on the furnace record.
+                    </dd>
+                </dl>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Highlight the contents entry for whichever section is currently on screen.
+    document.addEventListener('DOMContentLoaded', function () {
+        const links = Array.from(document.querySelectorAll('.manual-toc .list-group-item'));
+        const sections = links
+            .map(link => document.querySelector(link.getAttribute('href')))
+            .filter(Boolean);
+
+        function setActive(id) {
+            links.forEach(link => {
+                link.classList.toggle('active', link.getAttribute('href') === '#' + id);
+            });
+        }
+
+        const observer = new IntersectionObserver(entries => {
+            const visible = entries
+                .filter(entry => entry.isIntersecting)
+                .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+            if (visible) {
+                setActive(visible.target.id);
+            }
+        }, { rootMargin: '-10% 0px -70% 0px', threshold: 0 });
+
+        sections.forEach(section => observer.observe(section));
+    });
+</script>
+{% endblock %}

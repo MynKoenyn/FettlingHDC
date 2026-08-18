@@ -7,11 +7,11 @@
     <div class="col">
         <div class="d-flex justify-content-between align-items-center">
             <div>
-                <h1><i class="fas fa-weight-hanging me-2"></i>Metal Grades</h1>
+                <h1><i class="bi bi-sliders me-2"></i>Metal Grades</h1>
                 <p class="text-muted">Manage metal grade specifications and compositions</p>
             </div>
             <a href="{{ url_for('furnace.new_metal_grade') }}" class="btn btn-primary">
-                <i class="fas fa-plus me-1"></i>Add Metal Grade
+                <i class="bi bi-plus-lg me-1"></i>Add Metal Grade
             </a>
         </div>
     </div>
@@ -53,12 +53,12 @@
                             <td class="action-buttons">
                                 <div class="btn-group btn-group-sm">
                                     <a href="{{ url_for('furnace.edit_metal_grade', id=grade.id) }}" class="btn btn-outline-primary">
-                                        <i class="fas fa-edit"></i>
+                                        <i class="bi bi-pencil"></i>
                                     </a>
                                     <form method="POST" action="{{ url_for('furnace.delete_metal_grade', id=grade.id) }}" style="display: inline;"
                                           data-confirm-title="Remove this metal grade?" data-confirm-label="Remove">
                                         <button type="submit" class="btn btn-outline-danger">
-                                            <i class="fas fa-trash"></i>
+                                            <i class="bi bi-trash3"></i>
                                         </button>
                                     </form>
                                 </div>
@@ -70,11 +70,11 @@
             </div>
         {% else %}
             <div class="text-center py-5">
-                <i class="fas fa-weight-hanging fa-3x text-muted mb-3"></i>
+                <i class="bi bi-sliders text-muted mb-3"></i>
                 <h4>No Metal Grades Found</h4>
                 <p class="text-muted">Get started by adding your first metal grade specification.</p>
                 <a href="{{ url_for('furnace.new_metal_grade') }}" class="btn btn-primary">
-                    <i class="fas fa-plus me-1"></i>Add First Metal Grade
+                    <i class="bi bi-plus-lg me-1"></i>Add First Metal Grade
                 </a>
             </div>
         {% endif %}

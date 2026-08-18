@@ -7,7 +7,7 @@
     <div class="col">
         <div class="d-flex justify-content-between align-items-center">
             <div>
-                <h1><i class="fas fa-plus-circle me-2"></i>Furnace Entries</h1>
+                <h1><i class="bi bi-plus-circle me-2"></i>Furnace Entries</h1>
                 <p class="text-muted">Create and manage furnace operation entries</p>
             </div>
             <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newEntryModal">
@@ -20,7 +20,7 @@
 <!-- Filters -->
 <div class="card mb-4">
     <div class="card-header">
-        <h5><i class="fas fa-filter me-2"></i>Filters</h5>
+        <h5><i class="bi bi-funnel me-2"></i>Filters</h5>
     </div>
     <div class="card-body">
         <form method="GET">
@@ -48,10 +48,10 @@
             
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-outline-primary">
-                    <i class="fas fa-search me-1"></i>Apply Filters
+                    <i class="bi bi-search me-1"></i>Apply Filters
                 </button>
                 <a href="{{ url_for('furnace.entries') }}" class="btn btn-outline-secondary">
-                    <i class="fas fa-times me-1"></i>Clear Filters
+                    <i class="bi bi-x-lg me-1"></i>Clear Filters
                 </a>
             </div>
         </form>
@@ -115,20 +115,20 @@
                                     <a href="{{ url_for('furnace.entry_detail', id=entry.id) }}" 
                                        class="btn btn-outline-primary" 
                                        title="View Details">
-                                        <i class="fas fa-eye"></i>
+                                        <i class="bi bi-eye"></i>
                                     </a>
                                      <!-- Edit button only if status is In Progress -->
                                 {% if entry.status == "In Progress" %}
                                 <a href="{{ url_for('furnace.edit_entry', id=entry.id) }}" 
                                 class="btn btn-outline-secondary" 
                                 title="Edit Entry">
-                                    <i class="fas fa-edit"></i>
+                                    <i class="bi bi-pencil"></i>
                                 </a>
                                 {% endif %}
                                 <a href="{{ url_for('furnace.lab_linker', entry_id=entry.id) }}" 
                                 class="btn btn-outline-success" 
                                 title="Link Lab Results">
-                                    <i class="fas fa-flask"></i> Link Melts to Results
+                                    <i class="bi bi-droplet-half"></i> Link Melts to Results
                                 </a>
 
                                 </div>
@@ -159,18 +159,18 @@
             {% include "_pagination.html" with context %}
         {% else %}
             <div class="text-center py-5">
-                <i class="fas fa-plus-circle fa-3x text-muted mb-3"></i>
+                <i class="bi bi-plus-circle text-muted mb-3"></i>
                 <h4>No Entries Found</h4>
                 {% if request.args %}
                     <p class="text-muted">No entries match your current filters. Try adjusting your search criteria.</p>
                     <a href="{{ url_for('furnace.entries') }}" class="btn btn-outline-secondary me-2">
-                        <i class="fas fa-times me-1"></i>Clear Filters
+                        <i class="bi bi-x-lg me-1"></i>Clear Filters
                     </a>
                 {% else %}
                     <p class="text-muted">Get started by creating your first furnace entry.</p>
                 {% endif %}
                 <a href="{{ url_for('furnace.new_entry') }}" class="btn btn-primary">
-                    <i class="fas fa-plus me-1"></i>Create First Entry
+                    <i class="bi bi-plus-lg me-1"></i>Create First Entry
                 </a>
             </div>
         {% endif %}
@@ -190,7 +190,7 @@
 
                 <div class="modal-header">
                     <h5 class="modal-title">
-                        <i class="fas fa-fire me-2"></i>Select Furnace
+                        <i class="bi bi-fire me-2"></i>Select Furnace
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
@@ -218,7 +218,7 @@
 
                 <div class="modal-footer">
                     <button type="submit" class="btn btn-success">
-                        <i class="fas fa-check me-1"></i>Proceed
+                        <i class="bi bi-check-lg me-1"></i>Proceed
                     </button>
                 </div>
 
