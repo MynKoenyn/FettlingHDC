@@ -1,29 +1,26 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Fettling System{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
+{% extends "base.html" %}
 
-<header>
-    <div class="nav-container">
-        <h1>{% block header %}Fettling Dashboard{% endblock %}</h1>
+{% block extra_head %}
+{% block fettling_head %}{% endblock %}
+{% endblock %}
 
-        <nav>
-            <a href="{{ url_for('dashboard') }}">Home</a>
-            <a href="{{ url_for('fettling.dashboard') }}">Dashboard</a>
-            <a href="{{ url_for('fettling.report') }}">Reports</a>
-            <a href="{{ url_for('logout') }}">Logout</a>
-        </nav>
+{% block content %}
+<div class="hdc-subnav">
+    <div class="hdc-subnav-inner">
+        <div class="hdc-breadcrumb">
+            <a href="{{ url_for('fettling.dashboard') }}" style="color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: .35rem;">
+                <i class="bi bi-tools"></i> Fettling
+            </a>
+            {% block fettling_crumb %}{% endblock %}
+        </div>
+        <div class="hdc-subnav-links">
+            <a href="{{ url_for('fettling.dashboard') }}" class="{{ 'active' if request.endpoint == 'fettling.dashboard' }}"><i class="bi bi-speedometer2"></i> Dashboard</a>
+            <a href="{{ url_for('fettling.entry') }}" class="{{ 'active' if request.endpoint == 'fettling.entry' }}"><i class="bi bi-pencil-square"></i> New Entry</a>
+            <a href="{{ url_for('fettling.report') }}" class="{{ 'active' if request.endpoint == 'fettling.report' }}"><i class="bi bi-bar-chart"></i> Reports</a>
+        </div>
     </div>
-</header>
-
-<main class="container">
-    {% block content %}{% endblock %}
-</main>
-
-</body>
-</html>
+</div>
+<div class="app-container wide">
+{% block fettling_content %}{% endblock %}
+</div>
+{% endblock %}

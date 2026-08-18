@@ -11,10 +11,8 @@ import json
 fettling_bp = Blueprint('fettling', __name__, url_prefix="/fettling")
 
 @fettling_bp.route("/dashboard")
+@login_required
 def dashboard():
-    if "user_id" not in session:
-        return redirect(url_for("login"))
-
     # Fetch last 10 entries for dashboard
     recent_activity = (
         FettlingEntry.query
@@ -43,24 +41,34 @@ def dashboard():
 def entry():
     form = EntryForm()
     
-    # Fetch customers and products
+    # Fetch customers and products. Deactivated products are left off the
+    # picker — entries already booked against them are untouched.
     customers = Customer.query.order_by(Customer.name).all()
-    products = Product.query.order_by(Product.name).all()
-    
-    # Build products_by_customer for JS filtering
+    products = active_products().all()
+
+    # Build products_by_customer for JS filtering.
+    # A product appears under its primary customer AND any customer it is
+    # linked to via the many-to-many relationship.
     products_by_customer = {}
     for p in products:
-        products_by_customer.setdefault(p.customer_id, []).append({
-            "id": p.id,
-            "name": p.name
-        })
+        customer_ids = set()
+        if p.customer_id:
+            customer_ids.add(p.customer_id)
+        for c in p.linked_customers:
+            customer_ids.add(c.id)
+        for cid in customer_ids:
+            products_by_customer.setdefault(cid, []).append({
+                "id": p.id,
+                "name": p.name
+            })
 
     if form.validate_on_submit():
         entry_date = form.entry_date.data
         entries_to_add = []
 
-        # Loop through potential 50 rows
-        for i in range(1, 51):
+        # The entry form adds rows dynamically in the browser (no fixed
+        # count) — 150 is just a generous ceiling on top of that.
+        for i in range(1, 151):
             product_id = request.form.get(f"product_id_{i}")
             quantity = request.form.get(f"quantity_{i}")
 

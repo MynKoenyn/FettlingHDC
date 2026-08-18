@@ -1,142 +1,160 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Data Entry - Fettling</title>
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-<!-- Select2 CSS -->
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<style>
-.global-date { margin-bottom: 2rem; padding: 1.5rem; background: #f8fafc; border-radius: 0.75rem; border: 1px solid #e2e8f0; }
-.submit-container { margin-top: 2rem; text-align: right; }
-.line-col { width: 60px; text-align: center; }
-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-th, td { border: 1px solid #e2e8f0; padding: 0.5rem; text-align: left; }
-th { background-color: #f1f5f9; }
-.select2-container { width: 100% !important; }
-</style>
-</head>
-<body>
-<header>
-    <div class="nav-container">
-        <h1>Daily Entry</h1>
-        <nav>
-            <a href="{{ url_for('dashboard') }}">Dashboard</a>
-            <a href="{{ url_for('logout') }}">Logout</a>
-        </nav>
+{% extends "fettling/base_fettling.html" %}
+
+{% block title %}Daily Entry - Fettling{% endblock %}
+
+{% block fettling_crumb %}
+<i class="bi bi-chevron-right" style="font-size:.65rem; opacity:.5;"></i>
+<span class="current">New Entry</span>
+{% endblock %}
+
+{% block fettling_content %}
+
+<form method="POST" id="fettlingEntryForm">
+    {{ form.hidden_tag() }}
+
+    <div class="app-card" style="margin-bottom: 1.4rem;">
+        <div class="app-card-body" style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+            <label class="app-label" for="entry_date" style="margin:0;">Global Entry Date <span class="req">*</span></label>
+            {{ form.entry_date(class="app-input", value=today, id="entry_date", style="max-width:220px;") }}
+            <span class="app-hint" style="margin:0;">Applied to every line below.</span>
+        </div>
     </div>
-</header>
 
-<div class="container">
-    <form method="POST" class="card" style="width: 1400px; margin: 2rem auto;">
-        <div class="card-inner">
-        {{ form.hidden_tag() }}
-
-        <div class="global-date">
-            <div class="form-group" style="margin-bottom: 0; display: flex; align-items: center; gap: 1rem;">
-                <label style="margin-bottom: 0;"><strong>Global Entry Date:</strong></label>
-                {{ form.entry_date(class="form-control", value=today) }}
+    <div class="app-card">
+        <div class="app-card-head">
+            <h2 class="app-card-title"><i class="bi bi-pencil-square"></i> Line Items</h2>
+            <span class="app-muted" id="lineCountLabel" style="font-size:.82rem;">1 line</span>
+        </div>
+        <div class="app-card-body" style="padding:0;">
+            <div class="app-table-wrap" style="border:none; border-radius:0;">
+                <table class="app-table app-table-stack" id="entryTable">
+                    <thead>
+                        <tr>
+                            <th style="width:44px;">#</th>
+                            <th>Customer</th>
+                            <th>Product</th>
+                            <th style="width:150px;">Quantity</th>
+                            <th style="width:44px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="entryRows"></tbody>
+                </table>
+            </div>
+            <div style="padding: .9rem 1.1rem; border-top: 1px solid #f1f5f9;">
+                <button type="button" id="addLineBtn" class="app-btn app-btn-outline app-btn-sm">
+                    <i class="bi bi-plus-lg"></i> Add another line
+                </button>
             </div>
         </div>
+    </div>
 
-        <table>
-            <thead>
-            <tr>
-                <th class="line-col">#</th>
-                <th>Customer</th>
-                <th>Product</th>
-                <th style="width: 150px;">Quantity</th>
-            </tr>
-            </thead>
-            <tbody>
-            {% for i in range(1, 51) %}
-            <tr>
-                <td>{{ i }}</td>
-                <td>
-                    <select name="customer_{{ i }}" class="customer-select" data-row="{{ i }}">
-                        <option value="">Select Customer...</option>
-                        {% for customer in customers %}
-                        <option value="{{ customer.id }}">{{ customer.name }}</option>
-                        {% endfor %}
-                    </select>
-                </td>
-                <td>
-                    <select name="product_id_{{ i }}" id="product_select_{{ i }}" class="product-select" disabled>
-                        <option value="">Select Customer First</option>
-                    </select>
-                </td>
-                <td>
-                    <input type="number" name="quantity_{{ i }}" min="0">
-                </td>
-            </tr>
-            {% endfor %}
-            </tbody>
-        </table>
+    <div style="margin-top: 1.4rem; text-align:right;">
+        {{ form.submit(class="app-btn app-btn-primary") }}
+    </div>
+</form>
 
-        <div class="submit-container">
-            {{ form.submit(class="btn-submit") }}
-        </div>
-        </div>
-        </form>
-    
-</div>
+<template id="rowTemplate">
+    <tr>
+        <td data-label="#" class="row-num"></td>
+        <td data-label="Customer">
+            <select class="app-select searchable-select customer-select" data-input-class="app-select">
+                <option value="">Select customer&hellip;</option>
+                {% for customer in customers %}
+                <option value="{{ customer.id }}">{{ customer.name }}</option>
+                {% endfor %}
+            </select>
+        </td>
+        <td data-label="Product">
+            <select class="app-select searchable-select product-select" data-input-class="app-select" disabled>
+                <option value="">Select customer first</option>
+            </select>
+        </td>
+        <td data-label="Quantity">
+            <input type="number" class="app-input qty-input" min="0" placeholder="0">
+        </td>
+        <td>
+            <button type="button" class="app-btn app-btn-outline app-btn-sm remove-line" title="Remove line">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </td>
+    </tr>
+</template>
 
-<!-- JS dependencies -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+{% endblock %}
 
+{% block fettling_head %}
+<style>
+    #entryTable .remove-line { color: #dc2626; border-color: #fecaca; }
+    #entryTable .remove-line:hover { background: #fef2f2; border-color: #dc2626; }
+    #entryTable tr:only-child .remove-line { visibility: hidden; }
+</style>
+{% endblock %}
+
+{% block extra_js %}
 <script>
-const productsBySupplier = JSON.parse('{{ products_by_customer | safe }}');
+(function () {
+    const productsBySupplier = JSON.parse('{{ products_by_customer | safe }}');
+    const rowsBody = document.getElementById('entryRows');
+    const template = document.getElementById('rowTemplate');
+    const lineCountLabel = document.getElementById('lineCountLabel');
+    let rowIndex = 0; // ever-increasing — keeps name="..._N" unique even after removals
 
-// Initialize Select2 for all product selects
-function initSelect2(rowIndex) {
-    const productSelect = $(`#product_select_${rowIndex}`);
-    productSelect.select2({
-        placeholder: "Select Product...",
-        allowClear: true,
-        width: 'resolve',
-        matcher: function(params, data) {
-            if ($.trim(params.term) === '') return data; // show all when empty
-            if (data.text.toLowerCase().includes(params.term.toLowerCase())) return data;
-            return null;
-        }
-    });
-}
-
-// Update product dropdown when customer changes
-$('.customer-select').on('change', function() {
-    const rowIndex = $(this).data('row');
-    const customerId = $(this).val();
-    const productSelect = $(`#product_select_${rowIndex}`);
-
-    productSelect.empty().trigger('change'); // clear old options
-
-    if (customerId && productsBySupplier[customerId]) {
-        // Enable select
-        productSelect.prop('disabled', false);
-
-        // Add products
-        const products = productsBySupplier[customerId];
-        products.forEach(p => {
-            const newOption = new Option(p.name, p.id, false, false);
-            productSelect.append(newOption);
-        });
-
-    } else {
-        productSelect.prop('disabled', true);
-        const placeholder = !customerId ? "Select Customer First" : "No products found";
-        const newOption = new Option(placeholder, '', false, false);
-        productSelect.append(newOption);
+    function renumberRows() {
+        const rows = rowsBody.querySelectorAll('tr');
+        rows.forEach((row, i) => { row.querySelector('.row-num').textContent = i + 1; });
+        lineCountLabel.textContent = rows.length + (rows.length === 1 ? ' line' : ' lines');
     }
 
-    initSelect2(rowIndex);
-});
+    function addRow() {
+        rowIndex += 1;
+        const n = rowIndex;
+        const frag = template.content.cloneNode(true);
+        const row = frag.querySelector('tr');
 
-// Initialize all product selects on page load
-{% for i in range(1, 51) %}
-initSelect2({{ i }});
-{% endfor %}
+        const customerSel = row.querySelector('.customer-select');
+        customerSel.name = 'customer_' + n;
+        customerSel.dataset.row = n;
+
+        const productSel = row.querySelector('.product-select');
+        productSel.name = 'product_id_' + n;
+        productSel.id = 'product_select_' + n;
+
+        const qtyInput = row.querySelector('.qty-input');
+        qtyInput.name = 'quantity_' + n;
+
+        row.querySelector('.remove-line').addEventListener('click', function () {
+            if (rowsBody.querySelectorAll('tr').length <= 1) return; // always keep at least one row
+            row.remove();
+            renumberRows();
+        });
+
+        customerSel.addEventListener('change', function () {
+            const customerId = this.value;
+            productSel.innerHTML = '';
+            if (customerId && productsBySupplier[customerId]) {
+                productSel.disabled = false;
+                const placeholder = new Option('Select product…', '', false, false);
+                productSel.appendChild(placeholder);
+                productsBySupplier[customerId].forEach(p => {
+                    productSel.appendChild(new Option(p.name, p.id, false, false));
+                });
+            } else {
+                productSel.disabled = true;
+                productSel.appendChild(new Option(customerId ? 'No products found' : 'Select customer first', '', false, false));
+            }
+            hdcRefreshSearchableSelect(productSel);
+        });
+
+        rowsBody.appendChild(row);
+        hdcEnhanceSearchableSelects(row);
+        renumberRows();
+    }
+
+    document.getElementById('addLineBtn').addEventListener('click', addRow);
+
+    // Start with 5 blank lines — enough for a typical day without the
+    // 50-fixed-rows scroll the old form forced on everyone.
+    for (let i = 0; i < 5; i++) addRow();
+})();
 </script>
-</body>
-</html>
+{% endblock %}

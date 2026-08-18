@@ -1,46 +1,54 @@
 {% extends "fettling/base_fettling.html" %}
 
-{% block content %}
-<div class="card nav-card" style=" width: 1400px; margin : 2rem auto;">
-    <div class="card-inner">
-    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
-        <h2>Welcome, {{ session['username'] }}</h2>
-        <a href="{{ url_for('fettling.entry') }}" class="btn btn-primary">New Daily Entry</a>
-    </div>
+{% block title %}Dashboard - Fettling{% endblock %}
+
+{% block fettling_content %}
+
+<div class="app-card" style="margin-bottom: 1.4rem;">
+    <div class="app-card-body" style="display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
+        <div>
+            <h1 style="margin:0; font-size:1.35rem; font-weight:800; color:#0f172a;">Welcome, {{ current_user.name or current_user.username }}</h1>
+            <p style="margin:.3rem 0 0; color:#64748b; font-size:.9rem;">Capture and review fettling production entries.</p>
+        </div>
+        <a href="{{ url_for('fettling.entry') }}" class="app-btn app-btn-primary"><i class="bi bi-plus-lg"></i> New Daily Entry</a>
     </div>
 </div>
 
-<div class="card" style="width: 1400px; margin: 2rem auto;">
-    <div class="card-inner">
-    <h2 style="color:#3b82f6;">Recent Activity</h2>
-    <div class="table">
-        <table style="background-color:white;">
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Product</th>
-                    <th>Customer</th>
-                    <th>Quantity</th>
-                    <th>User</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for row in recent_activity %}
-                <tr>
-                    <td>{{ row.date.strftime("%d/%m/%Y") }}</td>
-                    <td>{{ row.product }}</td>
-                    <td>{{ row.customer }}</td>
-                    <td>{{ row.quantity }}</td>
-                    <td>{{ row.user }}</td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="5">No recent entries found.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+<div class="app-card">
+    <div class="app-card-head">
+        <h2 class="app-card-title"><i class="bi bi-clock-history"></i> Recent Activity</h2>
+        <a href="{{ url_for('fettling.report') }}" class="app-btn app-btn-outline app-btn-sm"><i class="bi bi-bar-chart"></i> Full report</a>
     </div>
+    <div class="app-card-body">
+        {% if recent_activity %}
+        <div class="app-table-wrap">
+            <table class="app-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Product</th>
+                        <th>Customer</th>
+                        <th class="num">Quantity</th>
+                        <th>User</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in recent_activity %}
+                    <tr>
+                        <td>{{ row.date.strftime("%d %b %Y") }}</td>
+                        <td>{{ row.product }}</td>
+                        <td>{{ row.customer }}</td>
+                        <td class="num">{{ '{:,}'.format(row.quantity) }}</td>
+                        <td>{{ row.user }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="app-empty"><i class="bi bi-inbox"></i> No recent entries found. <a href="{{ url_for('fettling.entry') }}">Capture the first one</a>.</div>
+        {% endif %}
     </div>
 </div>
+
 {% endblock %}
