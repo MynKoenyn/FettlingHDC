@@ -10,9 +10,9 @@
     --surface:   #ffffff;
     --surface-2: #f5f8fc;
     --surface-3: #edf2f9;
-    --brand:     #1a5cff;
-    --brand-dk:  #0f40cc;
-    --brand-lt:  #dce9ff;
+    --brand:     #2C5282;
+    --brand-dk:  #1F3A61;
+    --brand-lt:  #dbe5ee;
     --success:   #0ea66e;
     --success-lt:#d1fae5;
     --danger:    #e53e3e;
@@ -22,7 +22,7 @@
     --shadow-sm: 0 1px 3px rgba(15,25,35,.08);
   }
 
-  body { background: var(--surface-2); font-family: 'DM Sans', sans-serif; color: var(--ink); }
+  body { background: var(--surface-2); font-family: 'Inter', sans-serif; color: var(--ink); }
 
   /* ── Page header ── */
   .page-header {
@@ -31,7 +31,7 @@
     padding: 1.2rem 2rem;
     display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .75rem;
   }
-  .page-header h1 { font-family:'DM Serif Display',serif; font-size:1.4rem; font-weight:400; margin:0; }
+  .page-header h1 { font-family:'Inter',sans-serif; font-size:1.4rem; font-weight:800; margin:0; }
   .breadcrumb-custom { font-size:.8rem; color:var(--ink-muted); display:flex; align-items:center; gap:.4rem; }
   .breadcrumb-custom a { color:var(--brand); text-decoration:none; }
   .session-meta {
@@ -83,7 +83,7 @@
     border: 2px solid var(--brand);
     border-radius: var(--radius);
     font-size: 1rem;
-    font-family: 'DM Sans', sans-serif;
+    font-family: 'Inter', sans-serif;
     outline: none;
     background: var(--brand-lt);
     color: var(--ink);
@@ -150,7 +150,7 @@
   .form-control-custom {
     width:100%; padding:.65rem .9rem;
     border:1.5px solid var(--surface-3);
-    border-radius:var(--radius); font-family:'DM Sans',sans-serif;
+    border-radius:var(--radius); font-family:'Inter',sans-serif;
     font-size:.9rem; color:var(--ink); background:var(--surface);
     box-sizing:border-box; outline:none; transition:border-color .15s, box-shadow .15s;
   }
@@ -165,7 +165,7 @@
   /* Submit btn */
   .btn-add {
     width:100%; padding:.8rem; background:var(--brand); color:#fff;
-    border:none; border-radius:var(--radius); font-family:'DM Sans',sans-serif;
+    border:none; border-radius:var(--radius); font-family:'Inter',sans-serif;
     font-size:.95rem; font-weight:700; cursor:pointer; transition:background .15s;
     display:flex; align-items:center; justify-content:center; gap:.5rem;
   }
@@ -250,7 +250,7 @@
   .flash.info    { background:var(--brand-lt); color:var(--brand-dk); }
   .flash.danger  { background:var(--danger-lt); color:var(--danger); }
 </style>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 {% endblock %}
 
 {% block content %}

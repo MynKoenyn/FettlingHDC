@@ -10,9 +10,9 @@
     --surface:   #ffffff;
     --surface-2: #f5f8fc;
     --surface-3: #edf2f9;
-    --brand:     #1a5cff;
-    --brand-dk:  #0f40cc;
-    --brand-lt:  #dce9ff;
+    --brand:     #2C5282;
+    --brand-dk:  #1F3A61;
+    --brand-lt:  #dbe5ee;
     --success:   #0ea66e;
     --success-lt:#d1fae5;
     --danger:    #e53e3e;
@@ -22,7 +22,7 @@
     --radius:    10px;
     --shadow-sm: 0 1px 3px rgba(15,25,35,.08);
   }
-  body { background:var(--surface-2); font-family:'DM Sans',sans-serif; color:var(--ink); }
+  body { background:var(--surface-2); font-family:'Inter',sans-serif; color:var(--ink); }
 
   /* ── Page header ── */
   .page-header {
@@ -30,7 +30,7 @@
     padding:1.2rem 2rem; display:flex; align-items:center;
     justify-content:space-between; flex-wrap:wrap; gap:.75rem;
   }
-  .page-header h1 { font-family:'DM Serif Display',serif; font-size:1.4rem; font-weight:400; margin:0; }
+  .page-header h1 { font-family:'Inter',sans-serif; font-size:1.4rem; font-weight:800; margin:0; }
   .breadcrumb-custom { font-size:.8rem; color:var(--ink-muted); display:flex; align-items:center; gap:.4rem; }
   .breadcrumb-custom a { color:var(--brand); text-decoration:none; }
 
@@ -43,7 +43,7 @@
                     letter-spacing:.06em; color:var(--ink-muted); }
   #date-picker {
     padding:.45rem .8rem; border:1.5px solid var(--surface-3); border-radius:var(--radius);
-    font-family:'DM Sans',sans-serif; font-size:.875rem; color:var(--ink);
+    font-family:'Inter',sans-serif; font-size:.875rem; color:var(--ink);
     outline:none; transition:border-color .15s;
   }
   #date-picker:focus { border-color:var(--brand); }
@@ -162,12 +162,14 @@
 
 /* numeric alignment */
 .session-table td:nth-child(3),
-.session-table td:nth-child(4) {
+.session-table td:nth-child(4),
+.session-table td:nth-child(6) {
   text-align: right;
 }
 
 .session-table th:nth-child(3),
-.session-table th:nth-child(4) {
+.session-table th:nth-child(4),
+.session-table th:nth-child(6) {
   text-align: right;
 }
 
@@ -177,7 +179,7 @@
   font-weight: 700;
 }
 </style>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 {% endblock %}
 
 {% block content %}
@@ -252,6 +254,19 @@
       {{ '%+.0f'|format(net) }}
     </div>
   </div> -->
+  {% if can('stocktake', 'value') %}
+  <div class="summary-card">
+    <div class="summary-label">Count Value</div>
+    <div class="summary-value">R {{ '{:,.2f}'.format(report_total_value) }}</div>
+  </div>
+  {% set day_bin_value = header_stats.values() | sum(attribute='bin_value') %}
+  {% if day_bin_value %}
+  <div class="summary-card">
+    <div class="summary-label">Bin Value</div>
+    <div class="summary-value">R {{ '{:,.2f}'.format(day_bin_value) }}</div>
+  </div>
+  {% endif %}
+  {% endif %}
 </div>
           <!-- ── PIVOT REPORT VIEW (NEW STRUCTURE) ── -->
           {% if report %}
@@ -280,10 +295,12 @@
                       <th>Fettling</th>
                       <th>Paint Bay</th>
                       <th>Knock Off</th>
+                      <th>HDA</th>
 
                       <th>Total Book</th>
                       <th>Total Count</th>
                       <th>Variance</th>
+                      {% if can('stocktake', 'value') %}<th>Value</th>{% endif %}
                     </tr>
                   </thead>
 
@@ -307,6 +324,8 @@
                       <!-- Department 3 -->
                       <td>{{d.departments.get(3, {}).get('count', 0) | int }}</td>
 
+                      <!-- Department 4 -->
+                      <td>{{d.departments.get(4, {}).get('count', 0) | int }}</td>
                       <td>{{ d.total_book | int }}</td>
                         <td>{{ d.total_count | int }}</td>
 
@@ -317,11 +336,37 @@
                           </span>
                         </td>
 
+                        {% if can('stocktake', 'value') %}
+                        <td>
+                          {% if d.has_price %}
+                            R {{ '{:,.2f}'.format(d.total_value) }}
+                          {% else %}
+                            <span style="color:var(--ink-muted);font-size:.78rem;">No price</span>
+                          {% endif %}
+                        </td>
+                        {% endif %}
+
                     </tr>
 
                     {% endfor %}
 
                   </tbody>
+
+                  <tfoot>
+                    <tr>
+                      <td colspan="2">Totals</td>
+                      <td>{{ report_totals.departments.get(1, 0) | int }}</td>
+                      <td>{{ report_totals.departments.get(2, 0) | int }}</td>
+                      <td>{{ report_totals.departments.get(3, 0) | int }}</td>
+                      <td>{{ report_totals.departments.get(4, 0) | int }}</td>
+                      <td>{{ report_totals.book | int }}</td>
+                      <td>{{ report_totals.count | int }}</td>
+                      <td>{{ report_totals.variance | int }}</td>
+                      {% if can('stocktake', 'value') %}
+                      <td>R {{ '{:,.2f}'.format(report_totals.value) }}</td>
+                      {% endif %}
+                    </tr>
+                  </tfoot>
 
                 </table>
               </div>
@@ -360,31 +405,82 @@
           <th>Book Stock</th>
           <th>Count</th>
           <th>Notes</th>
+          {% if can('stocktake', 'value') %}<th>Value</th>{% endif %}
         </tr>
       </thead>
       <tbody>
         {% for line in h.lines %}
         <tr>
           <td style="color:var(--ink-soft);font-size:.8rem;">{{ line.customer.name }}</td>
-          <td><strong>{{ line.product.name }}</strong></td>
+          <td><strong>{{ line.product.simplified_code }}</strong></td>
           <td>{{ line.current_stock | int }}</td>
           <td>{{ line.count_value | int }}</td>
           <td style="font-size:.78rem;color:var(--ink-muted);">{{ line.line_notes or '' }}</td>
+          {% if can('stocktake', 'value') %}
+          <td>
+            {% if line.value is not none %}
+              R {{ '{:,.2f}'.format(line.value) }}
+            {% else %}
+              <span style="color:var(--ink-muted);font-size:.78rem;">No price</span>
+            {% endif %}
+          </td>
+          {% endif %}
         </tr>
         {% endfor %}
       </tbody>
       <tfoot>
         <tr>
           <td colspan="2">Totals</td>
-          <td></td>
+          <td>{{ h.lines|sum(attribute='current_stock') | int }}</td>
           <td>{{ h.lines|sum(attribute='count_value') | int }}</td>
-
           <td></td>
+          {% if can('stocktake', 'value') %}
+          <td>R {{ '{:,.2f}'.format(stats.value) }}</td>
+          {% endif %}
         </tr>
       </tfoot>
     </table>
     {% else %}
       <div class="empty-state" style="padding:1.5rem;">No lines in this session yet.</div>
+    {% endif %}
+
+    {% if h.bin_lines %}
+    <table class="session-table">
+      <thead>
+        <tr>
+          <th>Bin Type</th>
+          <th>Bins</th>
+          <th>Weight (kg)</th>
+          {% if can('stocktake', 'value') %}<th>Value</th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for bl in h.bin_lines %}
+        <tr>
+          <td>{{ bl.label }}</td>
+          <td>{{ bl.bin_count }}</td>
+          <td>{{ '%.0f'|format(bl.weight_kg) }}</td>
+          {% if can('stocktake', 'value') %}
+          <td>
+            {% if bl.value is not none %}
+              R {{ '{:,.2f}'.format(bl.value) }}
+            {% else %}
+              <span style="color:var(--ink-muted);font-size:.78rem;">No rate</span>
+            {% endif %}
+          </td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+      {% if can('stocktake', 'value') %}
+      <tfoot>
+        <tr>
+          <td colspan="3">Bin Value Total</td>
+          <td>R {{ '{:,.2f}'.format(stats.bin_value) }}</td>
+        </tr>
+      </tfoot>
+      {% endif %}
+    </table>
     {% endif %}
   </div>
 {% endfor %}

@@ -6,23 +6,23 @@
   :root {
     --ink:      #0f1923; --ink-soft:#4a5568; --ink-muted:#94a3b8;
     --surface:  #ffffff; --surface-2:#f5f8fc; --surface-3:#edf2f9;
-    --brand:    #1a5cff; --brand-dk:#0f40cc; --brand-lt:#dce9ff;
+    --brand:    #2C5282; --brand-dk:#1F3A61; --brand-lt:#dbe5ee;
     --radius:   10px; --shadow-sm:0 1px 3px rgba(15,25,35,.08);
   }
-  body { background:var(--surface-2); font-family:'DM Sans',sans-serif; color:var(--ink); }
+  body { background:var(--surface-2); font-family:'Inter',sans-serif; color:var(--ink); }
 
   .page-header {
     background:var(--surface); border-bottom:1px solid var(--surface-3);
     padding:1.2rem 2rem; display:flex; align-items:center;
     justify-content:space-between; flex-wrap:wrap; gap:.75rem;
   }
-  .page-header h1 { font-family:'DM Serif Display',serif; font-size:1.4rem; font-weight:400; margin:0; }
+  .page-header h1 { font-family:'Inter',sans-serif; font-size:1.4rem; font-weight:800; margin:0; }
   .breadcrumb-custom { font-size:.8rem; color:var(--ink-muted); display:flex; align-items:center; gap:.4rem; }
   .breadcrumb-custom a { color:var(--brand); text-decoration:none; }
 
   .form-wrap { max-width:520px; margin:2rem auto; padding:0 1rem; }
   .form-card { background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow-sm); padding:2rem; }
-  .form-card h2 { font-family:'DM Serif Display',serif; font-size:1.2rem; font-weight:400;
+  .form-card h2 { font-family:'Inter',sans-serif; font-size:1.2rem; font-weight:700;
                   margin:0 0 1.5rem; color:var(--ink); }
 
   .form-row { margin-bottom:1.2rem; }
@@ -31,7 +31,7 @@
   .form-control-custom {
     width:100%; padding:.65rem .9rem;
     border:1.5px solid var(--surface-3); border-radius:var(--radius);
-    font-family:'DM Sans',sans-serif; font-size:.9rem; color:var(--ink);
+    font-family:'Inter',sans-serif; font-size:.9rem; color:var(--ink);
     background:var(--surface); box-sizing:border-box; outline:none;
     transition:border-color .15s, box-shadow .15s;
   }
@@ -54,7 +54,7 @@
 
   .btn-submit {
     width:100%; padding:.8rem; background:var(--brand); color:#fff;
-    border:none; border-radius:var(--radius); font-family:'DM Sans',sans-serif;
+    border:none; border-radius:var(--radius); font-family:'Inter',sans-serif;
     font-size:.95rem; font-weight:700; cursor:pointer; margin-top:.5rem;
     transition:background .15s;
   }
@@ -65,7 +65,7 @@
   }
   .btn-cancel:hover { color:var(--brand); }
 </style>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 {% endblock %}
 
 {% block content %}

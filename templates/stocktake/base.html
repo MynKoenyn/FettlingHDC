@@ -8,7 +8,7 @@
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <!-- app-shell.css only for its .app-pagination component — this module's
        own classes are a distinct namespace, so nothing else collides. -->
   <link rel="stylesheet" href="{{ url_for('static', filename='app-shell.css') }}">
@@ -18,11 +18,14 @@
        DESIGN TOKENS
     ══════════════════════════════════════════ */
     :root {
-      /* Brand */
-      --brand:      #1a5cff;
-      --brand-dk:   #0f40cc;
-      --brand-lt:   #dce9ff;
-      --brand-xlt:  #f0f5ff;
+      /* Brand — aligned to the house palette (templates/base.html /
+         app-shell.css) so Stocktake's own components render in the same
+         blue/Inter as the rest of the app instead of their own bright
+         blue + DM Sans/DM Serif. */
+      --brand:      #2C5282;
+      --brand-dk:   #1F3A61;
+      --brand-lt:   #dbe5ee;
+      --brand-xlt:  #eef2f7;
 
       /* Ink */
       --ink:        #0f1923;
@@ -66,7 +69,7 @@
     html { font-size: 16px; -webkit-font-smoothing: antialiased; }
 
     body {
-      font-family: 'DM Sans', sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
       background: var(--surface-2);
       color: var(--ink);
       min-height: 100vh;
@@ -114,14 +117,15 @@
     }
     .sidebar-logo .logo-mark svg { width: 18px; height: 18px; color: #fff; }
     .sidebar-logo .logo-text {
-      font-family: 'DM Serif Display', serif;
+      font-family: 'Inter', sans-serif;
+      font-weight: 800;
       font-size: 1.1rem;
       color: #fff;
       line-height: 1.1;
     }
     .sidebar-logo .logo-text span {
       display: block;
-      font-family: 'DM Sans', sans-serif;
+      font-family: 'Inter', sans-serif;
       font-size: .65rem;
       font-weight: 600;
       letter-spacing: .1em;
@@ -261,7 +265,7 @@
       border: 1.5px solid var(--surface-3);
       border-radius: var(--radius);
       padding: .4rem .85rem;
-      font-family: 'DM Sans', sans-serif;
+      font-family: 'Inter', sans-serif;
       font-size: .8rem;
       font-weight: 600;
       color: var(--ink-soft);
@@ -363,7 +367,7 @@
       display: inline-flex; align-items: center; gap: .45rem;
       padding: .55rem 1.2rem;
       border-radius: var(--radius);
-      font-family: 'DM Sans', sans-serif;
+      font-family: 'Inter', sans-serif;
       font-size: .875rem; font-weight: 600;
       border: none; cursor: pointer;
       text-decoration: none;
@@ -460,7 +464,7 @@
       padding: .62rem .9rem;
       border: 1.5px solid var(--surface-3);
       border-radius: var(--radius);
-      font-family: 'DM Sans', sans-serif;
+      font-family: 'Inter', sans-serif;
       font-size: .9rem; color: var(--ink);
       background: var(--surface);
       outline: none;
@@ -501,8 +505,8 @@
       flex-wrap: wrap; gap: .75rem;
     }
     .page-header-block h1 {
-      font-family: 'DM Serif Display', serif;
-      font-size: 1.55rem; font-weight: 400;
+      font-family: 'Inter', sans-serif;
+      font-size: 1.55rem; font-weight: 800;
       color: var(--ink); margin: 0;
     }
     .breadcrumb {

@@ -1,0 +1,164 @@
+{% extends "stocktake/base.html" %}
+{% block title %}HDA Bin Rates{% endblock %}
+
+{% block head_extra %}
+<style>
+  :root {
+    --ink:      #0f1923; --ink-soft:#4a5568; --ink-muted:#94a3b8;
+    --surface:  #ffffff; --surface-2:#f5f8fc; --surface-3:#edf2f9;
+    --brand:    #2C5282; --brand-dk:#1F3A61; --brand-lt:#dbe5ee;
+    --success:  #0ea66e; --success-lt:#d1fae5;
+    --radius:   10px; --shadow-sm:0 1px 3px rgba(15,25,35,.08);
+  }
+  body { background:var(--surface-2); font-family:'Inter',sans-serif; color:var(--ink); }
+
+  .page-header {
+    background:var(--surface); border-bottom:1px solid var(--surface-3);
+    padding:1.2rem 2rem; display:flex; align-items:center;
+    justify-content:space-between; flex-wrap:wrap; gap:.75rem;
+  }
+  .page-header h1 { font-family:'Inter',sans-serif; font-size:1.4rem; font-weight:800; margin:0; }
+  .breadcrumb-custom { font-size:.8rem; color:var(--ink-muted); display:flex; align-items:center; gap:.4rem; }
+  .breadcrumb-custom a { color:var(--brand); text-decoration:none; }
+
+  .page-body { padding:1.5rem 2rem 2rem; display:grid; grid-template-columns:340px 1fr; gap:1.25rem; align-items:start; }
+  @media(max-width:860px){ .page-body { grid-template-columns:1fr; } }
+
+  .form-card, .lines-panel {
+    background:var(--surface); border-radius:var(--radius); box-shadow:var(--shadow-sm);
+  }
+  .form-card { padding:1.5rem; }
+  .form-card h2 { font-family:'Inter',sans-serif; font-size:1.1rem; font-weight:700;
+                  margin:0 0 1.25rem; color:var(--ink); }
+
+  .form-row { margin-bottom:1.1rem; }
+  .form-label { display:block; font-size:.75rem; font-weight:700; text-transform:uppercase;
+                letter-spacing:.06em; color:var(--ink-soft); margin-bottom:.4rem; }
+  .form-control-custom {
+    width:100%; padding:.65rem .9rem;
+    border:1.5px solid var(--surface-3); border-radius:var(--radius);
+    font-family:'Inter',sans-serif; font-size:.9rem; color:var(--ink);
+    background:var(--surface); box-sizing:border-box; outline:none;
+    transition:border-color .15s, box-shadow .15s;
+  }
+  .form-control-custom:focus { border-color:var(--brand); box-shadow:0 0 0 3px var(--brand-lt); }
+  .form-errors { margin-top:.35rem; }
+  .form-errors span { color:#e53e3e; font-size:.78rem; }
+
+  .btn-submit {
+    width:100%; padding:.8rem; background:var(--brand); color:#fff;
+    border:none; border-radius:var(--radius); font-family:'Inter',sans-serif;
+    font-size:.95rem; font-weight:700; cursor:pointer; margin-top:.25rem;
+    transition:background .15s;
+  }
+  .btn-submit:hover { background:var(--brand-dk); }
+
+  .current-rate-chip {
+    background:var(--success-lt); color:var(--success); font-weight:700;
+    padding:.6rem .9rem; border-radius:var(--radius); font-size:.85rem; margin-bottom:1.25rem;
+  }
+
+  .lines-panel-header {
+    padding:.9rem 1.4rem; border-bottom:1px solid var(--surface-3);
+  }
+  .lines-panel-header h2 { font-size:.82rem; font-weight:700; text-transform:uppercase;
+                            letter-spacing:.07em; color:var(--ink-soft); margin:0; }
+  .data-table { width:100%; border-collapse:collapse; font-size:.875rem; }
+  .data-table th {
+    padding:.6rem 1rem; text-align:left; font-size:.68rem; font-weight:700;
+    text-transform:uppercase; letter-spacing:.07em; color:var(--ink-muted);
+    background:var(--surface-2); border-bottom:1px solid var(--surface-3);
+  }
+  .data-table td { padding:.7rem 1rem; border-bottom:1px solid var(--surface-3); }
+  .data-table tr:last-child td { border-bottom:none; }
+  .empty-state { padding:3rem; text-align:center; color:var(--ink-muted); font-size:.875rem; }
+
+  .flash-wrap { padding:.75rem 2rem 0; }
+  .flash { padding:.75rem 1.1rem; border-radius:var(--radius); font-size:.875rem; margin-bottom:.5rem; }
+  .flash.success { background:var(--success-lt); color:var(--success); }
+  .flash.warning { background:#fef3c7; color:#d97706; }
+  .flash.info    { background:var(--brand-lt); color:var(--brand-dk); }
+  .flash.danger  { background:#fee2e2; color:#e53e3e; }
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <div class="breadcrumb-custom">
+      <a href="{{ url_for('stocktake.dashboard') }}">Stocktake</a>
+      <span>›</span>
+      <span>HDA Bin Rates</span>
+    </div>
+    <h1>HDA Bin Rate (R/KG)</h1>
+  </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="flash-wrap">
+      {% for cat, msg in messages %}
+        <div class="flash {{ cat }}">{{ msg }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+<div class="page-body">
+  <div class="form-card">
+    <h2>Set New Rate</h2>
+    {% if current_rate %}
+      <div class="current-rate-chip">
+        Current: R{{ '%.2f'|format(current_rate.rate_per_kg) }}/KG
+        (since {{ current_rate.effective_date.strftime('%d %b %Y') }})
+      </div>
+    {% else %}
+      <div class="current-rate-chip" style="background:#fee2e2;color:#e53e3e;">No rate set yet</div>
+    {% endif %}
+
+    <form method="POST">
+      {{ form.hidden_tag() }}
+      <div class="form-row">
+        {{ form.effective_date.label(class="form-label") }}
+        {{ form.effective_date(class="form-control-custom") }}
+        {% if form.effective_date.errors %}
+          <div class="form-errors">{% for e in form.effective_date.errors %}<span>{{ e }}</span>{% endfor %}</div>
+        {% endif %}
+      </div>
+      <div class="form-row">
+        {{ form.rate_per_kg.label(class="form-label") }}
+        {{ form.rate_per_kg(class="form-control-custom", placeholder="e.g. 46.13") }}
+        {% if form.rate_per_kg.errors %}
+          <div class="form-errors">{% for e in form.rate_per_kg.errors %}<span>{{ e }}</span>{% endfor %}</div>
+        {% endif %}
+      </div>
+      <button type="submit" class="btn-submit">Save Rate</button>
+    </form>
+  </div>
+
+  <div class="lines-panel">
+    <div class="lines-panel-header"><h2>Rate History</h2></div>
+    {% if rates %}
+    <table class="data-table">
+      <thead>
+        <tr><th>Effective Date</th><th>Rate (R/KG)</th><th>Set By</th></tr>
+      </thead>
+      <tbody>
+        {% for r in rates %}
+        <tr>
+          <td>{{ r.effective_date.strftime('%d %b %Y') }}</td>
+          <td>R{{ '%.2f'|format(r.rate_per_kg) }}</td>
+          <td>{{ r.user.name if r.user else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+      <div class="empty-state">No rates captured yet.</div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}
