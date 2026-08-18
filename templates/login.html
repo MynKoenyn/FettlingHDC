@@ -3,37 +3,47 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Login - Fettling</title>
+<title>Login - HDC</title>
 
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-
 
 </head>
 
 <body>
 
-<div class="container">
+<div style="position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); width:350px;">
 
-    <div class="card login-box">
+    <div class="card login-box shadow">
 
-        <h1 class="login-title">Fettling Login</h1>
+        <h1 class="login-title text-center">HDC MES Login</h1>
 
-        {% if error %}
-            <div class="error">{{ error }}</div>
-        {% endif %}
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ category }}" role="alert" style="margin-bottom:1rem;">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
 
         <form method="POST">
 
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-            <div class="form-group">
+            <div class="form-group mb-3">
                 <label>Username</label>
-                <input type="text" name="username" required placeholder="admin">
+                <input type="text" name="username" required placeholder="admin" class="form-control">
             </div>
 
-            <div class="form-group">
+            <div class="form-group mb-3">
                 <label>Password</label>
-                <input type="password" name="password" required placeholder="••••••••">
+                <input type="password" name="password" required placeholder="••••••••" class="form-control">
+            </div>
+
+            <div class="form-group mb-3">
+                <label style="display:flex; align-items:center; gap:0.5rem; font-weight:normal;">
+                    <input type="checkbox" name="remember" value="1" checked>
+                    Remember me
+                </label>
             </div>
 
             <button type="submit" class="btn btn-primary" style="width:100%; margin-top:1rem;">
