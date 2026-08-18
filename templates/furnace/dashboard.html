@@ -1,0 +1,345 @@
+{% extends "furnace/base_furnace.html" %}
+
+{% block title %}Furnace Dashboard{% endblock %}
+
+{% block styles %}
+<style>
+  .furnace-details > summary { cursor: pointer; list-style: none; display: flex; align-items: center; }
+  .furnace-details > summary::-webkit-details-marker { display: none; }
+  .furnace-details > summary::before {
+    content: ""; display: inline-block; width: 0; height: 0; margin-right: .7rem; flex: none;
+    border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-left: 6px solid #6c757d;
+    transition: transform .15s;
+  }
+  .furnace-details[open] > summary::before { transform: rotate(90deg); }
+  .furnace-details > summary:hover { background: #f1f3f5; }
+</style>
+{% endblock %}
+
+{% block furnace_content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1><i class="bi bi-speedometer2 me-2"></i>Furnace Dashboard</h1>
+        <p class="text-muted">Overview of furnace operations and recent activity</p>
+    </div>
+</div>
+
+<!-- Stats Cards -->
+<div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card stat-card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">Active Furnaces</h5>
+                        <h2 class="mb-0">{{ total_furnaces }}</h2>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-fire" style="font-size:1.6rem;" ></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card stat-card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">Melting Personnel</h5>
+                        <h2 class="mb-0">{{ total_personnel }}</h2>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-people" style="font-size:1.6rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card stat-card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">Metal Grades</h5>
+                        <h2 class="mb-0">{{ total_grades }}</h2>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-weight" style="font-size:1.6rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card stat-card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">Today's Entries</h5>
+                        <h2 class="mb-0">{{ today_entries }}</h2>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-list-check" style="font-size:1.6rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% if furnaces_data %}
+<div class="row">
+    {% for furnace_data in furnaces_data %}
+    <div class="col-lg-3 col-md-6 mb-4">
+        <div class="card text-white bg-primary h-100">
+            <div class="card-body">
+                <h5 class="card-title"><i class="bi bi-fire me-2"></i>{{ furnace_data.furnace.name }} Furnace</h5>
+                <p class="card-text mb-1"><small>Lining #{{ furnace_data.furnace.current_lining_number }}</small></p>
+                <p class="card-text mb-1"><small>Entries Today: {{ furnace_data.entries_today }}</small></p>
+                <p class="card-text mb-0">
+                    Current Entry ID:
+                    {% if furnace_data.current_entry_id %}
+                        <a href="{{ url_for('furnace.edit_entry', id=furnace_data.current_entry_id) }}" class="badge bg-success text-decoration-none">{{ furnace_data.current_entry_id }}</a>
+                    {% else %}
+                        <span class="badge bg-secondary">Idle</span>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<p class="text-muted">No active furnaces found.
+    {% if can('furnace', 'admin') %}<a href="{{ url_for('furnace.new_furnace') }}">Add your first furnace</a>.{% endif %}
+</p>
+{% endif %}
+
+<!-- Furnace Data — collapsed by default: a wall of 13 mostly-zero rows per
+     furnace isn't worth showing on every dashboard load, but the figures
+     stay one click away rather than moved to a separate page. -->
+<div class="row">
+    <div class="col">
+        <details class="card furnace-details">
+            <summary class="card-header">
+                <h5 class="d-inline-block mb-0"><i class="bi bi-fire me-2"></i>Per Furnace Materials - Today's Usage</h5>
+                <span class="text-muted small ms-2">({{ furnaces_data|length }} furnace{{ 's' if furnaces_data|length != 1 }} — click to expand)</span>
+            </summary>
+            <div class="card-body">
+                {% if furnaces_data %}
+                    <div class="row">
+                        {% for furnace_data in furnaces_data %}
+                        <div class="col-lg-6 mb-4">
+                            <div class="card border-left-primary">
+                                <div class="card-header bg-primary text-white">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <h5 class="mb-0"><i class="fas fa-fire me-2"></i>{{ furnace_data.furnace.name }} Furnace</h5>
+                                        <div class="text-end">
+                                            <small>Lining #{{ furnace_data.furnace.current_lining_number }}</small><br>
+                                            <small>{{ furnace_data.entries_today }} entries today</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-6">
+                                            <h6 class="text-muted mb-3">Base Materials</h6>
+                                            <table class="table table-sm table-borderless">
+                                                <tr>
+                                                    <td><small>Cast Iron:</small></td>
+                                                    <td class="text-end"><small><strong>{{ "%.1f"|format(furnace_data.accumulated_materials.cast_iron) }} kg</strong></small></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><small>Steel Scrap:</small></td>
+                                                    <td class="text-end"><small><strong>{{ "%.1f"|format(furnace_data.accumulated_materials.steel_scrap) }} kg</strong></small></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><small>Pig Iron:</small></td>
+                                                    <td class="text-end"><small><strong>{{ "%.1f"|format(furnace_data.accumulated_materials.pig_iron) }} kg</strong></small></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><small>Recarb:</small></td>
+                                                    <td class="text-end"><small><strong>{{ "%.1f"|format(furnace_data.accumulated_materials.recarb) }} kg</strong></small></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><small>Ferrosilicon:</small></td>
+                                                    <td class="text-end"><small><strong>{{ "%.1f"|format(furnace_data.accumulated_materials.ferrosilicon) }} kg</strong></small></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><small>Ferromanganese:</small></td>
+                                                    <td class="text-end"><small><strong>{{ "%.1f"|format(furnace_data.accumulated_materials.ferromanganese) }} kg</strong></small></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><small>Iron Sulfide:</small></td>
+                                                    <td class="text-end"><small><strong>{{ "%.1f"|format(furnace_data.accumulated_materials.iron_sulfide) }} kg</strong></small></td>
+                                                </tr>
+                                            </table>
+                                        </div>
+                                        <div class="col-6">
+                                            <h6 class="text-muted mb-3">Additional Materials</h6>
+                                            <table class="table table-sm table-borderless">
+                                                <tr>
+                                                    <td><small>Add. Recarb:</small></td>
+                                                    <td class="text-end"><small><strong>{{ "%.1f"|format(furnace_data.accumulated_materials.additional_recarb) }} kg</strong></small></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><small>Add. FeSi:</small></td>
+                                                    <td class="text-end"><small><strong>{{ "%.1f"|format(furnace_data.accumulated_materials.additional_fesi) }} kg</strong></small></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><small>Add. FeMn:</small></td>
+                                                    <td class="text-end"><small><strong>{{ "%.1f"|format(furnace_data.accumulated_materials.additional_femn) }} kg</strong></small></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><small>Add. Iron Sulfide:</small></td>
+                                                    <td class="text-end"><small><strong>{{ "%.1f"|format(furnace_data.accumulated_materials.additional_iron_sulfide) }} kg</strong></small></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><small>Tin:</small></td>
+                                                    <td class="text-end"><small><strong>{{ "%.1f"|format(furnace_data.accumulated_materials.tin) }} kg</strong></small></td>
+                                                </tr>
+                                                <tr>
+                                                    <td><small>Copper:</small></td>
+                                                    <td class="text-end"><small><strong>{{ "%.1f"|format(furnace_data.accumulated_materials.copper) }} kg</strong></small></td>
+                                                </tr>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    <div class="row mt-3">
+                                        <div class="col-12">
+                                            <div class="p-3 bg-success text-white text-center rounded">
+                                                <h6 class="mb-0 text-white">Total {{ furnace_data.furnace.name }} Furnace Materials Today</h6>
+                                                <h4 class="mb-0 text-white">{{ "%.1f"|format(furnace_data.total_today) }} kg</h4>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted">No active furnaces found.</p>
+                {% endif %}
+            </div>
+        </details>
+    </div>
+</div>
+
+<!-- All Furnaces Combined Data — the one number that matters (grand total)
+     is visible in the summary; the itemized breakdown is one click away. -->
+<div class="row">
+    <div class="col">
+        <details class="card furnace-details">
+            <summary class="card-header">
+                <h5 class="d-inline-block mb-0"><i class="bi bi-bar-chart me-2"></i>All Furnaces Combined - Today's Total Materials</h5>
+                {% if all_furnaces_totals %}
+                <span class="badge bg-danger ms-2" style="font-size:.9rem;">{{ "%.1f"|format(all_furnaces_total) }} kg total</span>
+                {% endif %}
+                <span class="text-muted small ms-2">(click to expand)</span>
+            </summary>
+            <div class="card-body">
+                {% if all_furnaces_totals %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-muted mb-3">Base Materials Total</h6>
+                            <table class="table table-striped">
+                                <tr>
+                                    <td><strong>Cast Iron:</strong></td>
+                                    <td class="text-end"><strong>{{ "%.1f"|format(all_furnaces_totals.cast_iron) }} kg</strong></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Steel Scrap:</strong></td>
+                                    <td class="text-end"><strong>{{ "%.1f"|format(all_furnaces_totals.steel_scrap) }} kg</strong></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Pig Iron:</strong></td>
+                                    <td class="text-end"><strong>{{ "%.1f"|format(all_furnaces_totals.pig_iron) }} kg</strong></td>
+                                </tr>
+                                <tr class="table-primary">
+                                    <td><strong>Total Base:</strong></td>
+                                    <td class="text-end"><strong>{{ "%.1f"|format(all_furnaces_totals.pig_iron + all_furnaces_totals.steel_scrap + all_furnaces_totals.cast_iron ) }} kg</strong></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Recarb:</strong></td>
+                                    <td class="text-end"><strong>{{ "%.1f"|format(all_furnaces_totals.recarb) }} kg</strong></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Ferrosilicon:</strong></td>
+                                    <td class="text-end"><strong>{{ "%.1f"|format(all_furnaces_totals.ferrosilicon) }} kg</strong></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Ferromanganese:</strong></td>
+                                    <td class="text-end"><strong>{{ "%.1f"|format(all_furnaces_totals.ferromanganese) }} kg</strong></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Iron Sulfide:</strong></td>
+                                    <td class="text-end"><strong>{{ "%.1f"|format(all_furnaces_totals.iron_sulfide) }} kg</strong></td>
+                                </tr>
+                                <tr class="table-primary">
+                                    <td><strong>Base Materials Subtotal:</strong></td>
+                                    <td class="text-end"><strong>{{ "%.1f"|format( all_furnaces_totals.recarb + all_furnaces_totals.ferrosilicon + all_furnaces_totals.ferromanganese + all_furnaces_totals.iron_sulfide) }} kg</strong></td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-muted mb-3">Additional Materials Total</h6>
+                            <table class="table table-striped">
+                                <tr>
+                                    <td><strong>Additional Recarb:</strong></td>
+                                    <td class="text-end"><strong>{{ "%.1f"|format(all_furnaces_totals.additional_recarb) }} kg</strong></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Additional Ferrosilicon:</strong></td>
+                                    <td class="text-end"><strong>{{ "%.1f"|format(all_furnaces_totals.additional_fesi) }} kg</strong></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Additional Ferromanganese:</strong></td>
+                                    <td class="text-end"><strong>{{ "%.1f"|format(all_furnaces_totals.additional_femn) }} kg</strong></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Additional Iron Sulfide:</strong></td>
+                                    <td class="text-end"><strong>{{ "%.1f"|format(all_furnaces_totals.additional_iron_sulfide) }} kg</strong></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Tin:</strong></td>
+                                    <td class="text-end"><strong>{{ "%.1f"|format(all_furnaces_totals.tin) }} kg</strong></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Copper:</strong></td>
+                                    <td class="text-end"><strong>{{ "%.1f"|format(all_furnaces_totals.copper) }} kg</strong></td>
+                                </tr>
+                                <tr class="table-info">
+                                    <td><strong>Additional Materials Subtotal:</strong></td>
+                                    <td class="text-end"><strong>{{ "%.1f"|format(all_furnaces_totals.additional_recarb + all_furnaces_totals.additional_fesi + all_furnaces_totals.additional_femn + all_furnaces_totals.additional_iron_sulfide + all_furnaces_totals.tin + all_furnaces_totals.copper) }} kg</strong></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="p-4 bg-danger text-white text-center rounded">
+                                <h5 class="mb-2">GRAND TOTAL - ALL FURNACES COMBINED</h5>
+                                <h2 class="mb-0">{{ "%.1f"|format(all_furnaces_total) }} kg</h2>
+                                <small>Materials used across all furnaces today</small>
+                            </div>
+                        </div>
+                    </div>
+                {% else %}
+                    <p class="text-muted">No material data available for today.</p>
+                {% endif %}
+            </div>
+        </details>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+    setTimeout(function() {
+        window.location.reload();
+    }, 60000); // 60000 ms = 1 minute
+</script>
+{% endblock %}
