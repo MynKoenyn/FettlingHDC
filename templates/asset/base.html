@@ -5,31 +5,38 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{% block title %}Asset Register{% endblock %} — FixedLedger</title>
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" />
   <style>
     :root {
-      --ar-dark:    #f1f1f1;
-      --ar-mid:     #ffffff;
-      --ar-panel:   #ffffff;
-      --ar-accent:  #00c6a2;
-      --ar-gold:    #f5a623;
-      --ar-danger:  #e05c5c;
-      --ar-muted:   #030303;
-      --ar-border:  #0c0101;
-      --ar-text:    #0085fa;
-      --ar-light:   #0c7dff;
+      /* HDC house palette — keep in step with templates/base.html */
+      --ar-bg:        #f1f5f9;  /* page background          */
+      --ar-dark:      #f1f5f9;  /* legacy alias: subtle fill */
+      --ar-mid:       #ffffff;  /* sidebar / topbar surface  */
+      --ar-panel:     #ffffff;  /* card surface              */
+      --ar-accent:    #2563eb;
+      --ar-accent-dk: #1d4ed8;
+      --ar-success:   #16a34a;
+      --ar-gold:      #d97706;
+      --ar-danger:    #dc2626;
+      --ar-muted:     #64748b;  /* secondary text            */
+      --ar-border:    #e5e7eb;
+      --ar-text:      #0f172a;  /* primary text              */
+      --ar-light:     #0f172a;  /* legacy alias: emphasis    */
     }
     * { box-sizing: border-box; }
     body {
-      font-family: 'DM Sans', sans-serif;
-      background: var(--ar-dark);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--ar-bg);
       color: var(--ar-text);
       min-height: 100vh;
     }
-    h1,h2,h3,h4,h5 { font-family: 'DM Serif Display', serif; }
+    h1,h2,h3,h4,h5 { font-weight: 700; color: var(--ar-text); letter-spacing: -0.01em; }
+    a { color: var(--ar-accent); }
+    a:hover { color: var(--ar-accent-dk); }
 
     /* ── Sidebar ─────────────────────────────────────── */
     #sidebar {
@@ -39,23 +46,48 @@
       border-right: 1px solid var(--ar-border);
       padding: 0;
       display: flex; flex-direction: column;
-      z-index: 100;
+      z-index: 200;
+      transition: transform .2s ease;
+    }
+    .ar-hamburger {
+      display: none; background: none; border: 1.5px solid var(--ar-border); border-radius: .5rem;
+      width: 36px; height: 34px; align-items: center; justify-content: center; color: var(--ar-text);
+      font-size: 1.1rem; cursor: pointer; flex: none;
+    }
+    .ar-hamburger:hover { background: #f8fafc; }
+    .ar-sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,.5); z-index: 150; }
+    @media (max-width: 768px) {
+      #sidebar { transform: translateX(-100%); }
+      #sidebar.open { transform: translateX(0); box-shadow: 0 0 40px rgba(0,0,0,.25); }
+      .ar-sidebar-overlay.open { display: block; }
+      #main { margin-left: 0 !important; }
+      .ar-hamburger { display: inline-flex; }
+      .topbar { padding: .75rem 1rem; }
+      .page-body { padding: 1.1rem; }
     }
     .sidebar-brand {
       padding: 1.5rem 1.25rem 1rem;
       border-bottom: 1px solid var(--ar-border);
     }
     .sidebar-brand .brand-name {
-      font-family: 'DM Serif Display', serif;
-      font-size: 1.3rem;
-      color: var(--ar-accent);
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: var(--ar-text);
       letter-spacing: -0.02em;
+      display: flex; align-items: center; gap: 0.55rem;
+    }
+    .sidebar-brand .brand-name .logo {
+      width: 30px; height: 30px; border-radius: 8px;
+      background: var(--ar-accent); color: #fff;
+      display: grid; place-items: center; font-size: 0.95rem;
+      flex: none;
     }
     .sidebar-brand .brand-sub {
       font-size: 0.72rem;
       color: var(--ar-muted);
       letter-spacing: 0.08em;
       text-transform: uppercase;
+      margin-top: 0.4rem;
     }
     .nav-section-label {
       font-size: 0.65rem;
@@ -65,18 +97,22 @@
       padding: 1.25rem 1.25rem 0.4rem;
     }
     #sidebar .nav-link {
-      color: var(--ar-muted);
+      color: #475569;
       padding: 0.55rem 1.25rem;
       font-size: 0.875rem;
-      font-weight: 500;
+      font-weight: 600;
       border-left: 3px solid transparent;
       transition: all 0.15s;
       display: flex; align-items: center; gap: 0.6rem;
+      text-decoration: none;
     }
-    #sidebar .nav-link:hover,
-    #sidebar .nav-link.active {
+    #sidebar .nav-link:hover {
       color: var(--ar-text);
-      background: rgba(0,198,162,0.08);
+      background: #f8fafc;
+    }
+    #sidebar .nav-link.active {
+      color: var(--ar-accent);
+      background: rgba(37,99,235,0.08);
       border-left-color: var(--ar-accent);
     }
     #sidebar .nav-link i { font-size: 1rem; width: 1.1rem; }
@@ -94,9 +130,10 @@
       display: flex; align-items: center; justify-content: space-between;
     }
     .topbar-title {
-      font-family: 'DM Serif Display', serif;
-      font-size: 1.35rem;
-      color: var(--ar-light);
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--ar-text);
     }
     .page-body { padding: 2rem; flex: 1; }
 
@@ -104,16 +141,18 @@
     .ar-card {
       background: var(--ar-panel);
       border: 1px solid var(--ar-border);
-      border-radius: 10px;
+      border-radius: 12px;
       padding: 1.5rem;
+      box-shadow: 0 1px 2px rgba(15,23,42,0.04);
     }
     .stat-card {
       background: var(--ar-panel);
       border: 1px solid var(--ar-border);
-      border-radius: 10px;
+      border-radius: 12px;
       padding: 1.25rem 1.5rem;
       position: relative;
       overflow: hidden;
+      box-shadow: 0 1px 2px rgba(15,23,42,0.04);
     }
     .stat-card::before {
       content: '';
@@ -132,88 +171,106 @@
       margin-bottom: 0.4rem;
     }
     .stat-value {
-      font-family: 'DM Serif Display', serif;
-      font-size: 1.8rem;
-      color: var(--ar-light);
-      line-height: 1.1;
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--ar-text);
+      line-height: 1.15;
     }
+    /* Emphasised figure used inside cards (replaces the old serif inline styles) */
+    .ar-figure {
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--ar-text);
+      line-height: 1.2;
+    }
+    .ar-figure.sm { font-size: 1.1rem; }
     .stat-sub { font-size: 0.8rem; color: var(--ar-muted); margin-top: 0.25rem; }
 
     /* ── Table ─────────────────────────────────────────── */
     .ar-table { width: 100%; border-collapse: collapse; }
     .ar-table th {
-      font-size: 0.7rem;
+      font-size: 0.68rem;
+      text-align: left;
       text-transform: uppercase;
-      letter-spacing: 0.1em;
+      letter-spacing: 0.06em;
       color: var(--ar-muted);
+      background: #f8fafc;
       border-bottom: 1px solid var(--ar-border);
-      padding: 0.6rem 0.75rem;
-      font-weight: 600;
+      padding: 0.7rem 0.9rem;
+      font-weight: 700;
       white-space: nowrap;
     }
     .ar-table td {
-      padding: 0.75rem 0.75rem;
-      border-bottom: 1px solid rgba(42,63,85,0.5);
+      padding: 0.7rem 0.9rem;
+      border-bottom: 1px solid #f1f5f9;
       font-size: 0.875rem;
+      color: #1e293b;
       vertical-align: middle;
     }
-    .ar-table tbody tr:hover { background: rgba(0,198,162,0.04); }
+    .ar-table tbody tr:last-child td { border-bottom: none; }
+    .ar-table tbody tr:hover td { background: #f8fafc; }
 
     /* ── Badges ─────────────────────────────────────────── */
     .badge-status {
+      display: inline-block;
       font-size: 0.68rem;
-      font-weight: 600;
-      letter-spacing: 0.06em;
+      font-weight: 700;
+      letter-spacing: 0.04em;
       text-transform: uppercase;
-      padding: 0.28em 0.7em;
-      border-radius: 4px;
+      padding: 0.24em 0.7em;
+      border-radius: 999px;
+      white-space: nowrap;
     }
-    .bs-active           { background: rgba(0,198,162,0.15); color: var(--ar-accent); }
-    .bs-auc              { background: rgba(245,166,35,0.15); color: var(--ar-gold); }
-    .bs-spare            { background: rgba(136,153,170,0.15); color: var(--ar-muted); }
-    .bs-disposed         { background: rgba(224,92,92,0.15); color: var(--ar-danger); }
-    .bs-impaired         { background: rgba(224,92,92,0.1); color: #e08c5c; }
-    .bs-fully_depreciated { background: rgba(100,100,120,0.15); color: #8888aa; }
+    .bs-active            { background: #dcfce7; color: #166534; }
+    .bs-auc               { background: #fef3c7; color: #92400e; }
+    .bs-spare             { background: #f1f5f9; color: #475569; }
+    .bs-disposed          { background: #fee2e2; color: #991b1b; }
+    .bs-impaired          { background: #ffedd5; color: #9a3412; }
+    .bs-fully_depreciated { background: #ede9fe; color: #5b21b6; }
 
     /* ── Forms ──────────────────────────────────────────── */
-    .form-label { font-size: 0.8rem; font-weight: 600; color: var(--ar-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+    .form-label { font-size: 0.75rem; font-weight: 700; color: #475569; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 0.4rem; }
     .form-control, .form-select {
-      background: var(--ar-dark);
-      border: 1px solid var(--ar-border);
+      background: #ffffff;
+      border: 1.5px solid #cbd5e1;
       color: var(--ar-text);
-      border-radius: 6px;
+      border-radius: 0.6rem;
       font-size: 0.9rem;
+      padding: 0.55rem 0.85rem;
     }
+    .form-control::placeholder { color: #94a3b8; }
     .form-control:focus, .form-select:focus {
-      background: var(--ar-dark);
+      background: #ffffff;
       border-color: var(--ar-accent);
       color: var(--ar-text);
-      box-shadow: 0 0 0 3px rgba(0,198,162,0.15);
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
     }
-    .form-text { font-size: 0.75rem; color: var(--ar-muted); }
-    .invalid-feedback { font-size: 0.78rem; }
+    .form-text { font-size: 0.78rem; color: #94a3b8; }
+    .invalid-feedback { font-size: 0.8rem; color: var(--ar-danger); }
 
     /* ── Buttons ─────────────────────────────────────────── */
     .btn-accent {
-      background: var(--ar-accent); color: #0f1923; font-weight: 600;
-      border: none; padding: 0.5rem 1.25rem; border-radius: 6px;
+      background: var(--ar-accent); color: #fff; font-weight: 600;
+      border: 1.5px solid transparent; padding: 0.5rem 1.1rem; border-radius: 0.6rem;
       font-size: 0.875rem;
-      transition: opacity 0.15s;
+      transition: background 0.15s;
     }
-    .btn-accent:hover { opacity: 0.88; color: #0f1923; }
+    .btn-accent:hover, .btn-accent:focus { background: var(--ar-accent-dk); color: #fff; }
     .btn-outline-ar {
-      border: 1px solid var(--ar-border); color: var(--ar-muted);
-      background: transparent; border-radius: 6px; font-size: 0.875rem;
+      border: 1.5px solid #cbd5e1; color: #475569;
+      background: #fff; border-radius: 0.6rem; font-size: 0.875rem;
       padding: 0.45rem 1rem; transition: all 0.15s;
     }
-    .btn-outline-ar:hover { border-color: var(--ar-accent); color: var(--ar-accent); }
+    .btn-outline-ar:hover { border-color: #94a3b8; color: var(--ar-text); background: #fff; }
 
     /* ── Alerts ─────────────────────────────────────────── */
-    .alert { border-radius: 8px; font-size: 0.875rem; border: none; }
-    .alert-success { background: rgba(0,198,162,0.12); color: var(--ar-accent); }
-    .alert-warning { background: rgba(245,166,35,0.12); color: var(--ar-gold); }
-    .alert-danger  { background: rgba(224,92,92,0.12); color: var(--ar-danger); }
-    .alert-info    { background: rgba(136,153,170,0.1); color: var(--ar-muted); }
+    .alert { border-radius: 0.7rem; font-size: 0.875rem; border: none; font-weight: 500; }
+    .alert-success { background: #d1fae5; color: #065f46; }
+    .alert-warning { background: #fef3c7; color: #92400e; }
+    .alert-danger  { background: #fee2e2; color: #991b1b; }
+    .alert-info    { background: #dbeafe; color: #1e40af; }
 
     /* ── Modal ───────────────────────────────────────────── */
     .modal-content {
@@ -223,27 +280,40 @@
     }
     .modal-header { border-bottom: 1px solid var(--ar-border); }
     .modal-footer { border-top: 1px solid var(--ar-border); }
-    .btn-close { filter: invert(0.7); }
 
     /* ── Progress bar (depreciation) ─────────────────────── */
-    .dep-bar-wrap { background: var(--ar-dark); border-radius: 100px; height: 8px; overflow: hidden; }
+    .dep-bar-wrap { background: #e2e8f0; border-radius: 100px; height: 8px; overflow: hidden; }
     .dep-bar-fill { height: 100%; border-radius: 100px; background: var(--ar-accent); transition: width 0.4s; }
     .dep-bar-fill.warn { background: var(--ar-gold); }
     .dep-bar-fill.over { background: var(--ar-danger); }
 
     /* ── Misc ────────────────────────────────────────────── */
-    .mono { font-family: 'Courier New', monospace; }
-    .text-accent { color: var(--ar-accent); }
-    .text-gold   { color: var(--ar-gold); }
+    .mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
+    .text-accent  { color: var(--ar-accent); }
+    .text-success-ar { color: var(--ar-success); }
+    .text-gold    { color: var(--ar-gold); }
     .text-muted-ar { color: var(--ar-muted); }
     .section-header {
-      font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em;
-      color: var(--ar-muted); margin-bottom: 1rem;
+      font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--ar-muted); font-weight: 700; margin-bottom: 1rem;
       display: flex; align-items: center; gap: 0.5rem;
     }
     .section-header::after {
       content: ''; flex: 1; height: 1px; background: var(--ar-border);
     }
+
+    /* ── Footer ────────────────────────────────────────── */
+    .ar-footer {
+      border-top: 1px solid var(--ar-border);
+      background: var(--ar-mid);
+      padding: 1.1rem 2rem;
+      text-align: center;
+      font-size: 0.82rem;
+      color: #475569;
+    }
+    .ar-footer strong { color: var(--ar-text); font-weight: 700; }
+    .ar-footer .foot-legal { font-size: 0.75rem; color: #94a3b8; margin-top: 0.2rem; }
+    .ar-footer .sep { opacity: .55; margin: 0 .35rem; }
   </style>
   {% block extra_head %}{% endblock %}
 </head>
@@ -252,7 +322,9 @@
 <!-- ── Sidebar ── -->
 <nav id="sidebar">
   <div class="sidebar-brand">
-    <div class="brand-name">FixedLedger</div>
+    <a class="brand-name" href="{{ url_for('dashboard') }}" style="text-decoration:none;">
+      <span class="logo"><i class="bi bi-gem"></i></span> HDC Foundry
+    </a>
     <div class="brand-sub">Asset Register</div>
   </div>
 
@@ -282,24 +354,32 @@
     <i class="bi bi-file-earmark-bar-graph"></i> Depreciation Report
   </a>
   <div class="nav-section-label">Home</div>
-    <a href="{{ url_for('dashboard') }}"" class="nav-link">
-        <i class="bi bi-house-door"></i> Main Dashboard
-    </a>
+  <a href="{{ url_for('dashboard') }}" class="nav-link">
+    <i class="bi bi-house-door"></i> Main Dashboard
+  </a>
 
   <div class="mt-auto p-3" style="border-top:1px solid var(--ar-border);">
-    <div style="font-size:0.72rem;color:var(--ar-muted);">
+    <div style="font-size:0.72rem;color:var(--ar-muted);line-height:1.5;">
       <i class="bi bi-info-circle me-1"></i>
       Depreciation is manual.<br>Run each period from the dashboard.
     </div>
   </div>
 </nav>
 
+<!-- ── Mobile sidebar overlay ── -->
+<div class="ar-sidebar-overlay" id="arSidebarOverlay"></div>
+
 <!-- ── Main ── -->
 <div id="main">
   <div class="topbar">
-    <div class="topbar-title">{% block page_title %}Asset Register{% endblock %}</div>
+    <div class="d-flex align-items-center gap-2">
+      <button type="button" class="ar-hamburger" id="arHamburger" aria-label="Toggle menu" aria-expanded="false">
+        <i class="bi bi-list"></i>
+      </button>
+      <div class="topbar-title">{% block page_title %}Asset Register{% endblock %}</div>
+    </div>
     <div class="d-flex align-items-center gap-3">
-      <span style="font-size:0.8rem;color:var(--ar-muted);">
+      <span style="font-size:0.8rem;color:var(--ar-muted);" class="d-none d-sm-inline">
         <i class="bi bi-calendar3 me-1"></i>{{ now.strftime('%d %b %Y') if now else '' }}
       </span>
       {% block topbar_actions %}{% endblock %}
@@ -320,9 +400,38 @@
 
     {% block content %}{% endblock %}
   </div>
+
+  <footer class="ar-footer">
+    <div><strong>Foundry Analytics</strong> — HDC Production System</div>
+    <div class="foot-legal">
+      &copy; {{ current_year }} Foundry Analytics. All rights reserved.
+      <span class="sep">·</span> Developed by Armand Reynecke
+    </div>
+  </footer>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+(function () {
+    var sidebar = document.getElementById('sidebar');
+    var overlay = document.getElementById('arSidebarOverlay');
+    var hamburger = document.getElementById('arHamburger');
+    if (!sidebar || !overlay || !hamburger) return;
+
+    function setOpen(open) {
+        sidebar.classList.toggle('open', open);
+        overlay.classList.toggle('open', open);
+        hamburger.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+    hamburger.addEventListener('click', function () { setOpen(!sidebar.classList.contains('open')); });
+    overlay.addEventListener('click', function () { setOpen(false); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') setOpen(false); });
+    // Close automatically after following a nav link on mobile.
+    sidebar.querySelectorAll('a').forEach(function (a) {
+        a.addEventListener('click', function () { setOpen(false); });
+    });
+})();
+</script>
 {% block extra_js %}{% endblock %}
 </body>
 </html>
