@@ -1,0 +1,461 @@
+{% extends 'overtime/base.html' %}
+{% block title %}{{ 'Edit' if person else 'New' }} Personnel{% endblock %}
+{% block page_title %}{{ 'Edit Personnel' if person else 'New Personnel' }}{% endblock %}
+
+{% block content %}
+{% set posted = form_data.get('csrf_token') %}
+{% set v_name    = form_data.get('name')    if posted else (person.name    if person else '') %}
+{% set v_surname = form_data.get('surname') if posted else (person.surname if person and person.surname else '') %}
+{% set v_clockno = form_data.get('clockno') if posted else (person.clockno if person else '') %}
+{% set v_dept    = form_data.get('department_id') if posted else (person.department_id if person else '') %}
+{% set v_grade   = form_data.get('jobgrade') if posted else (person.jobgrade if person and person.jobgrade else '') %}
+{% set v_rate    = form_data.get('rate')    if posted else (person.rate    if person and person.rate is not none else '') %}
+{% set v_idno    = form_data.get('id_no')   if posted else (person.id_no   if person and person.id_no else '') %}
+{% set v_gender  = form_data.get('gender')  if posted else (person.gender  if person and person.gender else '') %}
+{% set v_joined  = form_data.get('joined')  if posted else (person.joined.strftime('%Y-%m-%d') if person and person.joined else '') %}
+{% set v_jobdesc = form_data.get('job_description') if posted else (person.job_description if person and person.job_description else '') %}
+{% set v_paygrp  = form_data.get('pay_group') if posted else (person.pay_group if person and person.pay_group else '') %}
+{% set v_super   = form_data.get('supervisor_id') if posted else (person.supervisor_id if person and person.supervisor_id else '') %}
+{% set v_superintendent = form_data.get('superintendent_id') if posted else (person.superintendent_id if person and person.superintendent_id else '') %}
+{% set v_head    = form_data.get('head_id') if posted else (person.head_id if person and person.head_id else '') %}
+{% set v_director = form_data.get('director_id') if posted else (person.director_id if person and person.director_id else '') %}
+{% set v_status  = form_data.get('status')  if posted else (person.status if person else True) %}
+{% set v_furnace_role = form_data.get('furnace_role') if posted else (person.furnace_role if person and person.furnace_role else '') %}
+{% set v_is_supervisor = form_data.get('is_supervisor') if posted else (person.is_supervisor if person else False) %}
+{% set v_is_superintendent = form_data.get('is_superintendent') if posted else (person.is_superintendent if person else False) %}
+{% set v_is_head = form_data.get('is_head') if posted else (person.is_head if person else False) %}
+{% set v_is_director = form_data.get('is_director') if posted else (person.is_director if person else False) %}
+{% set v_head_ids = (form_data.getlist('head_ids')|map('int')|list) if posted else (assigned_head_ids or []) %}
+{% set v_icon    = form_data.get('icon')    if posted else (person.icon   if person and person.icon else '') %}
+{% set v_icon_color = form_data.get('icon_color') if posted else (person.icon_color if person and person.icon_color else icon_color_swatches[0]) %}
+
+<div style="max-width:1920px;">
+  <div class="ot-card">
+    <div class="ot-card-header">
+      <span class="ot-card-title">
+        <i class="bi bi-person-vcard me-2"></i>{{ 'Edit — ' + person.name + ' ' + (person.surname or '') if person else 'Add New Personnel' }}
+      </span>
+      <a href="{{ url_for('overtime.personnel_list') }}" class="ot-btn ot-btn-outline ot-btn-sm"><i class="bi bi-arrow-left"></i> Back</a>
+    </div>
+    <div class="ot-card-body">
+
+      <form method="POST" novalidate enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="d-flex align-items-center gap-3" style="margin-bottom:1.5rem;">
+          <div class="ot-avatar ot-avatar-lg{{ '' if (person and person.photo) else ' placeholder' }}" id="photo_preview">
+            {% if person and person.photo %}
+            <img src="{{ url_for('static', filename='images/personnel/' + person.photo) }}" alt="Current profile photo for {{ person.name }} {{ person.surname or '' }}">
+            {% else %}
+            <i class="bi bi-person-fill"></i>
+            {% endif %}
+          </div>
+          <div>
+            <label class="ot-form-label" style="margin-bottom:.4rem;">Profile Photo</label>
+            <input type="file" name="photo" id="photo_input" accept="image/*" class="ot-form-control" style="max-width:280px;">
+            {% if person and person.photo %}
+            <label class="d-flex align-items-center gap-2" style="cursor:pointer; margin-top:.5rem; font-size:.82rem; color:var(--ot-muted);">
+              <input type="checkbox" name="remove_photo" value="1"> Remove current photo
+            </label>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="row g-3">
+          <div class="col-sm-6">
+            <label class="ot-form-label">First Name <span style="color:var(--ot-danger)">*</span></label>
+            <input type="text" name="name" class="ot-form-control" value="{{ v_name }}" maxlength="100" placeholder="e.g. John">
+          </div>
+          <div class="col-sm-6">
+            <label class="ot-form-label">Surname</label>
+            <input type="text" name="surname" class="ot-form-control" value="{{ v_surname }}" maxlength="100" placeholder="e.g. Smith">
+          </div>
+
+          <div class="col-sm-6">
+            <label class="ot-form-label">Clock Number <span style="color:var(--ot-danger)">*</span></label>
+            <input type="text" name="clockno" class="ot-form-control" value="{{ v_clockno }}" maxlength="20" placeholder="e.g. 10432">
+          </div>
+          <div class="col-sm-6">
+            <label class="ot-form-label">Division / Department <span style="color:var(--ot-danger)">*</span></label>
+            <select name="department_id" class="ot-form-control">
+              <option value="">— Select department —</option>
+              {% for d in departments %}
+              <option value="{{ d.id }}" {% if v_dept and v_dept|int == d.id %}selected{% endif %}>
+                {{ d.division.code if d.division else '?' }} — {{ d.name }}
+              </option>
+              {% endfor %}
+            </select>
+            <div style="font-size:.72rem; color:var(--ot-muted); margin-top:.35rem;">Division is set automatically from the chosen department.</div>
+          </div>
+
+          <div class="col-sm-4">
+            <label class="ot-form-label">Pay Group</label>
+            <select name="pay_group" class="ot-form-control">
+              <option value="">— Not set —</option>
+              {% for g in pay_groups %}
+              <option value="{{ g }}" {% if v_paygrp == g %}selected{% endif %}>{{ g }}</option>
+              {% endfor %}
+            </select>
+            <div style="font-size:.72rem; color:var(--ot-muted); margin-top:.35rem;">Which payroll group this person is in.</div>
+          </div>
+          <div class="col-sm-4">
+            <label class="ot-form-label">Job Grade</label>
+            <input type="text" name="jobgrade" class="ot-form-control" value="{{ v_grade }}" maxlength="3" placeholder="e.g. C2">
+          </div>
+          <div class="col-sm-4">
+            <label class="ot-form-label">Hourly Rate (R)</label>
+            <input type="number" name="rate" class="ot-form-control" value="{{ v_rate }}" step="0.01" min="0" placeholder="0.00">
+            <div style="font-size:.72rem; color:var(--ot-muted); margin-top:.35rem;">Used to calculate overtime pay.</div>
+          </div>
+          <div class="col-sm-4">
+            <label class="ot-form-label">Date Joined</label>
+            <input type="date" name="joined" class="ot-form-control" value="{{ v_joined }}">
+          </div>
+
+          <div class="col-sm-4">
+            <label class="ot-form-label">ID Number</label>
+            <input type="text" name="id_no" class="ot-form-control" value="{{ v_idno }}" maxlength="14">
+          </div>
+          <div class="col-sm-4">
+            <label class="ot-form-label">Gender</label>
+            <input type="text" name="gender" class="ot-form-control" value="{{ v_gender }}" maxlength="10" placeholder="e.g. Male">
+          </div>
+          <div class="col-sm-4 d-flex align-items-end">
+            <label class="d-flex align-items-center gap-2" style="cursor:pointer; margin-bottom:.5rem;">
+              <input type="checkbox" name="status" value="1" {% if v_status %}checked{% endif %}>
+              <span class="ot-form-label" style="margin:0;">Active employee</span>
+            </label>
+          </div>
+          <div class="col-sm-4 d-flex align-items-end">
+            <label class="d-flex align-items-center gap-2" style="cursor:pointer; margin-bottom:.5rem;">
+              <input type="checkbox" name="is_supervisor" value="1" {% if v_is_supervisor %}checked{% endif %}>
+              <span class="ot-form-label" style="margin:0;">Supervisor</span>
+            </label>
+          </div>
+          <div class="col-sm-4 d-flex align-items-end">
+            <label class="d-flex align-items-center gap-2" style="cursor:pointer; margin-bottom:.5rem;">
+              <input type="checkbox" name="is_superintendent" value="1" {% if v_is_superintendent %}checked{% endif %}>
+              <span class="ot-form-label" style="margin:0;">Production Superintendent</span>
+            </label>
+          </div>
+          <div class="col-sm-4 d-flex align-items-end">
+            <label class="d-flex align-items-center gap-2" style="cursor:pointer; margin-bottom:.5rem;">
+              <input type="checkbox" name="is_head" value="1" {% if v_is_head %}checked{% endif %}>
+              <span class="ot-form-label" style="margin:0;">Head</span>
+            </label>
+          </div>
+          <div class="col-sm-4 d-flex align-items-end">
+            <label class="d-flex align-items-center gap-2" style="cursor:pointer; margin-bottom:.5rem;">
+              <input type="checkbox" name="is_director" value="1" {% if v_is_director %}checked{% endif %}>
+              <span class="ot-form-label" style="margin:0;">Director</span>
+            </label>
+          </div>
+
+          <div class="col-sm-6">
+            <label class="ot-form-label">Supervisor</label>
+            <select name="supervisor_id" class="ot-form-control" data-ot-search>
+              <option value="">— None —</option>
+              {% for s in supervisors %}
+              <option value="{{ s.id }}" {% if v_super and v_super|int == s.id %}selected{% endif %}>
+                {{ s.name }} {{ s.surname or '' }} ({{ s.clockno }})
+              </option>
+              {% endfor %}
+            </select>
+            <div style="font-size:.72rem; color:var(--ot-muted); margin-top:.35rem;">Another employee this person reports to (org-chart only). Only personnel ticked <strong>Supervisor</strong> are listed.</div>
+          </div>
+          <div class="col-sm-6">
+            <label class="ot-form-label">Production Superintendent</label>
+            <select name="superintendent_id" class="ot-form-control" data-ot-search>
+              <option value="">— None —</option>
+              {% for sp in superintendents %}
+              <option value="{{ sp.id }}" {% if v_superintendent and v_superintendent|int == sp.id %}selected{% endif %}>
+                {{ sp.name }} {{ sp.surname or '' }} ({{ sp.clockno }})
+              </option>
+              {% endfor %}
+            </select>
+            <div style="font-size:.72rem; color:var(--ot-muted); margin-top:.35rem;">The Production Superintendent this Supervisor reports to, between Head and Supervisor on the org chart (org-chart only). Only personnel ticked <strong>Production Superintendent</strong> are listed. Leave blank if this Supervisor reports straight to a Head.</div>
+          </div>
+          <div class="col-sm-6">
+            <label class="ot-form-label">Head</label>
+            <select name="head_id" class="ot-form-control" data-ot-search>
+              <option value="">— None —</option>
+              {% for h in heads %}
+              <option value="{{ h.id }}" {% if v_head and v_head|int == h.id %}selected{% endif %}>
+                {{ h.name }} {{ h.surname or '' }} ({{ h.clockno }})
+              </option>
+              {% endfor %}
+            </select>
+            <div style="font-size:.72rem; color:var(--ot-muted); margin-top:.35rem;">The Head this Production Superintendent reports to — or, for anyone skipping the Superintendent/Supervisor tiers, who they report straight to instead (org-chart only). Only personnel ticked <strong>Head</strong> are listed. Not the same as the system-access Heads below.</div>
+          </div>
+          <div class="col-sm-6">
+            <label class="ot-form-label">Reports To (Director / Head)</label>
+            <select name="director_id" class="ot-form-control" data-ot-search>
+              <option value="">— None —</option>
+              {% for dr in directors %}
+              <option value="{{ dr.id }}" {% if v_director and v_director|int == dr.id %}selected{% endif %}>
+                {{ dr.name }} {{ dr.surname or '' }} ({{ dr.clockno }}) — {{ 'Director' if dr.is_director else 'Head' }}
+              </option>
+              {% endfor %}
+            </select>
+            <div style="font-size:.72rem; color:var(--ot-muted); margin-top:.35rem;">Who this Head reports to on the org chart — either a Director, or another Head (e.g. a Head of Production reporting to a Head of HDA). Only personnel ticked <strong>Director</strong> or <strong>Head</strong> are listed.</div>
+          </div>
+          <div class="col-sm-6">
+            <label class="ot-form-label">Job Description</label>
+            <input type="text" name="job_description" class="ot-form-control" value="{{ v_jobdesc }}" maxlength="150" placeholder="e.g. Fettler / Grinder">
+          </div>
+          <div class="col-sm-6">
+            <label class="ot-form-label">Furnace Role</label>
+            <select name="furnace_role" class="ot-form-control">
+              <option value="">— Not applicable —</option>
+              {% for r in furnace_roles %}
+              <option value="{{ r }}" {% if v_furnace_role == r %}selected{% endif %}>{{ r }}</option>
+              {% endfor %}
+            </select>
+            <div style="font-size:.72rem; color:var(--ot-muted); margin-top:.35rem;">Set for Melting staff who appear on furnace entries.</div>
+          </div>
+        </div>
+
+        <hr style="margin:1.5rem 0;">
+        <div class="ot-form-label" style="margin-bottom:.5rem;">Icon</div>
+        <div style="font-size:.72rem; color:var(--ot-muted); margin-bottom:.7rem;">
+          Optional tile shown against this person, e.g. on the organogram.
+        </div>
+        <input type="hidden" name="icon" id="icon_input" value="{{ v_icon }}">
+        <input type="hidden" name="icon_color" id="icon_color_input" value="{{ v_icon_color }}">
+
+        <div class="d-flex align-items-center gap-2" style="margin-bottom:1rem;">
+          <div class="ot-icon-tile{{ '' if v_icon else ' placeholder' }}" id="icon_preview"
+               style="width:44px; height:44px; border-radius:10px; font-size:1.2rem; {{ 'background:' + v_icon_color + ';' if v_icon }}">
+            <i class="bi {{ v_icon or 'bi-slash-circle' }}" id="icon_preview_glyph"></i>
+          </div>
+          <span style="font-size:.78rem; color:var(--ot-muted);">Preview</span>
+        </div>
+
+        <div style="font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--ot-muted); margin-bottom:.4rem;">Quick picks</div>
+        <div class="icon-picker" style="margin-bottom:1.1rem;">
+          <div class="icon-swatch none-swatch{{ ' selected' if not v_icon }}" data-icon="" data-color="" title="No icon">
+            <i class="bi bi-slash-circle"></i>
+          </div>
+          {% for opt in personnel_icons %}
+          <div class="icon-swatch{{ ' selected' if v_icon == opt.icon and v_icon_color == opt.color }}"
+               data-icon="{{ opt.icon }}" data-color="{{ opt.color }}"
+               style="background:{{ opt.color }};" title="{{ opt.label }}">
+            <i class="bi {{ opt.icon }}"></i>
+          </div>
+          {% endfor %}
+        </div>
+
+        <div style="font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--ot-muted); margin-bottom:.4rem;">Colour</div>
+        <div class="icon-picker" style="margin-bottom:1.1rem;">
+          {% for c in icon_color_swatches %}
+          <div class="icon-swatch color-swatch{{ ' selected' if v_icon_color == c }}"
+               data-color="{{ c }}" style="background:{{ c }}; width:30px; height:30px;" title="{{ c }}"></div>
+          {% endfor %}
+        </div>
+
+        <div style="font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--ot-muted); margin-bottom:.4rem;">Browse more icons</div>
+        <div style="max-width:460px; margin-bottom:.5rem;">
+          <input type="text" class="ot-form-control" id="icon_search_input" autocomplete="off"
+                 placeholder="Search 2,000+ icons… e.g. “truck”, “hard hat”, “wrench”">
+        </div>
+        <div class="icon-picker" id="icon_search_results"
+             style="max-height:220px; overflow-y:auto; border:1px solid var(--ot-border); border-radius:.5rem; padding:.6rem; display:none;"></div>
+        <div id="icon_search_empty" style="font-size:.8rem; color:var(--ot-muted); display:none;">Nothing matches that search.</div>
+
+        {% if can_edit_heads %}
+        <hr style="margin:1.5rem 0;">
+        <div class="ot-form-label" style="margin-bottom:.5rem;">Heads (System Access)</div>
+        <div style="font-size:.72rem; color:var(--ot-muted); margin-bottom:.6rem;">
+          User logins allowed to submit &amp; approve overtime for this person. Not the same as the Head picker above, which is an org-chart link to another personnel record.
+          {% if not person %}Ticked here, they're attached as soon as this personnel record is created.{% endif %}
+        </div>
+        {% if all_users %}
+        <div style="max-height:220px; overflow-y:auto; border:1px solid var(--ot-border); border-radius:.5rem; padding:.6rem .8rem; display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:.4rem .8rem;">
+          {% for u in all_users %}
+          <label class="d-flex align-items-center gap-2" style="cursor:pointer; font-size:.85rem;">
+            <input type="checkbox" name="head_ids" value="{{ u.id }}" {% if u.id in v_head_ids %}checked{% endif %}>
+            {{ u.name }} <span style="color:var(--ot-muted);">({{ u.username }})</span>
+          </label>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div style="color:var(--ot-muted); font-size:.85rem;">No active user logins to assign.</div>
+        {% endif %}
+        {% endif %}
+
+        <div class="d-flex gap-2" style="margin-top:1.5rem;">
+          <button type="submit" class="ot-btn ot-btn-primary">
+            <i class="bi bi-check-lg"></i> {{ 'Save Changes' if person else 'Add Personnel' }}
+          </button>
+          <a href="{{ url_for('overtime.personnel_list') }}" class="ot-btn ot-btn-outline">Cancel</a>
+        </div>
+      </form>
+
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  var photoInput = document.getElementById("photo_input");
+  var photoPreview = document.getElementById("photo_preview");
+  var removePhoto = document.querySelector('input[name="remove_photo"]');
+
+  if (photoInput) {
+    photoInput.addEventListener("change", function () {
+      var file = photoInput.files && photoInput.files[0];
+      if (!file) return;
+      if (removePhoto) removePhoto.checked = false;   // picking a new one cancels "remove"
+      var reader = new FileReader();
+      reader.onload = function (e) {
+        photoPreview.classList.remove("placeholder");
+        photoPreview.innerHTML = '<img src="' + e.target.result + '" alt="">';
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+  if (removePhoto) {
+    removePhoto.addEventListener("change", function () {
+      if (removePhoto.checked) {
+        photoInput.value = "";
+        photoPreview.classList.add("placeholder");
+        photoPreview.innerHTML = '<i class="bi bi-person-fill"></i>';
+      }
+    });
+  }
+})();
+
+(function () {
+  var iconInput  = document.getElementById("icon_input");
+  var colorInput = document.getElementById("icon_color_input");
+  var preview      = document.getElementById("icon_preview");
+  var previewGlyph = document.getElementById("icon_preview_glyph");
+  var quickSwatches = document.querySelectorAll(".icon-picker .icon-swatch:not(.color-swatch)");
+  var colorSwatches = document.querySelectorAll(".color-swatch");
+
+  function refreshPreview() {
+    var icon = iconInput.value;
+    if (icon) {
+      preview.classList.remove("placeholder");
+      preview.style.background = colorInput.value;
+      previewGlyph.className = "bi " + icon;
+    } else {
+      preview.classList.add("placeholder");
+      preview.style.background = "";
+      previewGlyph.className = "bi bi-slash-circle";
+    }
+  }
+
+  function refreshQuickSelection() {
+    quickSwatches.forEach(function (el) {
+      var matches = el.dataset.icon === iconInput.value &&
+        (el.dataset.icon === "" || el.dataset.color === colorInput.value);
+      el.classList.toggle("selected", matches);
+    });
+  }
+
+  function refreshColorSelection() {
+    colorSwatches.forEach(function (el) {
+      el.classList.toggle("selected", el.dataset.color === colorInput.value);
+    });
+  }
+
+  function setIcon(icon) {
+    iconInput.value = icon;
+    refreshPreview();
+    refreshQuickSelection();
+  }
+
+  function setColor(color) {
+    colorInput.value = color;
+    refreshPreview();
+    refreshQuickSelection();
+    refreshColorSelection();
+    // Results already on screen were drawn with the old colour — restyle in place.
+    document.querySelectorAll("#icon_search_results .icon-swatch").forEach(function (el) {
+      el.style.background = color;
+    });
+  }
+
+  quickSwatches.forEach(function (el) {
+    el.addEventListener("click", function () {
+      setIcon(el.dataset.icon);
+      if (el.dataset.color) setColor(el.dataset.color);
+    });
+  });
+
+  colorSwatches.forEach(function (el) {
+    el.addEventListener("click", function () { setColor(el.dataset.color); });
+  });
+
+  // ── Browse more icons — searches the full Bootstrap Icons set (~2,000),
+  // fetched once on first use rather than shipped inline on every page load. ──
+  var searchInput = document.getElementById("icon_search_input");
+  var results = document.getElementById("icon_search_results");
+  var empty   = document.getElementById("icon_search_empty");
+  var allIcons = null;
+  var MAX_RESULTS = 150;
+
+  function ensureIconsLoaded(cb) {
+    if (allIcons) { cb(); return; }
+    fetch("{{ url_for('static', filename='bootstrap-icons.json') }}")
+      .then(function (r) { return r.json(); })
+      .then(function (data) { allIcons = data; cb(); })
+      .catch(function () { allIcons = []; cb(); });
+  }
+
+  function renderResults(query) {
+    var words = query.toLowerCase().split(/\s+/).filter(Boolean);
+    results.innerHTML = "";
+
+    if (!words.length) {
+      results.style.display = "none";
+      empty.style.display = "none";
+      return;
+    }
+
+    var matches = allIcons.filter(function (name) {
+      return words.every(function (w) { return name.indexOf(w) !== -1; });
+    });
+
+    if (!matches.length) {
+      results.style.display = "none";
+      empty.style.display = "block";
+      return;
+    }
+
+    empty.style.display = "none";
+    results.style.display = "flex";
+
+    matches.slice(0, MAX_RESULTS).forEach(function (name) {
+      var cls = "bi-" + name;
+      var el = document.createElement("div");
+      el.className = "icon-swatch";
+      el.title = name.replace(/-/g, " ");
+      el.style.background = colorInput.value;
+      el.innerHTML = '<i class="bi ' + cls + '"></i>';
+      el.addEventListener("click", function () { setIcon(cls); });
+      results.appendChild(el);
+    });
+
+    if (matches.length > MAX_RESULTS) {
+      var more = document.createElement("div");
+      more.style.cssText = "font-size:.75rem;color:var(--ot-muted);align-self:center;";
+      more.textContent = "+" + (matches.length - MAX_RESULTS) + " more — narrow your search";
+      results.appendChild(more);
+    }
+  }
+
+  searchInput.addEventListener("input", function () {
+    var q = searchInput.value;
+    ensureIconsLoaded(function () { renderResults(q); });
+  });
+
+  refreshPreview();
+  refreshQuickSelection();
+  refreshColorSelection();
+})();
+</script>
+{% endblock %}

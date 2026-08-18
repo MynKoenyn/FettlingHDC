@@ -591,7 +591,7 @@
     previewCust.textContent = item.customer_name;
     previewCode.textContent = codeLabel(item);
     previewImages.innerHTML = (item.images || [])
-      .map(src => `<img src="${escHtml(src)}" alt="" onclick="window.open(this.src, '_blank')">`)
+      .map((src, i) => `<img src="${escHtml(src)}" alt="${escHtml(item.product_name)} — photo ${i + 1} of ${item.images.length}" onclick="window.open(this.src, '_blank')">`)
       .join('');
     preview.style.display = 'block';
 
@@ -600,7 +600,7 @@
     if (item.images && item.images.length) {
       pilName.textContent = item.product_name;
       pilImages.innerHTML = item.images
-        .map(src => `<img src="${escHtml(src)}" alt="" onclick="window.open(this.src, '_blank')">`)
+        .map((src, i) => `<img src="${escHtml(src)}" alt="${escHtml(item.product_name)} — photo ${i + 1} of ${item.images.length}" onclick="window.open(this.src, '_blank')">`)
         .join('');
       previewLarge.classList.add('show');
     } else {
