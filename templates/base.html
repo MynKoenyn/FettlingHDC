@@ -4,17 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>{% block title %}Production System{% endblock %}</title>
+    <title>{% block title %}Production System{% endblock %} — HDC</title>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    
     <!-- Font Awesome Icons -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-        <!-- CSRF Token -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='app-shell.css') }}">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
+    <!-- CSRF Token -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
     {% block extra_head %}{% endblock %}
 </head>
@@ -22,29 +24,79 @@
 <body>
 
     {% if current_user.is_authenticated %}
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-    <div class="nav-container">
-        <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav me-auto">
-                <li class="nav-item">
-                    <a class="navbar-brand" href="{{ url_for('dashboard') }}"><i class="fas fa-tachometer-alt me-1"></i>Dashboard</a>
-                </li>
-                <li class="nav-item">
-                    <a class="navbar-brand" href="{{ url_for('customers') }}"><i class="fas fa-users me-1"></i>Customers</a>
-                </li>
-                <li class="nav-item">
-                    <a class="navbar-brand" href="{{ url_for('products_crud') }}"><i class="fas fa-box-open me-1"></i>Products</a>
-                </li>
-                <li class="nav-item">
-                    <a class="navbar-brand" href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt me-1"></i>Logout</a>
-                </li>
-            </ul>
-        </div>
+    <nav class="hdc-nav">
+        <div class="hdc-nav-inner">
+            <a class="hdc-brand" href="{{ url_for('dashboard') }}">
+                <span class="logo"><i class="bi bi-gem"></i></span> HDC Foundry
+            </a>
+            <button class="hdc-toggle" type="button"
+                    onclick="document.getElementById('hdcLinks').classList.toggle('open')">
+                <i class="bi bi-list"></i>
+            </button>
+            {% set admin_active = request.blueprint in ['asset', 'access'] or request.endpoint in
+                ['customers', 'products_crud', 'edit_product', 'price_lists', 'price_list_detail',
+                 'price_list_period_form', 'price_lookup', 'org_structure', 'org_division_form',
+                 'org_department_form', 'list_users', 'create_user', 'edit_user'] %}
+            <div class="hdc-links" id="hdcLinks">
+                <a href="{{ url_for('dashboard') }}" class="{{ 'active' if request.endpoint == 'dashboard' }}"><i class="bi bi-speedometer2"></i> Dashboard</a>
+                {% if can('fettling') %}<a href="{{ url_for('fettling.dashboard') }}" class="{{ 'active' if request.blueprint == 'fettling' }}"><i class="bi bi-tools"></i> Fettling</a>{% endif %}
+                {% if can('dailyproduction') %}<a href="{{ url_for('daily_production.dashboard') }}" class="{{ 'active' if request.blueprint == 'daily_production' }}"><i class="bi bi-clipboard-data"></i> Daily Production</a>{% endif %}
+                {% if can('stocktake') %}<a href="{{ url_for('stocktake.dashboard') }}" class="{{ 'active' if request.blueprint == 'stocktake' }}"><i class="bi bi-boxes"></i> Stocktake</a>{% endif %}
+                {% if can('scrap') %}<a href="{{ url_for('scrap.hub') }}" class="{{ 'active' if request.blueprint == 'scrap' }}"><i class="bi bi-trash3"></i> Scrap</a>{% endif %}
+                {% if can('furnace') %}<a href="{{ url_for('furnace.dashboard') }}" class="{{ 'active' if request.blueprint == 'furnace' }}"><i class="bi bi-fire"></i> Furnace</a>{% endif %}
+                {% if can('overtime') %}<a href="{{ url_for('overtime.index') }}" class="{{ 'active' if request.blueprint == 'overtime' }}"><i class="bi bi-clock-history"></i> Overtime</a>{% endif %}
+                {% if can('timeclock') %}<a href="{{ url_for('timeclock.index') }}" class="{{ 'active' if request.blueprint == 'timeclock' }}"><i class="bi bi-stopwatch"></i> Time Clock</a>{% endif %}
 
-    </div>
+                {% if can('assets') or can('customers') or can('products') or can('pricelists') or can('org') or can('users') or can('access') %}
+                <div class="hdc-admin">
+                    <button type="button" id="hdcAdminTrigger" class="hdc-admin-trigger {{ 'active' if admin_active }}" aria-haspopup="true" aria-expanded="false">
+                        <i class="bi bi-gear"></i> Admin <i class="bi bi-chevron-down care"></i>
+                    </button>
+                    <div class="hdc-admin-menu" id="hdcAdminMenu">
+                        {% if can('assets') %}<a href="{{ url_for('asset.dashboard') }}" class="{{ 'active' if request.blueprint == 'asset' }}"><i class="bi bi-hdd-stack"></i> Assets</a>{% endif %}
+                        {% if can('customers') %}<a href="{{ url_for('customers') }}" class="{{ 'active' if request.endpoint == 'customers' }}"><i class="bi bi-people"></i> Customers</a>{% endif %}
+                        {% if can('products') %}<a href="{{ url_for('products_crud') }}" class="{{ 'active' if request.endpoint in ['products_crud', 'edit_product'] }}"><i class="bi bi-box-seam"></i> Products</a>{% endif %}
+                        {% if can('pricelists') %}<a href="{{ url_for('price_lists') }}" class="{{ 'active' if request.endpoint in ['price_lists', 'price_list_detail', 'price_list_period_form', 'price_lookup'] }}"><i class="bi bi-tags"></i> Price Lists</a>{% endif %}
+                        {% if can('org') %}<a href="{{ url_for('org_structure') }}" class="{{ 'active' if request.endpoint in ['org_structure', 'org_division_form', 'org_department_form'] }}"><i class="bi bi-diagram-2"></i> Org Structure</a>{% endif %}
+                        {% if can('users') %}<a href="{{ url_for('list_users') }}" class="{{ 'active' if request.endpoint in ['list_users', 'create_user', 'edit_user'] }}"><i class="bi bi-person-gear"></i> Users</a>{% endif %}
+                        {% if can('access') %}<a href="{{ url_for('access.index') }}" class="{{ 'active' if request.blueprint == 'access' }}"><i class="bi bi-shield-lock"></i> Access</a>{% endif %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            <div class="hdc-user">
+                <span class="who"><i class="bi bi-person-circle"></i> {{ current_user.name or current_user.username }}</span>
+                <a class="hdc-logout" href="{{ url_for('logout') }}"><i class="bi bi-box-arrow-right"></i> Logout</a>
+            </div>
+        </div>
     </nav>
     {% endif %}
-<main>{% block content %}{% endblock %}</main>
 
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="hdc-flash-wrap">
+            {% for category, message in messages %}
+            <div class="hdc-flash hdc-flash-{{ category }}">
+                <i class="bi bi-{% if category == 'success' %}check-circle-fill{% elif category == 'danger' %}exclamation-triangle-fill{% elif category == 'warning' %}exclamation-circle-fill{% else %}info-circle-fill{% endif %}"></i>
+                <span>{{ message }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    {% endwith %}
+
+    <main>{% block content %}{% endblock %}</main>
+
+    <footer class="hdc-footer">
+        <div><strong>Foundry Analytics</strong> — HDC Production System</div>
+        <div class="foot-legal">
+            &copy; {{ current_year }} Foundry Analytics. All rights reserved.
+            <span class="sep">·</span> Developed by Armand Reynecke
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='app-shell.js') }}"></script>
+
+    {% block extra_js %}{% endblock %}
 </body>
 </html>
