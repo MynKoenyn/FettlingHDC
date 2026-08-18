@@ -10,6 +10,33 @@
 }
 body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
 
+/* ── Keyboard focus ──────────────────────────────────────────────────────
+   :focus-visible only fires for keyboard/other non-pointer focus, so mouse
+   clicks don't get an outline they didn't ask for. Every custom interactive
+   class gets an explicit ring here — without it, a control sitting on a
+   colored background (nav links, KPI tiles, buttons) can make the browser's
+   own default outline hard to see or get clipped by border-radius/overflow. */
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible,
+textarea:focus-visible, summary:focus-visible, [tabindex]:focus-visible {
+    outline: 2.5px solid var(--hdc-primary);
+    outline-offset: 2px;
+    border-radius: 3px;
+}
+.hdc-links a:focus-visible, .hdc-links .hdc-admin-trigger:focus-visible,
+.hdc-subnav-links a:focus-visible, .hdc-logout:focus-visible, .hdc-toggle:focus-visible {
+    outline: 2.5px solid #fff;
+    outline-offset: -2px;
+}
+.app-tile:focus-visible, .dash-card:focus-visible, .app-kpi:focus-visible {
+    outline: 2.5px solid var(--hdc-primary);
+    outline-offset: 3px;
+}
+.app-input:focus-visible, .app-select:focus-visible, .app-textarea:focus-visible,
+.app-search input:focus-visible {
+    outline: none; /* the existing box-shadow ring already gives a clear indicator */
+}
+.ss-option.active { outline: 2px solid var(--hdc-primary); outline-offset: -2px; }
+
 /* ── Top navigation ── */
 .hdc-nav { position: sticky; top: 0; z-index: 1000;
     background: linear-gradient(90deg, #1F3A61 0%, #2C5282 100%);
