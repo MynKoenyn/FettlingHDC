@@ -17,7 +17,7 @@
   #sidebar, .topbar, form, .btn { display: none !important; }
   #main { margin-left: 0 !important; }
   body, .ar-card { background: white !important; color: black !important; }
-  .ar-table th, .ar-table td { color: black !important; border-color: #ccc !important; }
+  .ar-table th { background: white !important; }
 }
 </style>
 {% endblock %}
@@ -59,19 +59,19 @@
     <div class="d-flex gap-4 text-end">
       <div>
         <div class="stat-label">Total Cost</div>
-        <div style="font-size:1.1rem;font-family:'DM Serif Display',serif;color:var(--ar-gold);">
+        <div class="ar-figure sm" style="color:var(--ar-gold);">
           R{{ '{:,.2f}'.format(total_cost) }}
         </div>
       </div>
       <div>
         <div class="stat-label">Accum. Dep.</div>
-        <div style="font-size:1.1rem;font-family:'DM Serif Display',serif;color:var(--ar-muted);">
+        <div class="ar-figure sm" style="color:var(--ar-muted);">
           R{{ '{:,.2f}'.format(total_accum) }}
         </div>
       </div>
       <div>
         <div class="stat-label">Net Book Value</div>
-        <div style="font-size:1.1rem;font-family:'DM Serif Display',serif;color:var(--ar-accent);">
+        <div class="ar-figure sm" style="color:var(--ar-accent);">
           R{{ '{:,.2f}'.format(total_nbv) }}
         </div>
       </div>
@@ -110,7 +110,7 @@
           {# subtotal row #}
           {% endif %}
           {% set cat_totals.current_cat = a.category.name %}
-          <tr style="background:rgba(0,198,162,0.04);">
+          <tr style="background:#f8fafc;">
             <td colspan="11" style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--ar-muted);padding:0.5rem 0.75rem;font-weight:700;">
               {{ a.category.name }}
             </td>

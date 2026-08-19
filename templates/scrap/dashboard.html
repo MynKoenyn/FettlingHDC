@@ -1,0 +1,213 @@
+{% extends "scrap/base_scrap.html" %}
+{% set page_title = "Scrap Overview" %}
+{% set page_sub = "External customer reject reports and internally captured scrap, in one place." %}
+
+{% block title %}Scrap Overview{% endblock %}
+
+{% block scrap_content %}
+
+<div class="kpi-row">
+    <div class="kpi danger">
+        <div class="v">{{ '{:,}'.format(ytd.scrap) }}</div>
+        <div class="l">Scrap {{ today.year }}</div>
+        <div class="s">{{ '{:,}'.format(ytd.machined) }} machined / {{ '{:,}'.format(ytd.packed) }} packed</div>
+    </div>
+    <div class="kpi {{ 'danger' if ytd.pct and ytd.pct >= 5 else 'warn' if ytd.pct and ytd.pct >= 3 else 'ok' }}">
+        <div class="v">{% if ytd.pct is not none %}{{ '%.2f'|format(ytd.pct) }}%{% else %}—{% endif %}</div>
+        <div class="l">Reject % {{ today.year }}</div>
+        <div class="s">{{ ytd.entries }} entries</div>
+    </div>
+    <div class="kpi">
+        <div class="v">{{ '{:,}'.format(ytd.external) }}</div>
+        <div class="l">External Scrap YTD</div>
+        <div class="s">From customer reports</div>
+    </div>
+    <div class="kpi warn">
+        <div class="v">{{ '{:,}'.format(ytd.internal) }}</div>
+        <div class="l">Internal Scrap YTD</div>
+        <div class="s">Captured in-house</div>
+    </div>
+    <div class="kpi muted">
+        <div class="v">{{ '{:,}'.format(mtd.scrap) }}</div>
+        <div class="l">This Month</div>
+        <div class="s">{% if mtd.pct is not none %}{{ '%.2f'|format(mtd.pct) }}% reject{% else %}No base qty{% endif %}</div>
+    </div>
+</div>
+
+{% if unmatched_count %}
+<div class="app-card">
+    <div class="app-card-body" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+        <div style="color:#92400e;">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <strong>{{ unmatched_count }}</strong> imported entry(ies) have no product link — their part number matched no product.
+        </div>
+        <a class="app-btn app-btn-outline app-btn-sm" href="{{ url_for('scrap.entries', unmatched=1) }}">
+            <i class="bi bi-link-45deg"></i> Review &amp; link
+        </a>
+    </div>
+</div>
+{% endif %}
+
+<div class="two-col">
+
+    <!-- SCRAP BY MONTH -->
+    <div class="app-card">
+        <div class="app-card-head">
+            <h2 class="app-card-title"><i class="bi bi-bar-chart"></i> Scrap by Month — {{ today.year }}</h2>
+            <a class="app-btn app-btn-outline app-btn-sm" href="{{ url_for('scrap.reports', period='month', year=today.year) }}">
+                Monthly report <i class="bi bi-arrow-right"></i>
+            </a>
+        </div>
+        <div class="app-card-body">
+            <div class="legend">
+                <span><i style="background:#2563eb;"></i> External</span>
+                <span><i style="background:#d97706;"></i> Internal</span>
+            </div>
+            {% if month_max %}
+                {% for m in month_series %}
+                {% set total = m.external + m.internal %}
+                <div class="bar-row">
+                    <div class="nm">{{ m.label }}</div>
+                    <div class="bar-track">
+                        <div class="bar-fill ext" style="width: {{ (m.external / month_max * 100) if month_max else 0 }}%"></div>
+                        <div class="bar-fill int" style="width: {{ (m.internal / month_max * 100) if month_max else 0 }}%"></div>
+                    </div>
+                    <div class="qty">{{ '{:,}'.format(total) if total else '—' }}</div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="app-empty"><i class="bi bi-inbox"></i> No scrap recorded for {{ today.year }} yet.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- TOP REJECT REASONS -->
+    <div class="app-card">
+        <div class="app-card-head">
+            <h2 class="app-card-title"><i class="bi bi-tags"></i> Top Reject Reasons — {{ today.year }}</h2>
+        </div>
+        <div class="app-card-body">
+            {% if top_defects %}
+                {% for d in top_defects %}
+                <div class="bar-row">
+                    <div class="nm" title="{{ d.name }}">{{ d.name }}</div>
+                    <div class="bar-track">
+                        <div class="bar-fill" style="width: {{ (d.qty / defect_max * 100) if defect_max else 0 }}%"></div>
+                    </div>
+                    <div class="qty">{{ '{:,}'.format(d.qty|int) }}</div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="app-empty"><i class="bi bi-inbox"></i> No reject reasons recorded yet.</div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+
+<!-- RECENT IMPORTS -->
+<div class="app-card">
+    <div class="app-card-head">
+        <h2 class="app-card-title"><i class="bi bi-upload"></i> Recent External Imports</h2>
+        <div style="display:flex;gap:.5rem;">
+            <a class="app-btn app-btn-outline app-btn-sm" href="{{ url_for('scrap.import_batches') }}">All imports</a>
+            <a class="app-btn app-btn-primary app-btn-sm" href="{{ url_for('scrap.import_report') }}">
+                <i class="bi bi-upload"></i> Import report
+            </a>
+        </div>
+    </div>
+    <div class="app-card-body">
+        {% if recent_imports %}
+        <div class="app-table-wrap">
+            <table class="app-table">
+                <thead>
+                    <tr>
+                        <th>File</th><th>Customer</th><th>Imported</th>
+                        <th class="num">Rows</th><th class="num">Imported</th>
+                        <th class="num">Duplicates</th><th class="num">Unmatched</th><th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for b in recent_imports %}
+                    <tr>
+                        <td class="mono-sm">{{ b.filename or '—' }}</td>
+                        <td>{{ b.customer.name if b.customer else '—' }}</td>
+                        <td>{{ b.imported_at.strftime('%d %b %Y %H:%M') if b.imported_at else '—' }}</td>
+                        <td class="num">{{ b.rows_total or 0 }}</td>
+                        <td class="num"><span class="app-badge green">{{ b.rows_imported or 0 }}</span></td>
+                        <td class="num">
+                            {% if b.rows_duplicate %}
+                                {% if b.duplicates_pending %}
+                                    <span class="app-badge amber" title="{{ b.duplicates_pending }} awaiting a decision">{{ b.rows_duplicate }} · {{ b.duplicates_pending }} pending</span>
+                                {% else %}
+                                    <span class="app-badge gray">{{ b.rows_duplicate }}</span>
+                                {% endif %}
+                            {% else %}—{% endif %}
+                        </td>
+                        <td class="num">{% if b.rows_unmatched %}<span class="app-badge red">{{ b.rows_unmatched }}</span>{% else %}—{% endif %}</td>
+                        <td>
+                            <a class="app-btn {{ 'app-btn-warn' if b.duplicates_pending else 'app-btn-outline' }} app-btn-sm"
+                               href="{{ url_for('scrap.import_batch', batch_id=b.id, review=1 if b.duplicates_pending else None) }}">
+                                {% if b.duplicates_pending %}Review{% else %}View{% endif %}
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="app-empty">
+            <i class="bi bi-cloud-arrow-up"></i>
+            No reports imported yet. Download the CSV template from the import screen to get started.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- RECENT ENTRIES -->
+<div class="app-card">
+    <div class="app-card-head">
+        <h2 class="app-card-title"><i class="bi bi-clock-history"></i> Latest Scrap Entries</h2>
+        <a class="app-btn app-btn-outline app-btn-sm" href="{{ url_for('scrap.entries') }}">View all</a>
+    </div>
+    <div class="app-card-body">
+        {% if recent_entries %}
+        <div class="app-table-wrap">
+            <table class="app-table">
+                <thead>
+                    <tr>
+                        <th>Date</th><th>Source</th><th>Customer</th><th>Product / Part</th>
+                        <th>Batch</th><th class="num">Machined / Packed</th><th class="num">Scrap</th><th class="num">% Reject</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for e in recent_entries %}
+                    <tr>
+                        <td>{{ e.entry_date.strftime('%d %b %Y') }}</td>
+                        <td><span class="app-badge {{ 'src-ext' if e.source == 'external' else 'src-int' }}">{{ 'External' if e.source == 'external' else 'Internal' }}</span></td>
+                        <td>{{ e.customer.name if e.customer else '—' }}</td>
+                        <td>
+                            {% if e.product %}{{ e.product.name }}
+                            {% else %}<span class="mono-sm">{{ e.casting_no or e.machined_part_no or '—' }}</span>{% endif %}
+                        </td>
+                        <td class="mono-sm">{{ e.batch_no or '—' }}</td>
+                        <td class="num">{{ '{:,}'.format(e.entered_qty or 0) }}</td>
+                        <td class="num">{{ '{:,}'.format(e.qty_scrap or 0) }}</td>
+                        <td class="num">
+                            {% if e.reject_pct is not none %}
+                                <span class="{{ 'pct-hi' if e.reject_pct >= 5 else 'pct-ok' }}">{{ '%.1f'|format(e.reject_pct) }}%</span>
+                            {% else %}—{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="app-empty"><i class="bi bi-inbox"></i> Nothing captured yet.</div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

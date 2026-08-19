@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Live Logs</title>
+  <style>
+    body { font-family: monospace; background: #f0f0f0; padding: 20px; }
+    #logs { background: #222; color: #0f0; padding: 10px; height: 500px; overflow-y: scroll; border-radius: 5px; }
+  </style>
+</head>
+<body>
+  <h2>Live Logs</h2>
+  <div id="logs"></div>
+
+  <script>
+    const logsDiv = document.getElementById('logs');
+
+    async function fetchLogs() {
+      const res = await fetch('/furnace/live-logs');
+      const data = await res.json();
+
+      logsDiv.innerHTML = ''; // clear old logs
+      data.forEach(line => {
+        const div = document.createElement('div');
+        div.textContent = line;
+        logsDiv.appendChild(div);
+      });
+
+      logsDiv.scrollTop = logsDiv.scrollHeight; // auto scroll to bottom
+    }
+
+    // Fetch every second
+    setInterval(fetchLogs, 1000);
+    fetchLogs(); // initial load
+  </script>
+</body>
+</html>

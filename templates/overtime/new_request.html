@@ -1,0 +1,320 @@
+{% extends 'overtime/base.html' %}
+
+{% block title %}New Overtime Request{% endblock %}
+{% block page_title %}New Overtime Request{% endblock %}
+
+{% block content %}
+<div style="max-width:820px;">
+  <form method="POST" id="request-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <!-- ── Scope notice ── -->
+    <div class="ot-card mb-3">
+      <div class="ot-card-header">
+        <span class="ot-card-title"><i class="bi bi-plus-circle me-2"></i>Submit Overtime Request</span>
+        <a href="{{ url_for('overtime.index') }}" class="ot-btn ot-btn-outline ot-btn-sm">← Back</a>
+      </div>
+      <div class="ot-card-body">
+        <div class="ot-alert ot-alert-info d-flex align-items-center gap-2 mb-3">
+          <i class="bi bi-info-circle-fill"></i>
+          {% if current_user.is_admin %}
+            You have admin access — you can submit overtime for <strong>all personnel</strong>.
+          {% else %}
+            You can submit overtime for personnel in your division
+            {% if current_user.division %}(<strong>{{ current_user.division.code }}</strong>){% endif %}
+            and anyone assigned to you under Managers.
+          {% endif %}
+        </div>
+        <div style="font-size:.8rem;color:var(--ot-muted);">
+          Add a block below for each personnel member you're requesting overtime for — their own
+          dates and their own reason. Every person is submitted, approved and captured as their
+          own batch, so approving one person's week never pulls another person's dates in with it.
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Quick add by department ── -->
+    <div class="ot-card mb-3">
+      <div class="ot-card-body">
+        <label class="ot-form-label" for="dept-quick-add">Quick add — load a whole department</label>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+          <select id="dept-quick-add" class="ot-form-control" style="flex:1 1 260px;">
+            <option value="">— Select a department —</option>
+            {% for d in departments %}
+            <option value="{{ d.id }}">{{ d.name }}{% if d.division %} ({{ d.division.code }}){% endif %}</option>
+            {% endfor %}
+          </select>
+          <button type="button" class="ot-btn ot-btn-outline" id="dept-quick-add-btn">
+            <i class="bi bi-people-fill"></i> Load department
+          </button>
+        </div>
+        <div id="dept-quick-add-alert" class="ot-alert ot-alert-warning d-none mt-3"></div>
+        <div style="font-size:.8rem;color:var(--ot-muted);" class="mt-2">
+          Loads everyone in that department into the list below — remove anyone
+          you don't need, or add more people one at a time underneath.
+        </div>
+      </div>
+    </div>
+
+    <!-- ── One block per personnel member ── -->
+    <div id="personnel-sections">
+      {% for sec in prefill.sections %}
+      <div class="ot-person-section mb-3" data-idx="{{ loop.index0 }}">
+        <div class="ot-card mb-2">
+          <div class="ot-card-header">
+            <span class="ot-card-title">Personnel #{{ loop.index }}</span>
+            <button type="button" class="ot-btn ot-btn-outline ot-btn-sm ot-remove-section"
+                    {% if loop.length <= 1 and loop.first %}style="display:none;"{% endif %}>
+              <i class="bi bi-x-lg"></i> Remove
+            </button>
+          </div>
+          <div class="ot-card-body">
+            <label class="ot-form-label" for="personnel_id_{{ loop.index0 }}">Personnel Member <span style="color:var(--ot-danger)">*</span></label>
+            <select name="personnel_id_{{ loop.index0 }}" id="personnel_id_{{ loop.index0 }}" class="ot-form-control" data-ot-search>
+              <option value="">— Search name, surname or clock no. —</option>
+              {% for p in personnel_list %}
+              <option value="{{ p.id }}" data-dept-id="{{ p.department_id or '' }}" {% if sec.personnel_id|string == p.id|string %}selected{% endif %}>
+                {{ p.name }} {{ p.surname }} ({{ p.clockno }}) — {{ p.department.name }} / {{ p.division.code }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        {% set dp_lunch = false %}
+        {% set dp_verb = "" %}
+        {% set dp_form_id = "request-form" %}
+        {% set dp_index = loop.index0 %}
+        {% set dp_prefill = sec %}
+        {% include 'overtime/_daypicker.html' %}
+
+        <div class="ot-card">
+          <div class="ot-card-body">
+            <label class="ot-form-label" for="reason_{{ loop.index0 }}">Reason</label>
+            <textarea name="reason_{{ loop.index0 }}" id="reason_{{ loop.index0 }}" class="ot-form-control" rows="2"
+                      placeholder="Why this overtime is needed — saved against every period requested for this person…">{{ sec.reason }}</textarea>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+
+      {# Every remaining slot up to the max, pre-rendered but hidden. "Add another
+         personnel" just reveals the next one in order — nothing is built on the
+         fly, so the searchable-select and day-picker scripts on this page (which
+         run once, at load) already cover it. #}
+      {% for i in range(prefill.sections|length, max_sections) %}
+      <div class="ot-person-section mb-3 d-none" data-idx="{{ i }}">
+        <div class="ot-card mb-2">
+          <div class="ot-card-header">
+            <span class="ot-card-title">Personnel #{{ i + 1 }}</span>
+            <button type="button" class="ot-btn ot-btn-outline ot-btn-sm ot-remove-section">
+              <i class="bi bi-x-lg"></i> Remove
+            </button>
+          </div>
+          <div class="ot-card-body">
+            <label class="ot-form-label" for="personnel_id_{{ i }}">Personnel Member <span style="color:var(--ot-danger)">*</span></label>
+            <select name="personnel_id_{{ i }}" id="personnel_id_{{ i }}" class="ot-form-control" data-ot-search>
+              <option value="">— Search name, surname or clock no. —</option>
+              {% for p in personnel_list %}
+              <option value="{{ p.id }}" data-dept-id="{{ p.department_id or '' }}">
+                {{ p.name }} {{ p.surname }} ({{ p.clockno }}) — {{ p.department.name }} / {{ p.division.code }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        {% set dp_lunch = false %}
+        {% set dp_verb = "" %}
+        {% set dp_form_id = "request-form" %}
+        {% set dp_index = i %}
+        {% set dp_prefill = {"days": []} %}
+        {% include 'overtime/_daypicker.html' %}
+
+        <div class="ot-card">
+          <div class="ot-card-body">
+            <label class="ot-form-label" for="reason_{{ i }}">Reason</label>
+            <textarea name="reason_{{ i }}" id="reason_{{ i }}" class="ot-form-control" rows="2"
+                      placeholder="Why this overtime is needed — saved against every period requested for this person…"></textarea>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="mb-3">
+      <button type="button" class="ot-btn ot-btn-outline" id="add-section">
+        <i class="bi bi-plus-lg"></i> Add another personnel
+      </button>
+    </div>
+
+    <!-- ── Submit ── -->
+    <div class="ot-card">
+      <div class="ot-card-body">
+        <div class="ot-alert ot-alert-info mb-3">
+          <i class="bi bi-info-circle me-2"></i>
+          Ask for the hours as they will be worked — <strong>clock-on to clock-off</strong>.
+          Don't take a lunch break off here: it is deducted when the actual times are
+          captured, since the break differs by division and shift and isn't known yet.
+          Each period is approved on its own, so an approver can allow one and turn
+          down another on the same day.
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="ot-btn ot-btn-primary" id="submit-btn"
+                  {% if not personnel_list %}disabled{% endif %}>
+            <i class="bi bi-send"></i> Submit Request(s)
+          </button>
+          <a href="{{ url_for('overtime.index') }}" class="ot-btn ot-btn-outline">Cancel</a>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
+
+<script>
+(function () {
+  var container = document.getElementById("personnel-sections");
+  var sections   = Array.prototype.slice.call(container.querySelectorAll(".ot-person-section"));
+  var addBtn     = document.getElementById("add-section");
+
+  function isShown(sec) { return !sec.classList.contains("d-none"); }
+
+  function updateRemoveButtons() {
+    var shown = sections.filter(isShown);
+    shown.forEach(function (sec) {
+      var btn = sec.querySelector(".ot-remove-section");
+      if (btn) btn.style.display = shown.length > 1 ? "" : "none";
+    });
+  }
+
+  function updateAddButton() {
+    addBtn.style.display = sections.some(function (s) { return !isShown(s); }) ? "" : "none";
+  }
+
+  addBtn.addEventListener("click", function () {
+    var next = sections.filter(function (s) { return !isShown(s); })[0];
+    if (!next) return;
+    next.classList.remove("d-none");
+    updateRemoveButtons();
+    updateAddButton();
+    next.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+
+  container.addEventListener("click", function (e) {
+    var btn = e.target.closest(".ot-remove-section");
+    if (!btn) return;
+    var sec = btn.closest(".ot-person-section");
+    if (!sec) return;
+
+    var idx = sec.dataset.idx;
+    var picker = window.__otDayPickers && window.__otDayPickers[idx];
+    if (picker) picker.clear();
+
+    var pid = sec.querySelector('select[id^="personnel_id_"]');
+    if (pid) {
+      pid.value = "";
+      // The searchable-select widget (base.html) shows its own text box over
+      // the native select and doesn't listen for programmatic changes to it,
+      // so it's cleared directly too.
+      var wrap = pid.closest(".ot-ss");
+      var searchInput = wrap ? wrap.querySelector(".ot-ss-input") : null;
+      if (searchInput) searchInput.value = "";
+    }
+
+    var reason = sec.querySelector('textarea[id^="reason_"]');
+    if (reason) reason.value = "";
+
+    sec.classList.add("d-none");
+    updateRemoveButtons();
+    updateAddButton();
+  });
+
+  // ── Quick add by department ──
+  // Fills every empty slot (the untouched first section, then hidden ones in
+  // order) with one person from the chosen department, skipping anyone
+  // already picked elsewhere on the form. People already added stay put —
+  // this only ever fills gaps, so it can be used more than once (e.g. after
+  // removing someone) without disturbing the rest of the form.
+  var deptSelect = document.getElementById("dept-quick-add");
+  var deptBtn    = document.getElementById("dept-quick-add-btn");
+  var deptAlert  = document.getElementById("dept-quick-add-alert");
+
+  function personnelSelectIn(sec) {
+    return sec.querySelector('select[id^="personnel_id_"]');
+  }
+
+  function selectedPersonnelIds() {
+    return sections.filter(isShown).map(function (s) {
+      var sel = personnelSelectIn(s);
+      return sel ? sel.value : "";
+    }).filter(Boolean);
+  }
+
+  function emptyTargetSections() {
+    var emptyShown = sections.filter(function (s) {
+      if (!isShown(s)) return false;
+      var sel = personnelSelectIn(s);
+      return sel && !sel.value;
+    });
+    var hidden = sections.filter(function (s) { return !isShown(s); });
+    return emptyShown.concat(hidden);
+  }
+
+  function setSectionPersonnel(sec, personnelId) {
+    sec.classList.remove("d-none");
+    var sel = personnelSelectIn(sec);
+    sel.value = personnelId;
+    // The searchable-select widget (base.html) listens for this so its
+    // visible text box picks up the programmatic change.
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  if (deptBtn) {
+    deptBtn.addEventListener("click", function () {
+      deptAlert.classList.add("d-none");
+      var deptId = deptSelect.value;
+      if (!deptId) return;
+
+      var firstSelect = personnelSelectIn(sections[0]);
+      var deptIds = Array.prototype.filter.call(firstSelect.options, function (o) {
+        return o.value && o.dataset.deptId === deptId;
+      }).map(function (o) { return o.value; });
+
+      var already = selectedPersonnelIds();
+      var toAdd = deptIds.filter(function (id) { return already.indexOf(id) === -1; });
+
+      if (!toAdd.length) {
+        deptAlert.textContent = "Everyone in that department is already in the list below.";
+        deptAlert.classList.remove("d-none");
+        return;
+      }
+
+      var targets = emptyTargetSections();
+      var added = 0;
+      toAdd.forEach(function (id) {
+        var sec = targets[added];
+        if (!sec) return;
+        setSectionPersonnel(sec, id);
+        added++;
+      });
+
+      updateRemoveButtons();
+      updateAddButton();
+
+      if (added < toAdd.length) {
+        deptAlert.textContent = "Only " + added + " of " + toAdd.length +
+          " personnel could be loaded — one request holds at most " +
+          sections.length + " people. Submit this batch and add the rest in a second request.";
+        deptAlert.classList.remove("d-none");
+      }
+
+      if (targets[0]) targets[0].scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }
+
+  updateRemoveButtons();
+  updateAddButton();
+})();
+</script>
+{% endblock %}

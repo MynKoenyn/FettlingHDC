@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% block title %}Price Lookup{% endblock %}
+
+{% block content %}
+<div class="app-container" style="max-width:860px;">
+
+    <div class="app-card">
+        <div class="app-card-head">
+            <span class="app-card-title"><i class="bi bi-search" style="color:var(--hdc-primary);"></i> Historical Price Lookup</span>
+            <a href="{{ url_for('price_lists') }}" class="app-btn app-btn-outline app-btn-sm"><i class="bi bi-arrow-left"></i> Price Lists</a>
+        </div>
+        <div class="app-card-body">
+            <div class="hdc-flash hdc-flash-info" style="margin-bottom:1.2rem;">
+                <i class="bi bi-info-circle-fill"></i>
+                <span>Pick the date something happened (production, scrap, a stock count) and this shows which
+                      price list period it falls in and the price that was in force then.</span>
+            </div>
+
+            <form method="POST" novalidate>
+                {{ form.hidden_tag() }}
+                <div class="app-form-grid" style="grid-template-columns:200px 1fr 1fr;">
+                    <div class="app-field">
+                        <label class="app-label">Date <span class="req">*</span></label>
+                        {{ form.lookup_date(class="app-input" + (" is-invalid" if form.lookup_date.errors else ""), type="date") }}
+                        {% for e in form.lookup_date.errors %}<div class="app-err">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label">Customer <span class="req">*</span></label>
+                        {{ form.customer_id(class="app-select searchable-select") }}
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label">Product <span class="req">*</span></label>
+                        {{ form.product_id(class="app-select searchable-select") }}
+                    </div>
+                </div>
+                <div style="margin-top:1.1rem;">
+                    <button type="submit" class="app-btn app-btn-primary"><i class="bi bi-search"></i> Look Up Price</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if result %}
+    <div class="app-card">
+        <div class="app-card-head">
+            <span class="app-card-title"><i class="bi bi-receipt" style="color:var(--hdc-primary);"></i> Result</span>
+        </div>
+        <div class="app-card-body">
+
+            <div style="display:flex; gap:2rem; flex-wrap:wrap; margin-bottom:1.2rem; font-size:.9rem;">
+                <div><span class="app-label" style="margin:0 0 .2rem;">Date</span> <strong>{{ result.date.strftime('%d %b %Y') }}</strong></div>
+                <div><span class="app-label" style="margin:0 0 .2rem;">Customer</span> <strong>{{ result.customer.name }}</strong></div>
+                <div><span class="app-label" style="margin:0 0 .2rem;">Product</span> <strong>{{ result.product.name }}</strong></div>
+                <div><span class="app-label" style="margin:0 0 .2rem;">Division</span>
+                    <strong>{{ result.customer.division.code if result.customer.division else '— none —' }}</strong></div>
+            </div>
+
+            {% if result.price is not none %}
+                <div style="background:#dcfce7; border-radius:.8rem; padding:1.3rem 1.5rem; border-left:5px solid #16a34a;">
+                    <div style="font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#166534;">
+                        Price in force on {{ result.date.strftime('%d %b %Y') }}
+                    </div>
+                    <div style="font-size:2.1rem; font-weight:800; color:#14532d; line-height:1.15; margin-top:.3rem;">
+                        R {{ '%.2f'|format(result.price) }}
+                    </div>
+                    <div style="font-size:.88rem; color:#166534; margin-top:.35rem;">
+                        Price list period: <strong>{{ result.period.label }}</strong>
+                        ({{ result.period.start_date.strftime('%d %b %Y') }} → {{ result.period.end_date.strftime('%d %b %Y') }})
+                    </div>
+                </div>
+
+            {% elif result.period %}
+                <div class="hdc-flash hdc-flash-warning" style="margin:0;">
+                    <i class="bi bi-exclamation-circle-fill"></i>
+                    <span>
+                        That date falls in period <strong>{{ result.period.label }}</strong>
+                        ({{ result.period.start_date.strftime('%d %b %Y') }} → {{ result.period.end_date.strftime('%d %b %Y') }}),
+                        but no price is captured for this customer + product in it.
+                        {% if result.fallback is not none %}
+                            The product's default price is <strong>R {{ '%.2f'|format(result.fallback) }}</strong>.
+                        {% endif %}
+                        <a href="{{ url_for('price_list_detail', period_id=result.period.id) }}">Add it to that period</a>.
+                    </span>
+                </div>
+
+            {% else %}
+                <div class="hdc-flash hdc-flash-danger" style="margin:0;">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <span>
+                        {% if not result.customer.division %}
+                            <strong>{{ result.customer.name }}</strong> has no division set, so no price list calendar applies.
+                            Set its division on the <a href="{{ url_for('edit_customer', customer_id=result.customer.id) }}">customer's edit page</a>.
+                        {% else %}
+                            No price list period covers {{ result.date.strftime('%d %b %Y') }} for division
+                            <strong>{{ result.customer.division.code }}</strong>.
+                            <a href="{{ url_for('price_lists') }}">Generate the period</a> first.
+                        {% endif %}
+                    </span>
+                </div>
+            {% endif %}
+
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

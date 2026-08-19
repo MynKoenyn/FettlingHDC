@@ -1,0 +1,142 @@
+{% extends "furnace/base_furnace.html" %}
+
+{% block title %}
+Spectro Assignment
+{% endblock %}
+
+{% block furnace_content %}
+
+{% if entry %}
+<h4>Furnace Entry Details</h4>
+<ul>
+    <li><strong>Heat Number:</strong> {{ entry.heat_number }}</li>
+    <li><strong>Date:</strong> {{ entry.date }}</li>
+    <li><strong>Furnace:</strong> {{ entry.furnace_ref.name if entry.furnace_ref else 'Unknown' }}</li>
+    <li><strong>Metal Grade:</strong> {{ entry.metal_grade_ref.name if entry.metal_grade_ref else 'Unknown' }}</li>
+    <li><strong>Status:</strong> {{ entry.status }}</li>
+    <li><strong>Total Materials:</strong> {{ entry.total_materials }}</li>
+    <li><strong>Created At:</strong> {{ entry.created_at.strftime('%d-%m-%Y %H:%M') }}</li>
+    <li><strong>Updated At:</strong> {{ entry.updated_at.strftime('%d-%m-%Y %H:%M') }}</li>
+</ul>
+<hr>
+{% endif %}
+
+<form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <!-- BASE DROPDOWN -->
+    <h4>Base Result</h4>
+    <select id="baseSelect" name="base_id" class="form-control">
+        <option value="">-- Select Base Result --</option>
+        {% for r in base_results %}
+            <option value="{{ r.id }}"
+                data-date="{{ r.measure_date }}"
+                data-time="{{ r.measure_time }}"
+                data-heat="{{ r.heat_number }}"
+                data-furnace="{{ r.furnace or '' }}"
+                data-cu="{{ r.ele_cu }}"
+                data-sn="{{ r.ele_sn }}"
+                data-fe="{{ r.ele_fe }}"
+                data-mn="{{ r.ele_mn }}"
+                data-c="{{ r.ele_c }}">
+                {{ r.measure_date }} | {{ r.measure_time }} | Heat {{ r.heat_number }} | {{ r.furnace or 'No Furnace' }}
+            </option>
+        {% endfor %}
+    </select>
+
+    <div id="baseFields" style="display:none; margin-top:10px;">
+        <strong>Date:</strong> <span id="bDate"></span><br>
+        <strong>Time:</strong> <span id="bTime"></span><br>
+        <strong>Furnace:</strong> <span id="bFurnace"></span><br>
+        <strong>Heat:</strong> <span id="bHeat"></span><br><br>
+
+        <strong>Tin:</strong> <span id="bSn"></span><br>
+        <strong>Iron:</strong> <span id="bFe"></span><br>
+        <strong>Recarb (C):</strong> <span id="bC"></span><br>
+        <strong>Ferro Mn:</strong> <span id="bMn"></span><br>
+        <strong>Copper:</strong> <span id="bCu"></span><br>
+    </div>
+
+    <hr>
+
+    <!-- FINAL DROPDOWN -->
+    <h4>Final Result</h4>
+    <select id="finalSelect" name="final_id" class="form-control">
+        <option value="">-- Select Final Result --</option>
+        {% for r in final_results %}
+            <option value="{{ r.id }}"
+                data-date="{{ r.measure_date }}"
+                data-time="{{ r.measure_time }}"
+                data-heat="{{ r.heat_number }}"
+                data-furnace="{{ r.furnace or '' }}"
+                data-pot="{{ r.pot_number or '' }}"
+                data-grade="{{ r.metal_grade or '' }}"
+                data-cu="{{ r.ele_cu }}"
+                data-sn="{{ r.ele_sn }}"
+                data-fe="{{ r.ele_fe }}"
+                data-mn="{{ r.ele_mn }}"
+                data-c="{{ r.ele_c }}">
+                {{ r.measure_date }} | {{ r.measure_time }} | Heat {{ r.heat_number }}{% if r.metal_grade %} | {{ r.metal_grade }}{% endif %}{% if r.pot_number %} | Pot {{ r.pot_number }}{% endif %} | {{ r.furnace or 'No Furnace' }}
+            </option>
+        {% endfor %}
+    </select>
+
+    <div id="finalFields" style="display:none; margin-top:10px;">
+        <strong>Date:</strong> <span id="fDate"></span><br>
+        <strong>Time:</strong> <span id="fTime"></span><br>
+        <strong>Furnace:</strong> <span id="fFurnace"></span><br>
+        <strong>Heat:</strong> <span id="fHeat"></span><br>
+        <strong>Pot No:</strong> <span id="fPot"></span><br>
+        <strong>Grade:</strong> <span id="fGrade"></span><br><br>
+
+        <strong>Tin:</strong> <span id="fSn"></span><br>
+        <strong>Iron:</strong> <span id="fFe"></span><br>
+        <strong>Recarb (C):</strong> <span id="fC"></span><br>
+        <strong>Ferro Mn:</strong> <span id="fMn"></span><br>
+        <strong>Copper:</strong> <span id="fCu"></span><br>
+    </div>
+
+    <hr>
+    <button class="btn btn-primary">Save Link</button>
+</form>
+
+<script>
+const setBaseFields = (opt) => {
+    document.getElementById("bDate").innerText = opt.dataset.date;
+    document.getElementById("bTime").innerText = opt.dataset.time;
+    document.getElementById("bFurnace").innerText = opt.dataset.furnace;
+    document.getElementById("bHeat").innerText = opt.dataset.heat;
+    document.getElementById("bSn").innerText = opt.dataset.sn;
+    document.getElementById("bFe").innerText = opt.dataset.fe;
+    document.getElementById("bC").innerText = opt.dataset.c;
+    document.getElementById("bMn").innerText = opt.dataset.mn;
+    document.getElementById("bCu").innerText = opt.dataset.cu;
+    document.getElementById("baseFields").style.display = "block";
+};
+
+const setFinalFields = (opt) => {
+    document.getElementById("fDate").innerText = opt.dataset.date;
+    document.getElementById("fTime").innerText = opt.dataset.time;
+    document.getElementById("fFurnace").innerText = opt.dataset.furnace;
+    document.getElementById("fHeat").innerText = opt.dataset.heat;
+    document.getElementById("fPot").innerText = opt.dataset.pot;
+    document.getElementById("fGrade").innerText = opt.dataset.grade;
+    document.getElementById("fSn").innerText = opt.dataset.sn;
+    document.getElementById("fFe").innerText = opt.dataset.fe;
+    document.getElementById("fC").innerText = opt.dataset.c;
+    document.getElementById("fMn").innerText = opt.dataset.mn;
+    document.getElementById("fCu").innerText = opt.dataset.cu;
+    document.getElementById("finalFields").style.display = "block";
+};
+
+document.getElementById("baseSelect").addEventListener("change", function() {
+    const opt = this.selectedOptions[0];
+    if (opt.value) setBaseFields(opt);
+});
+
+document.getElementById("finalSelect").addEventListener("change", function() {
+    const opt = this.selectedOptions[0];
+    if (opt.value) setFinalFields(opt);
+});
+</script>
+
+{% endblock %}

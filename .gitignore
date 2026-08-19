@@ -15,12 +15,22 @@ __pycache__/
 
 # Logs
 *.log
+service_log.txt
 
 # Archives
 *.tar.gz
 
 # Build / misc
 coverage/
+
+# Uploaded product images (runtime content, not source)
+static/images/products/
+
+# Uploaded personnel photos (runtime content, not source)
+static/images/personnel/
+
+# Uploaded product PPAP documents (runtime content, not source)
+static/documents/ppap/
 
 # Optional
 venv/

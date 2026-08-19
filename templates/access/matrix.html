@@ -1,0 +1,125 @@
+{% extends "access/base_access.html" %}
+{% set page_title = "Permission Matrix" %}
+{% set page_sub = "Every user against one module at a time. Flip a switch to grant or revoke immediately." %}
+
+{% block title %}Permission Matrix{% endblock %}
+
+{% block access_head %}
+<style>
+    .mod-picker { display: flex; gap: .35rem; flex-wrap: wrap; }
+    .mod-picker a { font-size: .82rem; font-weight: 600; color: #475569; text-decoration: none;
+        padding: .4rem .75rem; border-radius: .5rem; border: 1.5px solid #e2e8f0; background: #fff;
+        display: inline-flex; align-items: center; gap: .35rem; }
+    .mod-picker a:hover { border-color: #94a3b8; color: #0f172a; }
+    .mod-picker a.active { background: var(--hdc-primary); border-color: var(--hdc-primary); color: #fff; }
+    .picker-group { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em;
+        color: #94a3b8; margin: .9rem 0 .45rem; }
+</style>
+{% endblock %}
+
+{% block access_content %}
+
+<div class="app-card">
+    <div class="app-card-head">
+        <h2 class="app-card-title"><i class="bi bi-grid-3x3"></i> Choose a Module</h2>
+    </div>
+    <div class="app-card-body">
+        {% for group, modules in groups %}
+        <div class="picker-group">{{ group }}</div>
+        <div class="mod-picker">
+            {% for module, label, icon, perms in modules %}
+            <a href="{{ url_for('access.matrix', module=module) }}"
+               class="{{ 'active' if selected == module }}">
+                <i class="bi {{ icon }}"></i> {{ label }}
+            </a>
+            {% endfor %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+{% if current %}
+{% set module, label, icon, perms = current %}
+<div class="app-card">
+    <div class="app-card-head">
+        <h2 class="app-card-title"><i class="bi {{ icon }}"></i> {{ label }}</h2>
+        <span class="app-muted" style="font-size:.82rem;">{{ users|length }} user(s) · {{ perms|length }} permission(s)</span>
+    </div>
+    <div class="app-card-body">
+        <div class="note-box info">
+            <i class="bi bi-info-circle-fill"></i>
+            <div>
+                Administrators always have full access. A user marked
+                <strong>unrestricted</strong> has no permissions ticked anywhere, so they
+                can reach everything — tick their first permission on the
+                <a href="{{ url_for('access.index') }}">user screen</a> to start limiting them.
+            </div>
+        </div>
+
+        <div class="app-table-wrap">
+            <table class="app-table">
+                <thead>
+                    <tr>
+                        <th style="min-width:200px;">User</th>
+                        <th>Role</th>
+                        {% for perm in perms %}
+                        <th style="text-align:center;">
+                            {{ perm.action|upper }}
+                            <div style="font-size:.6rem;font-weight:400;text-transform:none;color:#94a3b8;max-width:130px;white-space:normal;">
+                                {{ perm.label or '' }}
+                            </div>
+                        </th>
+                        {% endfor %}
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in users %}
+                    <tr>
+                        <td>
+                            <div style="display:flex;align-items:center;gap:.6rem;">
+                                <div class="avatar {{ 'admin' if u.is_admin }}">{{ (u.name or u.username)[0]|upper }}</div>
+                                <div>
+                                    <div style="font-weight:600;">{{ u.name }}</div>
+                                    <div class="app-muted" style="font-size:.74rem;">{{ u.username }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            {% if u.is_admin %}<span class="app-badge red">Admin</span>
+                            {% elif u.id in unrestricted_ids %}<span class="app-badge gray">Unrestricted</span>
+                            {% else %}<span class="app-muted" style="font-size:.8rem;">{{ u.role.name if u.role else '—' }}</span>{% endif %}
+                        </td>
+                        {% for perm in perms %}
+                        {% set is_granted = (u.id, perm.id) in granted %}
+                        <td style="text-align:center;">
+                            <form method="POST" action="{{ url_for('access.toggle') }}" style="display:inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="user_id" value="{{ u.id }}">
+                                <input type="hidden" name="permission_id" value="{{ perm.id }}">
+                                <input type="hidden" name="next" value="{{ url_for('access.matrix', module=module) }}">
+                                <button type="submit" class="toggle {{ 'on' if is_granted }}"
+                                        aria-pressed="{{ 'true' if is_granted else 'false' }}"
+                                        title="{{ 'Revoke' if is_granted else 'Grant' }} {{ perm.action }} on {{ label }} for {{ u.name }}">
+                                    <span class="visually-hidden">{{ 'Granted' if is_granted else 'Revoked' }} — {{ 'Revoke' if is_granted else 'Grant' }} {{ perm.action }} on {{ label }} for {{ u.name }}</span>
+                                </button>
+                            </form>
+                        </td>
+                        {% endfor %}
+                        <td>
+                            <a class="app-btn app-btn-outline app-btn-sm" href="{{ url_for('access.user_permissions', user_id=u.id) }}">
+                                <i class="bi bi-sliders"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="app-card"><div class="app-empty"><i class="bi bi-inbox"></i> No permissions defined.</div></div>
+{% endif %}
+
+{% endblock %}

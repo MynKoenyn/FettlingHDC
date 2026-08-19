@@ -1,0 +1,328 @@
+{% extends 'overtime/base.html' %}
+{% block title %}Capture Actual Times{% endblock %}
+{% block page_title %}Actual Times — {{ ot.personnel.name }} {{ ot.personnel.surname }}{% endblock %}
+
+{% block topbar_actions %}
+<a href="{{ url_for('overtime.view_request', request_id=ot.id) }}"
+   class="ot-btn ot-btn-outline ot-btn-sm">← Back</a>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+  .ot-day { border: 1.5px solid var(--ot-border); border-radius: 9px; margin-bottom: .7rem; }
+  .ot-day-head {
+    display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+    padding: .55rem .85rem; background: #f8fafc;
+    border-bottom: 1px solid var(--ot-border); border-radius: 7px 7px 0 0;
+    font-size: .875rem; font-weight: 700;
+  }
+  .ot-cap { padding: .7rem .85rem; }
+  .ot-cap + .ot-cap { border-top: 1px solid var(--ot-border); }
+  .ot-cap-head {
+    display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+    font-size: .8rem; margin-bottom: .5rem;
+  }
+  .ot-asked { font-weight: 700; }
+  .ot-asked .hrs { font-weight: 600; color: var(--ot-muted); }
+
+  .ot-range { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+  .ot-range + .ot-range { margin-top: .45rem; }
+  .ot-range-lbl {
+    width: 7rem; flex-shrink: 0;
+    font-size: .68rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .05em; color: var(--ot-muted);
+  }
+  .ot-range input[type=time] { width: 7.5rem; padding: .4rem .55rem; font-size: .85rem; }
+  .ot-range input[type=date] { width: 11rem; padding: .4rem .55rem; font-size: .85rem; }
+  .ot-range-sep { color: var(--ot-muted); }
+  .ot-range-hrs { font-size: .78rem; font-weight: 700; color: var(--ot-success); min-width: 4rem; }
+  .ot-range-hrs.bad { color: var(--ot-danger); }
+  .ot-range.deduct .ot-range-hrs { color: var(--ot-danger); }
+  .ot-range.deduct input[type=number] { width: 5rem; padding: .4rem .55rem; font-size: .85rem; }
+  .ot-range.deduct .unit { font-size: .74rem; color: var(--ot-muted); }
+
+  .ot-flag {
+    display: inline-flex; align-items: center; gap: .3rem; white-space: nowrap;
+    padding: .18rem .6rem; border-radius: 999px;
+    font-size: .68rem; font-weight: 700;
+  }
+  .ot-flag.ok   { background: var(--ot-success-lt); color: var(--ot-success); }
+  .ot-flag.warn { background: var(--ot-warning-lt); color: var(--ot-warning); }
+  .ot-flag.bad  { background: var(--ot-danger-lt);  color: var(--ot-danger); }
+  .ot-mult {
+    display: inline-block; padding: .1rem .5rem; border-radius: 999px;
+    font-size: .66rem; font-weight: 700;
+    background: var(--ot-danger-lt); color: var(--ot-danger);
+  }
+  .ot-meta { font-size: .78rem; color: var(--ot-muted); }
+  .ot-warn-note { font-size: .74rem; color: var(--ot-warning); font-weight: 600; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:820px;">
+  <form method="POST" id="capture-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="ot-card mb-3">
+      <div class="ot-card-body">
+        <div class="ot-alert ot-alert-info mb-0">
+          <i class="bi bi-info-circle-fill me-2"></i>
+          Approved periods start with the times that were approved — change only what
+          actually differed, then enter any unpaid minutes: the lunch break, and time
+          lost to clocking in late or leaving early. A period that was
+          <strong>rejected or still pending</strong> can be captured too: if the work
+          was done, record it, and it will be flagged as unauthorised rather than
+          hidden. Clearing both times removes an actual captured by mistake.
+        </div>
+      </div>
+    </div>
+
+    {% for day in days %}
+    <div class="ot-day">
+      <div class="ot-day-head">
+        <span>{{ day.date.strftime('%a %d %b %Y') }}</span>
+        {% if day.date.weekday() == 6 %}<span class="ot-mult">×2 Sunday</span>{% endif %}
+      </div>
+
+      {% for e in day.entries %}
+      {% set p = prefill.periods.get(e.id|string, {}) %}
+      <div class="ot-cap" data-period="{{ e.id }}">
+        <div class="ot-cap-head">
+          {% if e.has_request %}
+            <span class="ot-asked">
+              Asked for {{ e.start_time.strftime('%H:%M') }} → {{ e.end_time.strftime('%H:%M') }}
+              <span class="hrs">({{ '%.2f'|format(e.hours|float) }} h)</span>
+            </span>
+            {% if e.status == 'approved' %}
+              <span class="ot-flag ok">Approved</span>
+            {% elif e.status == 'rejected' %}
+              <span class="ot-flag bad">Rejected</span>
+            {% else %}
+              <span class="ot-flag warn">Pending</span>
+            {% endif %}
+          {% else %}
+            <span class="ot-asked">Not requested</span>
+            <span class="ot-flag bad">No approval</span>
+          {% endif %}
+        </div>
+
+        {% if e.has_request and e.status != 'approved' %}
+        <div class="ot-warn-note mb-2">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+          Anything entered here counts as overtime worked without approval.
+        </div>
+        {% endif %}
+
+        <div class="ot-range">
+          <span class="ot-range-lbl">Worked</span>
+          <input type="time" step="900" class="ot-form-control" data-role="start"
+                 name="as_{{ e.id }}" value="{{ p.get('as', '') }}">
+          <span class="ot-range-sep">→</span>
+          <input type="time" step="900" class="ot-form-control" data-role="end"
+                 name="ae_{{ e.id }}" value="{{ p.get('ae', '') }}">
+          <span class="ot-range-hrs" data-role="hours"></span>
+        </div>
+
+        <div class="ot-range deduct">
+          <span class="ot-range-lbl">Less</span>
+          <input type="number" min="0" step="5" class="ot-form-control" data-role="brk"
+                 name="brk_{{ e.id }}" value="{{ p.get('brk', '') }}" placeholder="0">
+          <span class="unit">min lunch</span>
+          <input type="number" min="0" step="5" class="ot-form-control" data-role="late"
+                 name="late_{{ e.id }}" value="{{ p.get('late', '') }}" placeholder="0">
+          <span class="unit">min late in / early out</span>
+          <span class="ot-range-hrs" data-role="break"></span>
+        </div>
+
+        {% if show_money %}
+        <div class="ot-range">
+          <span class="ot-range-lbl">Amount</span>
+          <input type="number" step="0.01" min="0" class="ot-form-control"
+                 style="width:9rem;padding:.4rem .55rem;font-size:.85rem;"
+                 name="amt_{{ e.id }}" value="{{ p.get('amt', '') }}"
+                 placeholder="auto">
+          {% if e.actual_amount_overridden %}
+          <label class="ot-meta" style="cursor:pointer;">
+            <input type="checkbox" name="reset_{{ e.id }}" value="1"> back to calculated
+          </label>
+          {% else %}
+          <span class="ot-meta">leave blank to calculate from hours × rate × multiplier</span>
+          {% endif %}
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endfor %}
+
+    <!-- ── Work nobody requested ── -->
+    <div class="ot-card mb-3">
+      <div class="ot-card-header">
+        <span class="ot-card-title"><i class="bi bi-plus-square me-2"></i>Worked but not requested</span>
+        <button type="button" class="ot-btn ot-btn-outline ot-btn-sm" id="add-extra">
+          <i class="bi bi-plus-lg"></i> Add a period
+        </button>
+      </div>
+      <div class="ot-card-body">
+        <p class="ot-meta">
+          For overtime worked on a day nobody put in a request for. It is saved against
+          {{ ot.personnel.name }} the same way, flagged <strong>not requested</strong> so
+          management can see it was never signed off.
+        </p>
+        <div id="extras"></div>
+      </div>
+    </div>
+
+    <!-- ── Notes and submit ── -->
+    <div class="ot-card">
+      <div class="ot-card-body">
+        <div class="mb-3">
+          <label class="ot-form-label" for="actual_notes">Notes (optional)</label>
+          <textarea name="actual_notes" id="actual_notes" class="ot-form-control" rows="2"
+                    placeholder="Saved against every period captured here…">{{ prefill.notes }}</textarea>
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="ot-btn ot-btn-primary">
+            <i class="bi bi-save"></i> Save actual times
+          </button>
+          <a href="{{ url_for('overtime.view_request', request_id=ot.id) }}"
+             class="ot-btn ot-btn-outline">Cancel</a>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+/* Live hours per period, and the rows for work that was never requested.
+   The arithmetic mirrors overtime/calc.py so the figures shown here are the
+   ones that get saved: an end at or before the start ran past midnight, and
+   the unpaid minutes come straight off the period. */
+(function () {
+  var EXTRAS = {{ prefill.extras|tojson }};
+
+  function span(start, end) {
+    if (!start || !end) return null;
+    var a = start.split(":"), b = end.split(":");
+    var s = +a[0] * 60 + +a[1], e = +b[0] * 60 + +b[1];
+    if (e === s) return null;
+    if (e < s) e += 24 * 60;
+    return [s, e];
+  }
+
+  function mins(raw) {
+    var n = parseInt(raw, 10);
+    return isFinite(n) && n > 0 ? n : 0;
+  }
+
+  function fmtMins(mins) {
+    var h = Math.floor(mins / 60), m = mins % 60;
+    if (!h) return m + " min";
+    return h + "h" + (m ? " " + m + "m" : "");
+  }
+
+  function val(row, role) {
+    var el = row.querySelector('[data-role="' + role + '"]');
+    return el ? el.value : "";
+  }
+
+  function cell(row, role, text, bad) {
+    var el = row.querySelector('[data-role="' + role + '"]');
+    if (!el) return;
+    el.textContent = text;
+    el.classList.toggle("bad", !!bad);
+  }
+
+  function recalc(row) {
+    var start = val(row, "start"), end = val(row, "end");
+    var off = mins(val(row, "brk")) + mins(val(row, "late"));
+
+    cell(row, "break", off ? "− " + fmtMins(off) : "");
+
+    if (!start && !end) { cell(row, "hours", ""); return; }
+    if (!start || !end) { cell(row, "hours", "needs both", true); return; }
+
+    var range = span(start, end);
+    if (!range) { cell(row, "hours", "same time", true); return; }
+
+    var hours = (range[1] - range[0] - off) / 60;
+    if (hours <= 0) {
+      cell(row, "hours", "all deducted", true);
+      cell(row, "break", "− " + fmtMins(off), true);
+      return;
+    }
+    cell(row, "hours", hours.toFixed(2) + " h");
+  }
+
+  function recalcAll() {
+    document.querySelectorAll("[data-period], [data-extra]").forEach(recalc);
+  }
+
+  document.getElementById("capture-form").addEventListener("input", function (e) {
+    var row = e.target.closest("[data-period], [data-extra]");
+    if (row) recalc(row);
+  });
+
+  // ── Rows for work that was never requested ──────────────────────────
+  var extras = document.getElementById("extras");
+  var nextKey = 1;
+
+  function addExtra(seed) {
+    var key = seed && seed.key ? seed.key : String(nextKey++);
+    if (+key >= nextKey) nextKey = +key + 1;
+
+    var row = document.createElement("div");
+    row.className = "ot-cap";
+    row.dataset.extra = key;
+    row.innerHTML =
+      '<input type="hidden" name="extras" value="' + key + '">' +
+      '<div class="ot-range">' +
+        '<span class="ot-range-lbl">Date</span>' +
+        '<input type="date" class="ot-form-control" name="xd_' + key + '">' +
+        '<button type="button" class="ot-btn ot-btn-outline ot-btn-sm" data-role="drop">' +
+          '<i class="bi bi-x-lg"></i> Remove</button>' +
+      '</div>' +
+      '<div class="ot-range">' +
+        '<span class="ot-range-lbl">Worked</span>' +
+        '<input type="time" step="900" class="ot-form-control" data-role="start" name="as_x' + key + '">' +
+        '<span class="ot-range-sep">→</span>' +
+        '<input type="time" step="900" class="ot-form-control" data-role="end" name="ae_x' + key + '">' +
+        '<span class="ot-range-hrs" data-role="hours"></span>' +
+      '</div>' +
+      '<div class="ot-range deduct">' +
+        '<span class="ot-range-lbl">Less</span>' +
+        '<input type="number" min="0" step="5" class="ot-form-control" data-role="brk" name="brk_x' + key + '" placeholder="0">' +
+        '<span class="unit">min lunch</span>' +
+        '<input type="number" min="0" step="5" class="ot-form-control" data-role="late" name="late_x' + key + '" placeholder="0">' +
+        '<span class="unit">min late in / early out</span>' +
+        '<span class="ot-range-hrs" data-role="break"></span>' +
+      '</div>';
+
+    extras.appendChild(row);
+
+    if (seed) {
+      row.querySelector('[name="xd_' + key + '"]').value = seed.date || "";
+      row.querySelector('[data-role="start"]').value = seed.as || "";
+      row.querySelector('[data-role="end"]').value = seed.ae || "";
+      row.querySelector('[data-role="brk"]').value = seed.brk || "";
+      row.querySelector('[data-role="late"]').value = seed.late || "";
+    }
+
+    row.querySelector('[data-role="drop"]').addEventListener("click", function () {
+      row.remove();
+    });
+
+    recalc(row);
+  }
+
+  document.getElementById("add-extra").addEventListener("click", function () { addExtra(null); });
+  EXTRAS.forEach(addExtra);          // whatever survived a failed submit
+
+  recalcAll();
+})();
+</script>
+{% endblock %}

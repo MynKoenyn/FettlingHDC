@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% block title %}Users{% endblock %}
+
+{% block content %}
+<div class="app-container wide">
+
+    <div class="app-card">
+        <div class="app-card-head">
+            <span class="app-card-title"><i class="bi bi-people-fill" style="color:var(--hdc-primary);"></i> Users</span>
+            <div style="display:flex; gap:.4rem;">
+                <a href="{{ url_for('manage_roles') }}" class="app-btn app-btn-outline app-btn-sm">
+                    <i class="bi bi-person-badge"></i> Manage Roles
+                </a>
+                <a href="{{ url_for('create_user') }}" class="app-btn app-btn-primary app-btn-sm">
+                    <i class="bi bi-person-plus"></i> New User
+                </a>
+            </div>
+        </div>
+        <div class="app-card-body">
+
+            <!-- Filters -->
+            <form method="GET" style="display:flex; gap:.75rem; flex-wrap:wrap; margin-bottom:1.25rem;">
+                <div class="app-search" style="flex:1; min-width:220px;">
+                    <i class="bi bi-search"></i>
+                    <input type="text" name="search" placeholder="Search name or username…" value="{{ search }}">
+                </div>
+                <select name="role_id" class="app-select" style="width:auto; min-width:170px;">
+                    <option value="">— All roles —</option>
+                    {% for r in roles %}
+                        <option value="{{ r.id }}" {% if role_filter == r.id %}selected{% endif %}>{{ r.name }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="app-btn app-btn-primary"><i class="bi bi-funnel"></i> Filter</button>
+                {% if search or role_filter %}
+                <a href="{{ url_for('list_users') }}" class="app-btn app-btn-outline">Clear</a>
+                {% endif %}
+            </form>
+
+            {% if users %}
+            <div class="app-table-wrap">
+                <table class="app-table">
+                    <thead>
+                        <tr>
+                            <th style="width:70px;">ID</th>
+                            <th>Name</th>
+                            <th>Username</th>
+                            <th>Role</th>
+                            <th>Division</th>
+                            <th>Department</th>
+                            <th>Status</th>
+                            <th style="width:80px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for u in users %}
+                        <tr>
+                            <td><span class="app-id">#{{ u.id }}</span></td>
+                            <td style="font-weight:600; color:#0f172a;">{{ u.name }}</td>
+                            <td class="app-muted">{{ u.username }}</td>
+                            <td><span class="app-badge blue">{{ u.role.name if u.role else '—' }}</span></td>
+                            <td class="app-muted">{{ u.division.code if u.division else '—' }}</td>
+                            <td class="app-muted">{{ u.department.name if u.department else '—' }}</td>
+                            <td>
+                                {% if u.active %}
+                                    <span class="app-badge green">Active</span>
+                                {% else %}
+                                    <span class="app-badge red">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td style="text-align:right;">
+                                <a href="{{ url_for('edit_user', user_id=u.id) }}" class="app-btn app-btn-outline app-btn-sm">
+                                    <i class="bi bi-pencil"></i> Edit
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="app-result-count">{{ users|length }} user{{ 's' if users|length != 1 }} found</div>
+
+            {% else %}
+            <div class="app-empty">
+                <i class="bi bi-people"></i>
+                No users found{% if search %} matching <strong>{{ search }}</strong>{% endif %}.
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+{% endblock %}

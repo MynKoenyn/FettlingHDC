@@ -1,0 +1,197 @@
+/* Furnace timeline / Gantt chart — shared by entry_detail.html and the
+   furnace activity report. Each row picks its color via a `gantt-color-*`
+   class on `.gantt-row-track`, which sets the `--row-color` custom property;
+   the bar and its markers all read from that one variable, so a furnace's
+   color stays consistent between its bar fill and its event markers. */
+
+/* Browsers drop background-colors when printing unless a page opts in; the bars
+   and markers ARE background-colors, so without this they print blank. `print-color-adjust`
+   is inherited, so declaring it on the chart carries down to every bar/marker/swatch. */
+.gantt-chart,
+.gantt-legend {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+.gantt-legend { color: #52514e; }
+.gantt-swatch {
+    display: inline-block;
+    width: 13px;
+    height: 13px;
+    border-radius: 3px;
+    margin-right: 6px;
+    vertical-align: middle;
+    background-color: var(--row-color, #2a78d6);
+}
+
+.gantt-chart {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    /* Side inset absorbs the half-width overhang of the first/last axis labels
+       (they translateX(-50%)) so edge ticks never push the page into scroll */
+    padding: 0 20px;
+}
+
+.gantt-axis,
+.gantt-row {
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.gantt-row-label {
+    flex: 0 0 160px;
+    min-width: 0;
+    max-width: 160px;
+    padding-right: 10px;
+    font-size: 0.9375rem;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.gantt-row-label .text-muted { font-size: 0.8125rem; }
+
+.gantt-axis-track {
+    position: relative;
+    flex: 1 1 auto;
+    height: 22px;
+}
+.gantt-axis-label {
+    position: absolute;
+    top: 0;
+    transform: translateX(-50%);
+    font-size: 0.8125rem;
+    color: #898781;
+    white-space: nowrap;
+}
+/* A bold date header above the hour ticks, used once a chart spans multiple days */
+.gantt-axis-label-day {
+    font-weight: 700;
+    color: #52514e;
+}
+/* Top tier of a two-tier axis: one centered date per visible day, above the hour ticks */
+.gantt-axis-days .gantt-axis-track {
+    height: 20px;
+    border-bottom: 1px solid #e1e0d9;
+}
+.gantt-axis-days .gantt-axis-label {
+    font-size: 0.875rem;
+}
+
+.gantt-row {
+    min-height: 56px;
+    border-top: 1px solid #e1e0d9;
+}
+.gantt-row-track {
+    position: relative;
+    flex: 1 1 auto;
+    height: 56px;
+}
+.gantt-gridline {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: #e1e0d9;
+}
+.gantt-gridline-day { background: #c3c2b7; }
+
+.gantt-bar {
+    position: absolute;
+    top: 50%;
+    height: 26px;
+    border-radius: 5px;
+    transform: translateY(-50%);
+    background-color: var(--row-color, #2a78d6);
+}
+/* Recedes a bar relative to an emphasized one in the same chart (e.g. "other furnace" context bars) */
+.gantt-bar-muted { opacity: 0.75; }
+/* A flat (non-rounded) edge signals the bar actually runs off-screen past the visible window */
+.gantt-bar-clip-start { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.gantt-bar-clip-end { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.gantt-bar-time {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.8125rem;
+    color: #52514e;
+    white-space: nowrap;
+}
+.gantt-bar-time-start { right: calc(100% + 8px); }
+.gantt-bar-time-end { left: calc(100% + 8px); }
+
+/* Key-point markers: shape carries the event kind (never color alone); color follows
+   the row's own entity color so a marker always reads as belonging to its own bar */
+.gantt-marker { position: absolute; top: 50%; }
+.gantt-marker-start {
+    width: 14px; height: 14px; border-radius: 50%;
+    background: #fcfcfb; border: 3px solid var(--row-color, #2a78d6);
+    transform: translate(-50%, -50%);
+}
+.gantt-marker-additions {
+    width: 12px; height: 12px;
+    background: #fcfcfb; border: 3px solid var(--row-color, #2a78d6);
+    transform: translate(-50%, -50%) rotate(45deg);
+}
+.gantt-marker-endmelt {
+    width: 12px; height: 12px;
+    background: #fcfcfb; border: 3px solid var(--row-color, #2a78d6);
+    transform: translate(-50%, -50%);
+}
+/* Outlined (not solid) so it stays visible sitting on top of its own bar */
+.gantt-marker-tap {
+    width: 0; height: 0;
+    border-left: 9px solid transparent;
+    border-right: 9px solid transparent;
+    border-bottom: 15px solid var(--row-color, #2a78d6);
+    transform: translate(-50%, -7.5px);
+}
+.gantt-marker-tap::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 4.5px;
+    width: 0; height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-bottom: 9px solid #fcfcfb;
+    transform: translateX(-50%);
+}
+
+/* Static legend swatches matching the marker shapes above */
+.gantt-legend-markers span { margin-right: 4px; }
+.gantt-legend-start, .gantt-legend-additions, .gantt-legend-endmelt {
+    display: inline-block;
+    vertical-align: middle;
+    width: 12px;
+    height: 12px;
+    background: #fcfcfb;
+    border: 3px solid var(--row-color, #2a78d6);
+}
+.gantt-legend-start { border-radius: 50%; }
+.gantt-legend-additions { transform: rotate(45deg); }
+.gantt-legend-tap {
+    display: inline-block;
+    vertical-align: middle;
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-bottom: 13px solid var(--row-color, #2a78d6);
+}
+
+/* Row color slots — a fixed categorical order. Assign by each entity's own stable
+   identity (e.g. furnace id order), never by the order rows happen to render in,
+   so a given furnace's color stays the same across every chart and filter. */
+.gantt-color-current { --row-color: #2a78d6; }
+.gantt-color-other   { --row-color: #898781; }
+.gantt-color-1 { --row-color: #2a78d6; }
+.gantt-color-2 { --row-color: #eb6834; }
+.gantt-color-3 { --row-color: #1baf7a; }
+.gantt-color-4 { --row-color: #eda100; }
+.gantt-color-5 { --row-color: #e87ba4; }
+.gantt-color-6 { --row-color: #008300; }
+.gantt-color-7 { --row-color: #4a3aa7; }
+.gantt-color-8 { --row-color: #e34948; }

@@ -1,0 +1,148 @@
+{% extends "timeclock/base_timeclock.html" %}
+{% set page_title = "Hours Worked" %}
+{% set page_sub = "What each person clocked, and the overtime in it, across every import." %}
+{% set container_class = "xwide" %}
+
+{% block title %}Hours Worked{% endblock %}
+
+{% block tc_content %}
+
+<div class="app-card">
+    <div class="app-card-head">
+        <h2 class="app-card-title"><i class="bi bi-funnel"></i> Filter</h2>
+        <a class="app-btn app-btn-outline app-btn-sm"
+           href="{{ url_for('timeclock.days_csv', start=start_date, end=end_date, search=search or None,
+                            person=person or None,
+                            unmatched=1 if unmatched_only else None, overtime=1 if overtime_only else None,
+                            worked=1 if worked_only else None, odd=1 if odd_only else None) }}">
+            <i class="bi bi-download"></i> CSV
+        </a>
+    </div>
+    <div class="app-card-body">
+        <form method="GET" class="filter-bar">
+            <div class="app-field">
+                <label class="app-label">From</label>
+                <input class="app-input" type="date" name="start" value="{{ start_date }}">
+            </div>
+            <div class="app-field">
+                <label class="app-label">To</label>
+                <input class="app-input" type="date" name="end" value="{{ end_date }}">
+            </div>
+            <div class="app-field" style="min-width:260px;">
+                <label class="app-label">Person</label>
+                <select class="app-select" name="person" data-tc-search>
+                    <option value="">— Search name or clock no. —</option>
+                    {% for opt in person_options %}
+                    <option value="{{ opt.value }}" {{ 'selected' if opt.value == person }}>{{ opt.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="app-field">
+                <label class="app-label">Show</label>
+                <label class="app-hint" style="display:block;">
+                    <input type="checkbox" name="worked" value="1" {{ 'checked' if worked_only }}>
+                    only days worked
+                </label>
+                <label class="app-hint" style="display:block;">
+                    <input type="checkbox" name="overtime" value="1" {{ 'checked' if overtime_only }}>
+                    only days with overtime
+                </label>
+                <label class="app-hint" style="display:block;">
+                    <input type="checkbox" name="odd" value="1" {{ 'checked' if odd_only }}>
+                    only odd clockings
+                </label>
+                <label class="app-hint" style="display:block;">
+                    <input type="checkbox" name="unmatched" value="1" {{ 'checked' if unmatched_only }}>
+                    only unmatched people
+                </label>
+            </div>
+            <div class="app-field acts">
+                <button type="submit" class="app-btn app-btn-primary app-btn-sm">Apply</button>
+                <a class="app-btn app-btn-outline app-btn-sm" href="{{ url_for('timeclock.days') }}">Reset</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="kpi-row">
+    <div class="kpi"><div class="v">{{ totals.people }}</div><div class="l">People</div></div>
+    <div class="kpi">
+        <div class="v">{{ totals.days }}</div>
+        <div class="l">Day rows</div>
+        <div class="s">{{ totals.worked }} worked{% if totals.absent %}, {{ totals.absent }} not{% endif %}</div>
+    </div>
+    {% if totals.odd %}
+    <div class="kpi warn">
+        <div class="v">{{ totals.odd }}</div>
+        <div class="l">Odd clockings</div>
+        <div class="s">Clocked more than twice</div>
+    </div>
+    {% endif %}
+    <div class="kpi ok"><div class="v">{{ '%.2f'|format(totals.normal) }}</div><div class="l">Normal hours</div></div>
+    <div class="kpi warn"><div class="v">{{ '%.2f'|format(totals.overtime) }}</div><div class="l">Overtime hours</div></div>
+    <div class="kpi muted"><div class="v">{{ '%.2f'|format(totals.total) }}</div><div class="l">Total hours</div></div>
+</div>
+
+<div class="app-card">
+    <div class="app-card-head">
+        <h2 class="app-card-title"><i class="bi bi-list-ul"></i> Days</h2>
+    </div>
+    <div class="app-card-body">
+        {% if rows %}
+        <div class="app-table-wrap">
+            <table class="app-table">
+                <thead>
+                    <tr>
+                        <th>Date</th><th>Day</th><th>Person</th><th>Clock</th><th>Cost centre</th>
+                        <th>In</th><th>Out</th>
+                        <th class="num">Normal</th><th class="num">Overtime</th><th class="num">Total</th>
+                        <th>Note</th><th>Import</th>{% if can_edit %}<th></th>{% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                    <tr class="{{ 'edited-row' if row.is_edited }}{{ ' not-worked' if not row.worked }}">
+                        <td>{{ row.work_date.strftime('%Y-%m-%d') }}</td>
+                        <td>{{ row.day_name or '—' }}</td>
+                        <td>
+                            {{ row.employee.display_name }}
+                            {% if not row.personnel %}
+                                <span class="app-badge red" title="Not linked to a personnel record">unmatched</span>
+                            {% endif %}
+                        </td>
+                        <td class="mono-sm">{{ row.employee.emp_no }}</td>
+                        <td class="app-muted">{{ row.employee.cost_centre or '—' }}</td>
+                        <td class="mono-sm">
+                            {{ row.time_in.strftime('%H:%M') if row.time_in else '—' }}
+                            {% if row.punches %}
+                            <span class="app-badge amber"
+                                  title="Clocked {{ row.punches|length }} times: {{ row.punches|map(attribute='label')|join(', ') }}">
+                                +{{ row.punches|length }}
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="mono-sm">{{ row.time_out.strftime('%H:%M') if row.time_out else '—' }}</td>
+                        <td class="num">{{ '%.2f'|format(row.normal_hours) if row.normal_hours is not none else '—' }}</td>
+                        <td class="num"><strong>{{ '%.2f'|format(row.overtime_hours) }}</strong></td>
+                        <td class="num">{{ '%.2f'|format(row.total_hours) if row.total_hours is not none else '—' }}</td>
+                        <td>
+                            {{ row.description or '' }}
+                            {% if row.is_edited %}<span class="app-badge amber">edited</span>{% endif %}
+                        </td>
+                        <td><a href="{{ url_for('timeclock.batch_detail', batch_id=row.employee.batch_id) }}">#{{ row.employee.batch_id }}</a></td>
+                        {% if can_edit %}
+                        <td><a class="app-btn app-btn-outline app-btn-sm"
+                               href="{{ url_for('timeclock.edit_day', day_id=row.id) }}">Edit</a></td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="app-empty"><i class="bi bi-inbox"></i> No clock days in that range.</div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

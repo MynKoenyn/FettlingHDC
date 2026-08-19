@@ -1,0 +1,75 @@
+{% extends 'overtime/base.html' %}
+{% block title %}New Actual Overtime{% endblock %}
+{% block page_title %}New Actual Overtime{% endblock %}
+
+{% block content %}
+<div style="max-width:760px;">
+  <form method="POST" id="actual-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <!-- ── Who ── -->
+    <div class="ot-card mb-3">
+      <div class="ot-card-header">
+        <span class="ot-card-title"><i class="bi bi-person me-2"></i>Personnel Member</span>
+        <a href="{{ url_for('overtime.index') }}" class="ot-btn ot-btn-outline ot-btn-sm">← Back</a>
+      </div>
+      <div class="ot-card-body">
+        <div class="ot-alert ot-alert-info d-flex align-items-center gap-2 mb-3">
+          <i class="bi bi-info-circle-fill"></i>
+          Use this for overtime worked <strong>without a prior request</strong>. Pick the
+          days that were worked and enter the times for each — a second range is there for
+          days worked both before and after the normal shift, and a lunch break comes off
+          the hours it falls inside. Everything captured here is flagged
+          <strong>not requested</strong>, so management can see it was worked without
+          being signed off. To fill in the actuals against overtime that <em>was</em>
+          requested, open that request instead.
+        </div>
+
+        <label class="ot-form-label" for="personnel_id">Personnel Member <span style="color:var(--ot-danger)">*</span></label>
+        <select name="personnel_id" id="personnel_id" class="ot-form-control" required data-ot-search>
+          <option value="">— Search name, surname or clock no. —</option>
+          {% for p in personnel_list %}
+          <option value="{{ p.id }}" {% if prefill.personnel_id|string == p.id|string %}selected{% endif %}>
+            {{ p.name }} {{ p.surname }} ({{ p.clockno }}) — {{ p.department.name }} / {{ p.division.code }}
+          </option>
+          {% endfor %}
+        </select>
+        {% if not personnel_list %}
+        <div style="font-size:.78rem;color:var(--ot-danger);margin-top:.4rem;">No personnel available in your scope.</div>
+        {% endif %}
+      </div>
+    </div>
+
+    {% set dp_lunch = true %}
+    {% set dp_verb = "Capture {n} Entr{s}" %}
+    {% set dp_form_id = "actual-form" %}
+    {% include 'overtime/_daypicker.html' %}
+
+    <!-- ── Notes and submit ── -->
+    <div class="ot-card">
+      <div class="ot-card-body">
+        <div class="mb-3">
+          <label class="ot-form-label" for="actual_notes">Notes (optional)</label>
+          <textarea name="actual_notes" id="actual_notes" class="ot-form-control" rows="2"
+                    placeholder="Anything noteworthy — saved against every entry captured here…">{{ prefill.notes }}</textarea>
+        </div>
+
+        <div class="ot-alert ot-alert-info mb-3">
+          <i class="bi bi-calculator me-2"></i>
+          Hours{% if show_money %}, the multiplier and the amount are{% else %} and the multiplier are{% endif %}
+          worked out automatically from the times and the date, with any lunch break
+          already taken off.
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="ot-btn ot-btn-primary" id="submit-btn"
+                  {% if not personnel_list %}disabled{% endif %}>
+            <i class="bi bi-save"></i> <span id="submit-label">Capture Actual</span>
+          </button>
+          <a href="{{ url_for('overtime.index') }}" class="ot-btn ot-btn-outline">Cancel</a>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}

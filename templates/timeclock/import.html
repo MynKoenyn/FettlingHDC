@@ -1,0 +1,129 @@
+{% extends "timeclock/base_timeclock.html" %}
+{% set page_title = "Import a Clock Report" %}
+{% set page_sub = "Load the Turbo Time overtime report. Everything it brings in can be edited, re-matched or reversed afterwards." %}
+
+{% block title %}Import Clock Report{% endblock %}
+
+{% block tc_content %}
+
+<div class="app-card">
+    <div class="app-card-head">
+        <h2 class="app-card-title"><i class="bi bi-upload"></i> Upload the Report</h2>
+    </div>
+    <div class="app-card-body">
+        <form method="POST" enctype="multipart/form-data" autocomplete="off">
+            {{ form.hidden_tag() }}
+            <div class="app-form-grid">
+                <div class="app-field">
+                    <label class="app-label" for="file">{{ form.file.label.text }} <span class="req">*</span></label>
+                    {{ form.file(class="app-input", accept=".txt,.TXT") }}
+                    <div class="app-hint">
+                        Use the <strong>Full Clocking Report</strong> — it prints every day of the
+                        period, worked or not, so absences and short days come in with the rest.
+                        The Overtime Report loads too, but it only prints the days that carried
+                        overtime.<br>
+                        Either way, the <strong>.TXT</strong> export, not the .XLS. Turbo Time's
+                        “.XLS” is not an Excel file — it is an OpenDocument sheet under an Excel
+                        name, carrying the same figures in a form that reads worse.
+                    </div>
+                    {% for e in form.file.errors %}<div class="app-err"><i class="bi bi-exclamation-circle"></i>{{ e }}</div>{% endfor %}
+                </div>
+            </div>
+            <div style="margin-top:1.2rem;">
+                <button type="submit" class="app-btn app-btn-primary"><i class="bi bi-upload"></i> Import Report</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="app-card">
+    <div class="app-card-head">
+        <h2 class="app-card-title"><i class="bi bi-info-circle"></i> What Gets Loaded</h2>
+    </div>
+    <div class="app-card-body">
+        <div class="two-col">
+            <div>
+                <p class="app-label">Per day, per person</p>
+                <div class="app-table-wrap">
+                    <table class="app-table">
+                        <thead><tr><th>From the report</th><th>Meaning</th></tr></thead>
+                        <tbody>
+                            <tr><td>Date &amp; Day</td><td class="app-muted">The shift worked</td></tr>
+                            <tr><td>Shift</td><td class="app-muted">e.g. M-T 7-5</td></tr>
+                            <tr><td>In / Out</td><td class="app-muted">Clocked on and off</td></tr>
+                            <tr><td>NT</td><td class="app-muted">Normal hours in that day</td></tr>
+                            <tr><td>OT 1 – OT 4</td><td class="app-muted">Overtime bands, paired with the normal hours above</td></tr>
+                            <tr><td>Total</td><td class="app-muted">Normal + overtime</td></tr>
+                            <tr><td>Description</td><td class="app-muted">Exceptions, e.g. “Late in”</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div>
+                <p class="app-label">Worth knowing</p>
+                <ul class="app-muted" style="font-size:.86rem; line-height:1.65; padding-left:1.1rem;">
+                    <li>On the <strong>Full Clocking Report</strong> a day nobody worked prints as
+                        <code>--:--</code> with zero hours. Those days are loaded too — an absence is
+                        information — and shown greyed rather than dropped.</li>
+                    <li>Where a day was clocked more than twice the report flags it
+                        <em>ODD Clocking</em> and prints the full punch list underneath. Every pair
+                        is kept, because the day line above shows only the first one.</li>
+                    <li>On the <strong>Overtime Report</strong> only days carrying overtime are
+                        printed, so each person's subtotal covers days that were never shown. Both
+                        figures are kept and displayed side by side.</li>
+                    <li>Employees are matched to personnel by clock number, then by a remembered
+                        link, then by name. Anything left is listed for you to decide — nothing is
+                        guessed.</li>
+                    <li>A match you make by hand is remembered, so the same number matches itself on
+                        next week's report.</li>
+                    <li>Every row keeps the exact line the report printed, so an edit can always be
+                        reverted and the whole import can be reversed in one click.</li>
+                    <li>The overtime loaded is checked against the report's own grand total, and the
+                        import screen says whether it reconciles.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="app-card">
+    <div class="app-card-head">
+        <h2 class="app-card-title"><i class="bi bi-clock-history"></i> Recent Imports</h2>
+        <a class="app-btn app-btn-outline app-btn-sm" href="{{ url_for('timeclock.index') }}">All imports</a>
+    </div>
+    <div class="app-card-body">
+        {% if recent %}
+        <div class="app-table-wrap">
+            <table class="app-table">
+                <thead>
+                    <tr><th>#</th><th>File</th><th>Period</th><th>Imported</th>
+                        <th class="num">People</th><th class="num">Days</th><th>Matching</th><th></th></tr>
+                </thead>
+                <tbody>
+                    {% for b in recent %}
+                    <tr>
+                        <td><span class="app-id">#{{ b.id }}</span></td>
+                        <td class="mono-sm">{{ b.filename or '—' }}</td>
+                        <td>{{ b.period_label }}</td>
+                        <td>{{ b.imported_at.strftime('%d %b %Y %H:%M') if b.imported_at else '—' }}</td>
+                        <td class="num">{{ b.employees_total or 0 }}</td>
+                        <td class="num">{{ b.rows_imported or 0 }}</td>
+                        <td>
+                            {% if b.employees_unmatched %}
+                                <span class="app-badge red">{{ b.employees_unmatched }} unmatched</span>
+                            {% else %}<span class="app-badge green">All matched</span>{% endif %}
+                        </td>
+                        <td><a class="app-btn app-btn-outline app-btn-sm"
+                               href="{{ url_for('timeclock.batch_detail', batch_id=b.id) }}">View</a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="app-empty"><i class="bi bi-inbox"></i> No imports yet.</div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

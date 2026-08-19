@@ -1,0 +1,104 @@
+{% extends "access/base_access.html" %}
+{% set page_title = "Access Control" %}
+{% set page_sub = "Pick a user to tick exactly which functions they may reach." %}
+
+{% block title %}Access Control{% endblock %}
+
+{% block access_content %}
+
+<div class="note-box info">
+    <i class="bi bi-info-circle-fill"></i>
+    <div>
+        <strong>How access works.</strong>
+        Administrators can always reach everything. An account with
+        <em>no</em> permissions ticked is unrestricted — that keeps existing
+        accounts working. The moment you tick a user's first permission, they
+        are limited to exactly what is ticked, and anything else disappears
+        from their menu.
+    </div>
+</div>
+
+<div class="app-card">
+    <div class="app-card-head">
+        <h2 class="app-card-title"><i class="bi bi-people"></i> Users</h2>
+        <a class="app-btn app-btn-outline app-btn-sm" href="{{ url_for('create_user') }}">
+            <i class="bi bi-person-plus"></i> New user
+        </a>
+    </div>
+    <div class="app-card-body">
+        <form method="GET" class="app-form-grid" style="margin-bottom:1.2rem;">
+            <div class="app-field">
+                <label class="app-label">Search</label>
+                <input type="text" name="search" class="app-input" value="{{ search }}" placeholder="Name or username…">
+            </div>
+            <div class="app-field">
+                <label class="app-label">Role</label>
+                <select name="role_id" class="app-select">
+                    <option value="">All roles</option>
+                    {% for r in roles %}
+                    <option value="{{ r.id }}" {{ 'selected' if role_filter == r.id }}>{{ r.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="app-field full" style="display:flex;gap:.5rem;">
+                <button type="submit" class="app-btn app-btn-primary"><i class="bi bi-search"></i> Search</button>
+                <a href="{{ url_for('access.index') }}" class="app-btn app-btn-outline">Clear</a>
+            </div>
+        </form>
+
+        {% if users %}
+        <div class="app-table-wrap">
+            <table class="app-table">
+                <thead>
+                    <tr>
+                        <th>User</th><th>Role</th><th>Division</th><th>Status</th>
+                        <th class="num">Permissions</th><th>Access</th><th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in users %}
+                    {% set count = perm_counts.get(u.id, 0) %}
+                    <tr>
+                        <td>
+                            <div style="display:flex;align-items:center;gap:.6rem;">
+                                <div class="avatar {{ 'admin' if u.is_admin }}">{{ (u.name or u.username)[0]|upper }}</div>
+                                <div>
+                                    <div style="font-weight:600;">{{ u.name }}</div>
+                                    <div class="app-muted" style="font-size:.75rem;">{{ u.username }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>{{ u.role.name if u.role else '—' }}</td>
+                        <td class="app-muted">{{ u.division.code if u.division else '—' }}</td>
+                        <td>
+                            {% if u.active %}<span class="app-badge green">Active</span>
+                            {% else %}<span class="app-badge gray">Disabled</span>{% endif %}
+                        </td>
+                        <td class="num">{{ count }} / {{ total_permissions }}</td>
+                        <td>
+                            {% if u.is_admin %}
+                                <span class="app-badge red">Administrator — full access</span>
+                            {% elif count == 0 %}
+                                <span class="app-badge gray">Unrestricted (not configured)</span>
+                            {% else %}
+                                <span class="app-badge blue">Restricted</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a class="app-btn app-btn-primary app-btn-sm" href="{{ url_for('access.user_permissions', user_id=u.id) }}">
+                                <i class="bi bi-sliders"></i> Set access
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="app-result-count">{{ users|length }} user(s)</div>
+        {% else %}
+        <div class="app-empty"><i class="bi bi-inbox"></i> No users match that search.</div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,163 @@
+{% extends "scrap/base_scrap.html" %}
+{% set page_title = "External Scrap Import" %}
+{% set page_sub = "Load a customer's reject report. A row that repeats one already loaded is held back for you to allow or reject, so the same file can safely be re-sent." %}
+
+{% block title %}Import External Scrap{% endblock %}
+
+{% block scrap_content %}
+
+<div class="app-card">
+    <div class="app-card-head">
+        <h2 class="app-card-title"><i class="bi bi-upload"></i> Import a Report</h2>
+        <a class="app-btn app-btn-outline app-btn-sm" href="{{ url_for('scrap.import_template') }}">
+            <i class="bi bi-download"></i> Download CSV template
+        </a>
+    </div>
+    <div class="app-card-body">
+        <form method="POST" enctype="multipart/form-data" autocomplete="off">
+            {{ form.hidden_tag() }}
+            <div class="app-form-grid">
+
+                <div class="app-field">
+                    <label class="app-label" for="customer_id">{{ form.customer_id.label.text }} <span class="req">*</span></label>
+                    {% if locked_customer %}
+                        <div class="app-input" style="display:flex;align-items:center;gap:.5rem;background:#f8fafc;color:#334155;">
+                            <i class="bi bi-lock-fill" style="font-size:.75rem;color:#94a3b8;"></i> {{ locked_customer.name }}
+                        </div>
+                        {{ form.customer_id(style="display:none;") }}
+                        <div class="app-hint">HDA's main customer — every row in the file is filed against them.</div>
+                    {% else %}
+                        {{ form.customer_id(class="app-select") }}
+                        <div class="app-hint">Every row in the file is filed against this customer.</div>
+                    {% endif %}
+                    {% for e in form.customer_id.errors %}<div class="app-err"><i class="bi bi-exclamation-circle"></i>{{ e }}</div>{% endfor %}
+                </div>
+
+                <div class="app-field">
+                    <label class="app-label" for="file">{{ form.file.label.text }} <span class="req">*</span></label>
+                    {{ form.file(class="app-input", accept=".csv,.xlsx,.xlsm") }}
+                    <div class="app-hint">CSV or Excel (.xlsx). Save the customer's sheet as-is — headings are matched automatically.</div>
+                    {% for e in form.file.errors %}<div class="app-err"><i class="bi bi-exclamation-circle"></i>{{ e }}</div>{% endfor %}
+                </div>
+
+                <div class="app-field">
+                    <label class="app-label" for="default_date">{{ form.default_date.label.text }}</label>
+                    {{ form.default_date(class="app-input", type="date") }}
+                    <div class="app-hint">{{ form.default_date.description }}</div>
+                    {% for e in form.default_date.errors %}<div class="app-err"><i class="bi bi-exclamation-circle"></i>{{ e }}</div>{% endfor %}
+                </div>
+
+            </div>
+            <div style="margin-top:1.2rem;">
+                <button type="submit" class="app-btn app-btn-primary"><i class="bi bi-upload"></i> Import Report</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- EXPECTED LAYOUT -->
+<div class="app-card">
+    <div class="app-card-head">
+        <h2 class="app-card-title"><i class="bi bi-table"></i> Expected Columns</h2>
+    </div>
+    <div class="app-card-body">
+        <p class="app-muted" style="margin-top:0;">
+            Headings are matched loosely — spacing, capitalisation and the explanatory text under a
+            heading are all ignored. <strong>% Reject</strong> and <strong>Monthly Summary</strong> are
+            calculated here, so they are read past. A row is treated as a duplicate when its customer,
+            machined part number, casting number, batch and reject date all match a row already loaded.
+            Duplicates are never imported silently — they are listed on the import's own screen with
+            the row they clash with, and you allow or reject each one.
+        </p>
+
+        <div class="two-col">
+            <div>
+                <p class="app-label">Core columns</p>
+                <div class="app-table-wrap">
+                    <table class="app-table">
+                        <thead><tr><th>Column</th><th>Notes</th></tr></thead>
+                        <tbody>
+                            <tr><td>Machined Part Number</td><td class="app-muted">Customer's part number</td></tr>
+                            <tr><td>Casting Number</td><td class="app-muted">Matched to a product first</td></tr>
+                            <tr><td>Batch #</td><td class="app-muted">Part of the duplicate check</td></tr>
+                            <tr><td>Reject Date</td><td class="app-muted">e.g. 09-Jan-26 or 2026-01-09</td></tr>
+                            <tr><td>QTY Booked</td><td class="app-muted">Good parts booked in</td></tr>
+                            <tr><td>Receiving QTY</td><td class="app-muted">Optional</td></tr>
+                            <tr><td>QTY Scrap</td><td class="app-muted">Rejected quantity</td></tr>
+                            <tr><td>QTY Machined</td><td class="app-muted">Reject % base; derived if blank</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div>
+                <p class="app-label">Reject reason columns ({{ defects|length }})</p>
+                <div class="app-table-wrap" style="max-height:340px;overflow-y:auto;">
+                    <table class="app-table">
+                        <thead><tr><th>Code</th><th>Column heading</th></tr></thead>
+                        <tbody>
+                            {% for d in defects %}
+                            <tr>
+                                <td><span class="app-id">{{ d.code }}</span></td>
+                                <td>{{ d.name }}{% if d.description %}<div class="app-muted" style="font-size:.78rem;">{{ d.description }}</div>{% endif %}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="app-hint">Manage these on the <a href="{{ url_for('scrap.defects') }}">Reject Reasons</a> screen.</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- RECENT IMPORTS -->
+<div class="app-card">
+    <div class="app-card-head">
+        <h2 class="app-card-title"><i class="bi bi-clock-history"></i> Recent Imports</h2>
+        <a class="app-btn app-btn-outline app-btn-sm" href="{{ url_for('scrap.import_batches') }}">All imports</a>
+    </div>
+    <div class="app-card-body">
+        {% if recent_imports %}
+        <div class="app-table-wrap">
+            <table class="app-table">
+                <thead>
+                    <tr><th>File</th><th>Customer</th><th>Imported</th><th class="num">Rows</th>
+                        <th class="num">New</th><th class="num">Duplicates</th><th class="num">Skipped</th><th></th></tr>
+                </thead>
+                <tbody>
+                    {% for b in recent_imports %}
+                    <tr>
+                        <td class="mono-sm">{{ b.filename or '—' }}</td>
+                        <td>{{ b.customer.name if b.customer else '—' }}</td>
+                        <td>{{ b.imported_at.strftime('%d %b %Y %H:%M') if b.imported_at else '—' }}</td>
+                        <td class="num">{{ b.rows_total or 0 }}</td>
+                        <td class="num"><span class="app-badge green">{{ b.rows_imported or 0 }}</span></td>
+                        <td class="num">
+                            {% if b.rows_duplicate %}
+                                {% if b.duplicates_pending %}
+                                    <span class="app-badge amber" title="{{ b.duplicates_pending }} awaiting a decision">{{ b.rows_duplicate }} · {{ b.duplicates_pending }} pending</span>
+                                {% else %}
+                                    <span class="app-badge gray">{{ b.rows_duplicate }}</span>
+                                {% endif %}
+                            {% else %}—{% endif %}
+                        </td>
+                        <td class="num">{% if b.rows_skipped %}<span class="app-badge red">{{ b.rows_skipped }}</span>{% else %}—{% endif %}</td>
+                        <td>
+                            <a class="app-btn {{ 'app-btn-warn' if b.duplicates_pending else 'app-btn-outline' }} app-btn-sm"
+                               href="{{ url_for('scrap.import_batch', batch_id=b.id, review=1 if b.duplicates_pending else None) }}">
+                                {% if b.duplicates_pending %}Review{% else %}View{% endif %}
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="app-empty"><i class="bi bi-inbox"></i> No imports yet.</div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

@@ -34,19 +34,19 @@
       <div class="row g-2 mb-3">
         <div class="col-4 text-center" style="border-right:1px solid var(--ar-border);">
           <div class="stat-label">Cost</div>
-          <div style="font-size:1.1rem;font-family:'DM Serif Display',serif;color:var(--ar-gold);">
+          <div class="ar-figure sm" style="color:var(--ar-gold);">
             R{{ '{:,.2f}'.format(asset.cost or 0) }}
           </div>
         </div>
         <div class="col-4 text-center" style="border-right:1px solid var(--ar-border);">
           <div class="stat-label">Accum. Dep.</div>
-          <div style="font-size:1.1rem;font-family:'DM Serif Display',serif;color:var(--ar-muted);">
+          <div class="ar-figure sm" style="color:var(--ar-muted);">
             R{{ '{:,.2f}'.format(asset.accumulated_depreciation or 0) }}
           </div>
         </div>
         <div class="col-4 text-center">
           <div class="stat-label">NBV</div>
-          <div style="font-size:1.1rem;font-family:'DM Serif Display',serif;color:var(--ar-accent);">
+          <div class="ar-figure sm" style="color:var(--ar-accent);">
             R{{ '{:,.2f}'.format(asset.net_book_value or asset.cost or 0) }}
           </div>
         </div>
@@ -112,13 +112,13 @@
         <div class="row g-2 text-center">
           <div class="col-6">
             <div class="stat-label">Accum. Dep.</div>
-            <div style="font-size:1.1rem;color:var(--ar-muted);font-family:'DM Serif Display',serif;">
+            <div class="ar-figure sm" style="color:var(--ar-muted);">
               R{{ '{:,.2f}'.format(as_at_accum or 0) }}
             </div>
           </div>
           <div class="col-6">
             <div class="stat-label">NBV</div>
-            <div style="font-size:1.1rem;color:var(--ar-accent);font-family:'DM Serif Display',serif;">
+            <div class="ar-figure sm" style="color:var(--ar-accent);">
               R{{ '{:,.2f}'.format(as_at_nbv or 0) }}
             </div>
           </div>
@@ -138,11 +138,11 @@
         </button>
         {% endif %}
         {% if asset.status == 'active' %}
-        <button class="btn btn-sm" style="background:rgba(224,92,92,0.15);color:var(--ar-danger);border:none;"
+        <button class="btn btn-sm" style="background:#fee2e2;color:#991b1b;border:none;font-weight:600;border-radius:.6rem;"
                 data-bs-toggle="modal" data-bs-target="#disposeModal">
           <i class="bi bi-trash3 me-1"></i>Dispose
         </button>
-        <button class="btn btn-sm" style="background:rgba(245,166,35,0.12);color:var(--ar-gold);border:none;"
+        <button class="btn btn-sm" style="background:#fef3c7;color:#92400e;border:none;font-weight:600;border-radius:.6rem;"
                 data-bs-toggle="modal" data-bs-target="#impairModal">
           <i class="bi bi-exclamation-diamond me-1"></i>Impairment
         </button>

@@ -2,67 +2,202 @@
 
 {% block title %}Dashboard{% endblock %}
 
+{% block extra_head %}
+<style>
+    .dash-wrap { max-width: 1320px; margin: 0 auto; padding: 2rem 1.25rem 4rem; position: relative; z-index: 1; }
+
+    .dash-hero { background: rgba(255,255,255,0.97); border-radius: 1.1rem; padding: 1.6rem 1.8rem;
+        box-shadow: 0 14px 34px rgba(0,0,0,0.24); margin-bottom: 1.8rem; display: flex; align-items: center;
+        justify-content: space-between; gap: 1rem; flex-wrap: wrap; border: 1px solid rgba(255,255,255,0.5); }
+    .dash-hero h1 { margin: 0; font-size: 1.55rem; color: #0f172a; font-weight: 800; }
+    .dash-hero p { margin: .35rem 0 0; color: #64748b; }
+    .dash-hero .date { color: #475569; font-weight: 600; font-size: .9rem; display: inline-flex;
+        align-items: center; gap: .45rem; background: #f1f5f9; padding: .55rem .9rem; border-radius: .7rem; }
+
+    .section-label { color: #f1f5f9; font-weight: 700; text-transform: uppercase; letter-spacing: .09em;
+        font-size: .74rem; margin: 0 0 .9rem .2rem; text-shadow: 0 1px 3px rgba(0,0,0,0.45); }
+
+    .dash-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1.15rem; }
+
+    .dash-card { background: rgba(255,255,255,0.97); border-radius: 1rem; padding: 1.4rem;
+        box-shadow: 0 12px 30px rgba(0,0,0,0.20); text-decoration: none; color: inherit;
+        display: flex; flex-direction: column; gap: .55rem; border: 1px solid rgba(255,255,255,0.5);
+        transition: transform .15s ease, box-shadow .15s ease; }
+    .dash-card:hover { transform: translateY(-4px); box-shadow: 0 20px 42px rgba(0,0,0,0.28); }
+    .dash-card .ic { width: 54px; height: 54px; border-radius: 14px; display: grid; place-items: center;
+        font-size: 1.5rem; color: #fff; box-shadow: 0 6px 14px rgba(0,0,0,0.18); }
+    .dash-card h3 { margin: .2rem 0 0; font-size: 1.12rem; color: #0f172a; font-weight: 700; }
+    .dash-card p { margin: 0; color: #64748b; font-size: .9rem; line-height: 1.45; }
+    .dash-card .go { margin-top: auto; padding-top: .5rem; color: var(--hdc-primary); font-weight: 600;
+        font-size: .85rem; display: inline-flex; align-items: center; gap: .35rem; }
+
+    /* Icon accent colours */
+    .ic-fettling { background: #2563eb; } .ic-daily { background: #0891b2; } .ic-stock { background: #7c3aed; }
+    .ic-ot { background: #d97706; } .ic-asset { background: #059669; } .ic-cust { background: #db2777; }
+    .ic-prod { background: #4f46e5; } .ic-users { background: #475569; }
+    .ic-pers { background: #0d9488; } .ic-mgr { background: #ea580c; } .ic-price { background: #9333ea; }
+    .ic-scrap { background: #dc2626; } .ic-access { background: #0f766e; } .ic-timeclock { background: #0369a1; }
+    .ic-furnace { background: #b45309; }
+</style>
+{% endblock %}
+
 {% block content %}
+<div class="dash-wrap">
 
-<div class="container">
-
-    <!-- Welcome -->
-    <div class="card mb-4">
-        <div class="card-body">
-            <h2>Welcome, {{ current_user.username }}</h2>
-            <p class="text-dark">Use the links below to navigate through the application.</p>
+    <div class="dash-hero">
+        <div>
+            <h1>Welcome back, {{ current_user.name or current_user.username }}</h1>
+            <p>Select a module below to get started.</p>
         </div>
+        {% if today %}
+        <div class="date"><i class="bi bi-calendar3"></i> {{ today.strftime('%A, %d %B %Y') }}</div>
+        {% endif %}
     </div>
 
-    <!-- Navigation Cards -->
-    <div class="row g-4">
+    <p class="section-label">Production</p>
+    <div class="dash-grid">
 
-            <div class="col-md-3">
-                <a href="{{ url_for('fettling.dashboard') }}" class="nav-card-link">
-                    <div class="card h-100 nav-card">
-                        <div class="card-body">
-                            <h5><i class="fas fa-tools me-2"></i>Fettling</h5>
-                            <p>Manage fettling production data.</p>
-                        </div>
-                    </div>
-                </a>
-            </div>
+        {% if can('fettling') %}
+        <a href="{{ url_for('fettling.dashboard') }}" class="dash-card">
+            <div class="ic ic-fettling"><i class="bi bi-tools"></i></div>
+            <h3>Fettling</h3>
+            <p>Capture and report fettling production data.</p>
+            <span class="go">Open <i class="bi bi-arrow-right"></i></span>
+        </a>
+        {% endif %}
 
-            <div class="col-md-3">
-                <a href="{{ url_for('daily_production.dashboard') }}" class="nav-card-link">
-                    <div class="card h-100 nav-card">
-                        <div class="card-body">
-                            <h5><i class="fas fa-industry me-2"></i>Daily Production</h5>
-                            <p>Manage daily production entries.</p>
-                        </div>
-                    </div>
-                </a>
-            </div>
+        {% if can('dailyproduction') %}
+        <a href="{{ url_for('daily_production.dashboard') }}" class="dash-card">
+            <div class="ic ic-daily"><i class="bi bi-clipboard-data"></i></div>
+            <h3>Daily Production</h3>
+            <p>Record and track daily production entries.</p>
+            <span class="go">Open <i class="bi bi-arrow-right"></i></span>
+        </a>
+        {% endif %}
 
-        <div class="col-md-3">
-                <a href="{{ url_for('fettling.dashboard') }}" class="nav-card-link">
-                    <div class="card h-100 nav-card">
-                        <div class="card-body">
-                            <h5><i class="fas fa-tools me-2"></i>Fettling</h5>
-                            <p>Manage fettling production data.</p>
-                        </div>
-                    </div>
-                </a>
-            </div>
+        {% if can('stocktake') %}
+        <a href="{{ url_for('stocktake.dashboard') }}" class="dash-card">
+            <div class="ic ic-stock"><i class="bi bi-boxes"></i></div>
+            <h3>Stocktake</h3>
+            <p>Run stock counts and review variances.</p>
+            <span class="go">Open <i class="bi bi-arrow-right"></i></span>
+        </a>
+        {% endif %}
 
-            <div class="col-md-3">
-                <a href="{{ url_for('daily_production.dashboard') }}" class="nav-card-link">
-                    <div class="card h-100 nav-card">
-                        <div class="card-body">
-                            <h5><i class="fas fa-industry me-2"></i>Daily Production</h5>
-                            <p>Manage daily production entries.</p>
-                        </div>
-                    </div>
-                </a>
-            </div>
+        {% if can('furnace') %}
+        <a href="{{ url_for('furnace.dashboard') }}" class="dash-card">
+            <div class="ic ic-furnace"><i class="bi bi-fire"></i></div>
+            <h3>Furnace</h3>
+            <p>Capture furnace entries, metal grades and temperature data.</p>
+            <span class="go">Open <i class="bi bi-arrow-right"></i></span>
+        </a>
+        {% endif %}
+
+        {% if can('scrap') %}
+        <a href="{{ url_for('scrap.hub') }}" class="dash-card">
+            <div class="ic ic-scrap"><i class="bi bi-trash3"></i></div>
+            <h3>Scrap</h3>
+            <p>Import customer reject reports, capture internal scrap, report monthly &amp; yearly.</p>
+            <span class="go">Open <i class="bi bi-arrow-right"></i></span>
+        </a>
+        {% endif %}
+
+        {% if can('overtime') %}
+        <a href="{{ url_for('overtime.index') }}" class="dash-card">
+            <div class="ic ic-ot"><i class="bi bi-clock-history"></i></div>
+            <h3>Overtime</h3>
+            <p>Request, approve and report on overtime.</p>
+            <span class="go">Open <i class="bi bi-arrow-right"></i></span>
+        </a>
+        {% endif %}
+
+        {% if can('assets') %}
+        <a href="{{ url_for('asset.dashboard') }}" class="dash-card">
+            <div class="ic ic-asset"><i class="bi bi-hdd-stack"></i></div>
+            <h3>Assets</h3>
+            <p>Manage fixed assets and depreciation.</p>
+            <span class="go">Open <i class="bi bi-arrow-right"></i></span>
+        </a>
+        {% endif %}
+
+        {% if can('timeclock') %}
+        <a href="{{ url_for('timeclock.index') }}" class="dash-card">
+            <div class="ic ic-timeclock"><i class="bi bi-stopwatch"></i></div>
+            <h3>Time Clock</h3>
+            <p>Import clock data and review daily &amp; batch time records.</p>
+            <span class="go">Open <i class="bi bi-arrow-right"></i></span>
+        </a>
+        {% endif %}
+
+    </div>
+
+    <p class="section-label" style="margin-top:1.8rem;">Master Data &amp; Admin</p>
+    <div class="dash-grid">
+
+        {% if can('customers') %}
+        <a href="{{ url_for('customers') }}" class="dash-card">
+            <div class="ic ic-cust"><i class="bi bi-people"></i></div>
+            <h3>Customers</h3>
+            <p>Add and manage customer records.</p>
+            <span class="go">Open <i class="bi bi-arrow-right"></i></span>
+        </a>
+        {% endif %}
+
+        {% if can('products') %}
+        <a href="{{ url_for('products_crud') }}" class="dash-card">
+            <div class="ic ic-prod"><i class="bi bi-box-seam"></i></div>
+            <h3>Products</h3>
+            <p>Manage products, suppliers, prices and customer links.</p>
+            <span class="go">Open <i class="bi bi-arrow-right"></i></span>
+        </a>
+        {% endif %}
+
+        {% if can('pricelists') %}
+        <a href="{{ url_for('price_lists') }}" class="dash-card">
+            <div class="ic ic-price"><i class="bi bi-tags"></i></div>
+            <h3>Price Lists</h3>
+            <p>Dated price lists per division, and historical price lookup.</p>
+            <span class="go">Open <i class="bi bi-arrow-right"></i></span>
+        </a>
+        {% endif %}
+
+        {% if can('users') %}
+        <a href="{{ url_for('list_users') }}" class="dash-card">
+            <div class="ic ic-users"><i class="bi bi-person-gear"></i></div>
+            <h3>Users</h3>
+            <p>Create user accounts, set roles and reset passwords.</p>
+            <span class="go">Open <i class="bi bi-arrow-right"></i></span>
+        </a>
+        {% endif %}
+
+        {% if can('access') %}
+        <a href="{{ url_for('access.index') }}" class="dash-card">
+            <div class="ic ic-access"><i class="bi bi-shield-lock"></i></div>
+            <h3>Access Control</h3>
+            <p>Tick exactly which functions each user may reach, across every module.</p>
+            <span class="go">Open <i class="bi bi-arrow-right"></i></span>
+        </a>
+        {% endif %}
+
+        {% if can('personnel') %}
+        <a href="{{ url_for('overtime.personnel_list') }}" class="dash-card">
+            <div class="ic ic-pers"><i class="bi bi-person-vcard"></i></div>
+            <h3>Personnel</h3>
+            <p>Add and edit employees used for overtime.</p>
+            <span class="go">Open <i class="bi bi-arrow-right"></i></span>
+        </a>
+        {% endif %}
+
+        {% if can('managers') %}
+        <a href="{{ url_for('overtime.managers_list') }}" class="dash-card">
+            <div class="ic ic-mgr"><i class="bi bi-diagram-3"></i></div>
+            <h3>Managers</h3>
+            <p>Assign who may request &amp; approve overtime.</p>
+            <span class="go">Open <i class="bi bi-arrow-right"></i></span>
+        </a>
+        {% endif %}
 
     </div>
 
 </div>
-
 {% endblock %}

@@ -1,0 +1,186 @@
+{% extends 'overtime/base.html' %}
+{% block title %}Actual vs Requested{% endblock %}
+{% block page_title %}Actual vs Requested{% endblock %}
+
+{% block topbar_actions %}
+<a href="{{ url_for('overtime.index') }}" class="ot-btn ot-btn-outline ot-btn-sm">← All Overtime</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Date range filter -->
+<div class="ot-card mb-3">
+  <div class="ot-card-body">
+    <form method="GET" class="d-flex gap-3 align-items-end flex-wrap">
+      <div>
+        <label class="ot-form-label" for="start">From</label>
+        <input type="date" name="start" id="start" class="ot-form-control" value="{{ start_date.strftime('%Y-%m-%d') }}">
+      </div>
+      <div>
+        <label class="ot-form-label" for="end">To</label>
+        <input type="date" name="end" id="end" class="ot-form-control" value="{{ end_date.strftime('%Y-%m-%d') }}">
+      </div>
+      <div>
+        <label class="ot-form-label" for="unauthorised">Show</label>
+        <select name="unauthorised" id="unauthorised" class="ot-form-control">
+          <option value="">Everything</option>
+          <option value="1" {% if unauthorised_only %}selected{% endif %}>Unapproved hours only</option>
+        </select>
+      </div>
+      <button type="submit" class="ot-btn ot-btn-primary"><i class="bi bi-funnel"></i> Apply</button>
+    </form>
+  </div>
+</div>
+
+<!-- Grand totals -->
+<div class="stat-row">
+  <div class="stat-chip">
+    <div class="val">{{ '%.2f'|format(grand.req_hours) }}h</div>
+    <div class="lbl">Requested Hours</div>
+  </div>
+  <div class="stat-chip" style="border-top-color:#0ea5e9;">
+    <div class="val">{{ '%.2f'|format(grand.act_hours) }}h</div>
+    <div class="lbl">Actual Hours</div>
+  </div>
+  <div class="stat-chip {{ 'danger' if grand.var_hours < 0 else 'success' }}">
+    <div class="val">{{ '+' if grand.var_hours > 0 }}{{ '%.2f'|format(grand.var_hours) }}h</div>
+    <div class="lbl">Hours Variance</div>
+  </div>
+  <div class="stat-chip {{ 'danger' if grand.unauthorised else '' }}">
+    <div class="val">{{ '%.2f'|format(grand.unauthorised) }}h</div>
+    <div class="lbl">Not Authorised</div>
+  </div>
+  {% if show_money %}
+  <div class="stat-chip" style="border-top-color:var(--ot-success);">
+    <div class="val" style="font-size:1.3rem;">R {{ '%.2f'|format(grand.act_amount) }}</div>
+    <div class="lbl">Actual Amount</div>
+  </div>
+  <div class="stat-chip {{ 'danger' if grand.var_amount < 0 else 'success' }}">
+    <div class="val" style="font-size:1.3rem;">{{ '+' if grand.var_amount > 0 }}R {{ '%.2f'|format(grand.var_amount) }}</div>
+    <div class="lbl">Amount Variance</div>
+  </div>
+  {% endif %}
+</div>
+
+<div class="ot-card">
+  <div class="ot-card-header">
+    <span class="ot-card-title">{{ start_date.strftime('%d %b %Y') }} – {{ end_date.strftime('%d %b %Y') }}</span>
+  </div>
+
+  {% if people %}
+  <div style="overflow-x:auto;">
+    <table class="ot-table">
+      <thead>
+        <tr>
+          <th>Personnel</th>
+          <th>Date</th>
+          <th>Kind</th>
+          <th style="text-align:right;">Req Hrs</th>
+          <th style="text-align:right;">Act Hrs</th>
+          <th style="text-align:right;">Δ Hrs</th>
+          <th>Authorisation</th>
+          {% if show_money %}
+          <th style="text-align:right;">Req R</th>
+          <th style="text-align:right;">Act R</th>
+          <th style="text-align:right;">Δ R</th>
+          {% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for g in people %}
+          {% for r in g.rows %}
+          <tr>
+            <td>
+              {% if loop.first %}<strong>{{ g.obj.name }} {{ g.obj.surname }}</strong><br>
+              <span style="font-size:.74rem;color:var(--ot-muted);">{{ g.obj.clockno }}</span>{% endif %}
+            </td>
+            <td style="font-size:.82rem;">
+              <a href="{{ url_for('overtime.view_request', request_id=r.id) }}" style="color:var(--ot-primary);text-decoration:none;">
+                {{ r.date.strftime('%d %b') }}
+              </a>
+            </td>
+            <td>
+              {% if r.entry_type == 'actual' %}
+                <span class="ot-badge" style="background:#e0f2fe;color:#075985;">actual</span>
+              {% else %}
+                <span class="ot-badge {{ r.status }}">{{ r.status }}</span>
+              {% endif %}
+            </td>
+            <td style="text-align:right;">{% if r.req_hours is not none %}{{ '%.2f'|format(r.req_hours) }}{% else %}—{% endif %}</td>
+            <td style="text-align:right;font-weight:700;">{% if r.act_hours is not none %}{{ '%.2f'|format(r.act_hours) }}{% else %}<span style="color:var(--ot-muted);">—</span>{% endif %}</td>
+            <td style="text-align:right;">
+              {% if r.var_hours is not none %}
+                <span style="color:{{ 'var(--ot-danger)' if r.var_hours < 0 else 'var(--ot-success)' if r.var_hours > 0 else 'var(--ot-muted)' }};">
+                  {{ '+' if r.var_hours > 0 }}{{ '%.2f'|format(r.var_hours) }}
+                </span>
+              {% else %}—{% endif %}
+            </td>
+            <td style="font-size:.78rem;white-space:nowrap;">
+              {% if r.authorisation == 'approved' %}
+                <span style="color:var(--ot-success);font-weight:700;">Approved</span>
+              {% elif r.authorisation %}
+                <span style="color:var(--ot-danger);font-weight:700;">{{ r.authorisation_label }}</span>
+                {% if r.unauthorised %}
+                  <br><span style="color:var(--ot-danger);">{{ '%.2f'|format(r.unauthorised) }}h unapproved</span>
+                {% endif %}
+              {% else %}
+                <span style="color:var(--ot-muted);">—</span>
+              {% endif %}
+            </td>
+            {% if show_money %}
+            <td style="text-align:right;">{% if r.req_amount is not none %}{{ '%.2f'|format(r.req_amount) }}{% else %}—{% endif %}</td>
+            <td style="text-align:right;font-weight:700;">{% if r.act_amount is not none %}{{ '%.2f'|format(r.act_amount) }}{% else %}<span style="color:var(--ot-muted);">—</span>{% endif %}</td>
+            <td style="text-align:right;">
+              {% if r.var_amount is not none %}
+                <span style="color:{{ 'var(--ot-danger)' if r.var_amount < 0 else 'var(--ot-success)' if r.var_amount > 0 else 'var(--ot-muted)' }};">
+                  {{ '+' if r.var_amount > 0 }}{{ '%.2f'|format(r.var_amount) }}
+                </span>
+              {% else %}—{% endif %}
+            </td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+          <!-- Person subtotal -->
+          <tr style="background:#f8fafc;">
+            <td colspan="3" style="text-align:right;font-weight:700;font-size:.8rem;color:var(--ot-muted);">Subtotal — {{ g.obj.name }} {{ g.obj.surname }}</td>
+            <td style="text-align:right;font-weight:700;">{{ '%.2f'|format(g.req_hours) }}</td>
+            <td style="text-align:right;font-weight:700;">{{ '%.2f'|format(g.act_hours) }}</td>
+            <td style="text-align:right;font-weight:700;">{{ '+' if (g.act_hours - g.req_hours) > 0 }}{{ '%.2f'|format(g.act_hours - g.req_hours) }}</td>
+            <td style="font-size:.78rem;font-weight:700;color:var(--ot-danger);">
+              {% if g.unauthorised %}{{ '%.2f'|format(g.unauthorised) }}h unapproved{% endif %}
+            </td>
+            {% if show_money %}
+            <td style="text-align:right;font-weight:700;">{{ '%.2f'|format(g.req_amount) }}</td>
+            <td style="text-align:right;font-weight:700;">{{ '%.2f'|format(g.act_amount) }}</td>
+            <td style="text-align:right;font-weight:700;">{{ '+' if (g.act_amount - g.req_amount) > 0 }}{{ '%.2f'|format(g.act_amount - g.req_amount) }}</td>
+            {% endif %}
+          </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr style="background:var(--ot-primary);color:#fff;">
+          <td colspan="3" style="padding:.75rem;font-weight:800;">Grand Total</td>
+          <td style="text-align:right;font-weight:800;">{{ '%.2f'|format(grand.req_hours) }}</td>
+          <td style="text-align:right;font-weight:800;">{{ '%.2f'|format(grand.act_hours) }}</td>
+          <td style="text-align:right;font-weight:800;">{{ '+' if grand.var_hours > 0 }}{{ '%.2f'|format(grand.var_hours) }}</td>
+          <td style="font-size:.8rem;font-weight:800;">
+            {% if grand.unauthorised %}{{ '%.2f'|format(grand.unauthorised) }}h unapproved{% endif %}
+          </td>
+          {% if show_money %}
+          <td style="text-align:right;font-weight:800;">{{ '%.2f'|format(grand.req_amount) }}</td>
+          <td style="text-align:right;font-weight:800;">{{ '%.2f'|format(grand.act_amount) }}</td>
+          <td style="text-align:right;font-weight:800;">{{ '+' if grand.var_amount > 0 }}{{ '%.2f'|format(grand.var_amount) }}</td>
+          {% endif %}
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <i class="bi bi-bar-chart" style="font-size:2.5rem;display:block;margin-bottom:.75rem;opacity:.3;"></i>
+    No overtime in this date range.
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}

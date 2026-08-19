@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% block title %}Create User{% endblock %}
+
+{% block content %}
+<div class="app-container" style="max-width:760px;">
+    <div class="app-card">
+        <div class="app-card-head">
+            <span class="app-card-title"><i class="bi bi-person-plus-fill" style="color:var(--hdc-primary);"></i> Create New User</span>
+            <a href="{{ url_for('list_users') }}" class="app-btn app-btn-outline app-btn-sm"><i class="bi bi-arrow-left"></i> Back</a>
+        </div>
+        <div class="app-card-body">
+
+            <form method="POST" novalidate>
+                {{ form.hidden_tag() }}
+
+                <div class="app-form-grid">
+                    <div class="app-field">
+                        <label class="app-label">Full Name <span class="req">*</span></label>
+                        {{ form.name(class="app-input" + (" is-invalid" if form.name.errors else ""), placeholder="e.g. John Smith") }}
+                        {% for e in form.name.errors %}<div class="app-err"><i class="bi bi-exclamation-circle"></i>{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label">Username <span class="req">*</span></label>
+                        {{ form.username(class="app-input" + (" is-invalid" if form.username.errors else ""), placeholder="e.g. jsmith") }}
+                        {% for e in form.username.errors %}<div class="app-err"><i class="bi bi-exclamation-circle"></i>{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label">Password <span class="req">*</span></label>
+                        {{ form.password(class="app-input" + (" is-invalid" if form.password.errors else ""), placeholder="Min. 6 characters") }}
+                        {% for e in form.password.errors %}<div class="app-err"><i class="bi bi-exclamation-circle"></i>{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label">Confirm Password <span class="req">*</span></label>
+                        {{ form.confirm(class="app-input" + (" is-invalid" if form.confirm.errors else ""), placeholder="Repeat password") }}
+                        {% for e in form.confirm.errors %}<div class="app-err"><i class="bi bi-exclamation-circle"></i>{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label">Role <span class="req">*</span></label>
+                        {{ form.role_id(class="app-select" + (" is-invalid" if form.role_id.errors else "")) }}
+                        {% for e in form.role_id.errors %}<div class="app-err"><i class="bi bi-exclamation-circle"></i>{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="app-field"></div>
+                    <div class="app-field">
+                        <label class="app-label">Division</label>
+                        {{ form.division_id(class="app-select") }}
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label">Department</label>
+                        {{ form.department_id(class="app-select") }}
+                    </div>
+                    <div class="app-field full">
+                        <label class="app-label" style="display:inline-flex; align-items:center; gap:.5rem; text-transform:none; letter-spacing:0; font-size:.9rem; color:#0f172a;">
+                            {{ form.active() }} Active account
+                        </label>
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:.6rem; margin-top:1.5rem;">
+                    <button type="submit" class="app-btn app-btn-primary"><i class="bi bi-person-check"></i> Create User</button>
+                    <a href="{{ url_for('list_users') }}" class="app-btn app-btn-outline">Cancel</a>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

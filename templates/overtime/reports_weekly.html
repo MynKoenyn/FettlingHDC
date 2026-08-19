@@ -1,0 +1,314 @@
+{% extends 'overtime/base.html' %}
+
+{% block title %}Weekly Overtime Report{% endblock %}
+{% block page_title %}Weekly Overtime Report{% endblock %}
+
+{% block content %}
+
+<div class="ot-card mb-4">
+  <div class="ot-card-header">
+    <span class="ot-card-title">
+      <i class="bi bi-calendar-week me-2"></i>Weekly Overtime Report
+    </span>
+
+    <a href="{{ url_for('overtime.index') }}" class="ot-btn ot-btn-outline ot-btn-sm">
+      ← Back
+    </a>
+  </div>
+
+  <div class="ot-card-body">
+
+    <!-- Filters -->
+    <form method="GET" class="row g-2 align-items-end">
+
+      <div class="col-md-4">
+        <label class="ot-form-label mb-1">From</label>
+        <input type="date"
+               name="start"
+               class="ot-form-control"
+               value="{{ start_date.strftime('%Y-%m-%d') }}">
+      </div>
+
+      <div class="col-md-4">
+        <label class="ot-form-label mb-1">To</label>
+        <input type="date"
+               name="end"
+               class="ot-form-control"
+               value="{{ end_date.strftime('%Y-%m-%d') }}">
+      </div>
+
+      <div class="col-md-2">
+        <button type="submit" class="ot-btn ot-btn-primary w-100">
+          <i class="bi bi-funnel me-1"></i>Filter
+        </button>
+      </div>
+
+      <div class="col-md-2">
+        <a href="{{ url_for('overtime.weekly_report') }}"
+           class="ot-btn ot-btn-outline w-100">
+          Reset
+        </a>
+      </div>
+
+    </form>
+
+  </div>
+</div>
+
+
+{% if not sorted_weeks %}
+<div class="ot-alert ot-alert-info d-flex align-items-center gap-2">
+  <i class="bi bi-info-circle-fill"></i>
+  No overtime records found for selected period.
+</div>
+{% endif %}
+
+
+
+{% for week in sorted_weeks %}
+<div class="ot-card mb-4">
+
+  <div class="ot-card-header">
+    <span class="ot-card-title" style="font-size:.95rem;">
+      <i class="bi bi-calendar3 me-2"></i>{{ week.label }}
+    </span>
+  </div>
+
+  <div class="ot-card-body p-0" style="overflow-x:auto;">
+
+    <table style="width:100%;min-width:1100px;border-collapse:collapse;font-size:.82rem;">
+
+      <!-- Header -->
+      <thead>
+        <tr style="background:var(--ot-primary);color:#fff;">
+
+          <th style="padding:.75rem;text-align:left;min-width:230px;">
+            Personnel
+          </th>
+
+          {% for d in week.dates %}
+          <th style="padding:.65rem .45rem;text-align:center;min-width:120px;">
+            {{ d.strftime('%a') }}<br>
+            <span style="font-size:.72rem;opacity:.9;">
+              {{ d.strftime('%d %b') }}
+            </span>
+          </th>
+          {% endfor %}
+
+          <th style="padding:.75rem;text-align:right;min-width:90px;">
+            Total Hrs
+          </th>
+
+          {% if show_money %}
+          <th style="padding:.75rem;text-align:right;min-width:110px;">
+            Amount
+          </th>
+          {% endif %}
+
+        </tr>
+      </thead>
+
+
+      <!-- Body -->
+      <tbody>
+
+        {% for person in week.people.values() %}
+        {% set p = person.obj %}
+
+        <tr style="border-bottom:1px solid var(--ot-border);">
+
+          <!-- Name -->
+          <td style="padding:.65rem .75rem;white-space:nowrap;">
+
+            <div style="font-weight:700;color:var(--ot-text);">
+              {{ p.name }} {{ p.surname }}
+            </div>
+
+            <div style="font-size:.74rem;color:var(--ot-muted);">
+              {{ p.clockno }} ·
+              {{ p.department.name if p.department else '—' }}
+            </div>
+
+          </td>
+
+
+          <!-- Days -->
+          {% for d in week.dates %}
+          {% set h = person.hours[d] %}
+          {% set a = person.act_hours[d] %}
+          {% set u = person.unauthorised[d] %}
+          {% set tm = person.times[d] %}
+
+          <td style="
+              padding:.45rem .35rem;
+              text-align:center;
+              vertical-align:middle;
+              {% if u %}
+                background:#fef2f2;
+              {% elif h or a %}
+                background:#f8fbff;
+              {% endif %}
+          ">
+
+            {% if h or a %}
+
+              <!-- Actually worked, with what was approved underneath -->
+              {% if a is not none %}
+              <div style="
+                  font-weight:700;
+                  color:{{ 'var(--ot-danger)' if u else 'var(--ot-success)' }};
+                  font-size:.86rem;
+                  line-height:1.1;
+              ">
+                {{ a|int if a == a|int else a }}h
+              </div>
+              {% endif %}
+
+              {% if h and (a is none or a != h) %}
+              <div style="
+                  font-size:.68rem;
+                  color:var(--ot-primary);
+                  line-height:1.2;
+              ">
+                {{ 'approved' if a is not none else '' }}
+                {{ h|int if h == h|int else h }}h{{ ' approved' if a is none else '' }}
+              </div>
+              {% endif %}
+
+              {% if u %}
+              <div style="font-size:.66rem;font-weight:700;color:var(--ot-danger);line-height:1.2;">
+                {{ '%.2f'|format(u) }}h unapproved
+              </div>
+              {% endif %}
+
+              <!-- Time Ranges -->
+              {% if tm %}
+              <div style="
+                  margin-top:2px;
+                  font-size:.68rem;
+                  color:#6b7280;
+                  line-height:1.25;
+              ">
+                {% for t in tm %}
+                  <div title="{{ t.label or ('Approved, not yet captured' if t.kind == 'approved' else '') }}">
+                    {{ t.start }} → {{ t.end }}
+                    {%- if t.deducted_minutes %} <span style="color:var(--ot-danger);" title="{{ t.break_minutes }} min lunch, {{ t.late_minutes }} min late/early">−{{ t.deducted_minutes }}m</span>{% endif %}
+                    {%- if t.authorisation and t.authorisation != 'approved' %} <span style="color:var(--ot-danger);">!</span>{% endif %}
+                  </div>
+                {% endfor %}
+              </div>
+              {% endif %}
+
+            {% else %}
+              <span style="color:#c2c7cf;">—</span>
+            {% endif %}
+
+          </td>
+          {% endfor %}
+
+
+          <!-- Totals -->
+          <td style="
+              padding:.65rem .75rem;
+              text-align:right;
+              font-weight:700;
+              color:var(--ot-text);
+          ">
+            {{ "%.2f"|format(person.total_act_hours) }}h
+            <div style="font-size:.68rem;font-weight:600;color:var(--ot-primary);">
+              {{ "%.2f"|format(person.total_hours) }}h approved
+            </div>
+            {% if person.total_unauthorised %}
+            <div style="font-size:.68rem;font-weight:700;color:var(--ot-danger);">
+              {{ "%.2f"|format(person.total_unauthorised) }}h unapproved
+            </div>
+            {% endif %}
+          </td>
+
+          {% if show_money %}
+          <td style="
+              padding:.65rem .75rem;
+              text-align:right;
+              font-weight:700;
+              color:var(--ot-success,#198754);
+          ">
+            R {{ "%.2f"|format(person.total_act_amount) }}
+            <div style="font-size:.68rem;font-weight:600;color:var(--ot-primary);">
+              R {{ "%.2f"|format(person.total_amount) }} approved
+            </div>
+          </td>
+          {% endif %}
+
+        </tr>
+        {% endfor %}
+
+      </tbody>
+
+
+
+      <!-- Footer -->
+      {% set week_total_hours = week.people.values()|sum(attribute='total_act_hours') %}
+      {% set week_total_amount = week.people.values()|sum(attribute='total_act_amount') %}
+
+      <tfoot>
+        <tr style="
+            background:#f8fafc;
+            border-top:2px solid var(--ot-border);
+        ">
+
+          <td style="padding:.7rem .75rem;font-weight:700;">
+            Week Total
+          </td>
+
+          {% for d in week.dates %}
+          <td style="
+              padding:.7rem .45rem;
+              text-align:center;
+              font-weight:700;
+              color:var(--ot-muted);
+          ">
+
+            {% set ns = namespace(total=0) %}
+
+            {% for person in week.people.values() %}
+              {% if person.act_hours[d] %}
+                {% set ns.total = ns.total + person.act_hours[d] %}
+              {% elif person.hours[d] %}
+                {% set ns.total = ns.total + person.hours[d] %}
+              {% endif %}
+            {% endfor %}
+
+            {% if ns.total %}
+              {{ ns.total|int if ns.total == ns.total|int else ns.total }}h
+            {% else %}
+              —
+            {% endif %}
+
+          </td>
+          {% endfor %}
+
+          <td style="padding:.7rem .75rem;text-align:right;font-weight:700;">
+            {{ week_total_hours|int if week_total_hours == week_total_hours|int else week_total_hours }}h
+          </td>
+
+          {% if show_money %}
+          <td style="
+              padding:.7rem .75rem;
+              text-align:right;
+              font-weight:800;
+              color:var(--ot-primary);
+          ">
+            R {{ "%.2f"|format(week_total_amount) }}
+          </td>
+          {% endif %}
+
+        </tr>
+      </tfoot>
+
+    </table>
+
+  </div>
+</div>
+{% endfor %}
+
+{% endblock %}

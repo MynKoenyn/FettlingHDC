@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+{% block title %}Import Prices — {{ period.label }}{% endblock %}
+
+{% block content %}
+<div class="app-container wide">
+
+    <!-- Upload -->
+    <div class="app-card">
+        <div class="app-card-head">
+            <span class="app-card-title">
+                <i class="bi bi-upload" style="color:var(--hdc-primary);"></i>
+                Import Prices — {{ period.label }} <span class="app-id">#{{ period.id }}</span>
+            </span>
+            <a href="{{ url_for('price_list_detail', period_id=period.id) }}" class="app-btn app-btn-outline app-btn-sm"><i class="bi bi-arrow-left"></i> Back</a>
+        </div>
+        <div class="app-card-body">
+            <div class="hdc-flash hdc-flash-info" style="margin-bottom:1.2rem;">
+                <i class="bi bi-info-circle-fill"></i>
+                <span>
+                    A row is matched by <strong>Customer + Product</strong> — a match updates that price, everything else is added. Re-sending a corrected file is safe.
+                    <strong>Customers and products must already exist</strong> — the customer must also belong to division <strong>{{ period.division.code }}</strong>. Unresolved rows are listed after the import and skipped; the rest of the file still loads.
+                </span>
+            </div>
+
+            <form method="POST" enctype="multipart/form-data">
+                {{ form.hidden_tag() }}
+                <div class="app-field">
+                    <label class="app-label" for="file">{{ form.file.label.text }}</label>
+                    {{ form.file(class="app-input") }}
+                    {% for e in form.file.errors %}<div class="app-err">{{ e }}</div>{% endfor %}
+                </div>
+                <div style="margin-top:1.1rem; display:flex; gap:.75rem; flex-wrap:wrap;">
+                    <button type="submit" class="app-btn app-btn-primary"><i class="bi bi-upload"></i> Import Prices</button>
+                    <a href="{{ url_for('price_list_import_template', period_id=period.id) }}" class="app-btn app-btn-outline">
+                        <i class="bi bi-download"></i> Download CSV Template
+                    </a>
+                    <a href="{{ url_for('price_list_export_csv', period_id=period.id) }}" class="app-btn app-btn-outline">
+                        <i class="bi bi-box-arrow-down"></i> Export Current Prices
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Result -->
+    {% if result %}
+    <div class="app-card">
+        <div class="app-card-head">
+            <span class="app-card-title"><i class="bi bi-clipboard-check" style="color:var(--hdc-primary);"></i> Import Result</span>
+        </div>
+        <div class="app-card-body">
+            <div style="display:flex; gap:1rem; flex-wrap:wrap; margin-bottom:1.2rem;">
+                <div><span class="app-label" style="margin:0 0 .2rem;">Rows Read</span> <strong>{{ result.total }}</strong></div>
+                <div><span class="app-label" style="margin:0 0 .2rem;">Added</span> <strong>{{ result.created }}</strong></div>
+                <div><span class="app-label" style="margin:0 0 .2rem;">Updated</span> <strong>{{ result.updated }}</strong></div>
+                <div><span class="app-label" style="margin:0 0 .2rem;">Skipped</span> <strong>{{ result.skipped }}</strong></div>
+                <div><span class="app-label" style="margin:0 0 .2rem;">Notices</span> <strong>{{ result.row_issues | length }}</strong></div>
+            </div>
+
+            {% if result.row_issues %}
+            <div class="app-table-wrap">
+                <table class="app-table">
+                    <thead>
+                        <tr><th style="width:80px;">Row</th><th style="width:220px;">Customer</th><th>What happened</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for row_no, name, message in result.row_issues %}
+                        <tr>
+                            <td class="app-muted">{{ row_no }}</td>
+                            <td>{{ name or '—' }}</td>
+                            <td>{{ message }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="app-hint">Every row loaded cleanly.</div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Column reference -->
+    <div class="app-card">
+        <div class="app-card-head">
+            <span class="app-card-title"><i class="bi bi-table" style="color:var(--hdc-primary);"></i> Template Columns</span>
+        </div>
+        <div class="app-card-body">
+            <div class="app-table-wrap">
+                <table class="app-table">
+                    <thead>
+                        <tr><th style="width:200px;">Column</th><th>Notes</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td style="font-weight:600;">Customer <span class="req">required</span></td><td>Exactly as it appears on the Customers page. Must belong to division {{ period.division.code }}.</td></tr>
+                        <tr><td style="font-weight:600;">Product Code</td><td>Used first to match the row to a product. Leave blank and use Product Name instead.</td></tr>
+                        <tr><td style="font-weight:600;">Product Name</td><td>Used when Product Code is blank or doesn't match.</td></tr>
+                        <tr><td style="font-weight:600;">Price <span class="req">required</span></td><td>The price for this customer + product in this period.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is a **Fettling** application — an inventory/supply chain data entry system for tracking customers, products, and daily quantity entries. The app uses a Python Flask backend serving server-rendered HTML templates (Jinja2) with a PostgreSQL database. The project was scaffolded from a Replit full-stack template (React + Express + Drizzle), but the actual application logic runs entirely through Python/Flask. The Node.js entry point (`server/index.ts`) simply spawns the Python seed script and then the Flask app.
+This is the **HDC Production System** — a multi-module manufacturing data system covering fettling production entries, daily production, stocktake, overtime, scrap, asset management, timeclock, and personnel/pricelist administration. "Fettling" now refers only to the Fettling module (production entries for the fettling/wheelabrating department), not the app as a whole. The app uses a Python Flask backend serving server-rendered HTML templates (Jinja2) with a PostgreSQL database.
 
 ## User Preferences
 

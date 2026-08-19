@@ -1,0 +1,16 @@
+{#
+    Small marker next to a rand value showing where its price came from:
+    the price list in force on the entry date, or the product's current
+    catalogue price when no list entry covered that date. `basis` is
+    'list' / 'fallback' / 'mixed' / None, as set by _price_basis() in
+    scrap/routes.py.
+#}
+{% macro price_src(basis) -%}
+{% if basis == 'list' %}
+<i class="bi bi-list-check price-src list" title="Priced from the price list in force on the entry date"></i>
+{% elif basis == 'fallback' %}
+<i class="bi bi-tag price-src fallback" title="Priced from the product's current catalogue price — no price list covered the entry date"></i>
+{% elif basis == 'mixed' %}
+<i class="bi bi-shuffle price-src mixed" title="Priced from a mix of the price list and the product's current catalogue price"></i>
+{% endif %}
+{%- endmacro %}

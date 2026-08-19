@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Import Products - HDC</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+
+        .cust-topbar { background: var(--primary-color, #2563EB); color: #fff; padding: 0.9rem 0;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.15); position: sticky; top: 0; z-index: 20; }
+        .cust-topbar .bar { max-width: 1100px; margin: 0 auto; padding: 0 1.5rem; display: flex;
+            align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+        .cust-topbar .brand { display: flex; align-items: center; gap: .6rem; font-size: 1.35rem; font-weight: 700; }
+        .cust-topbar nav { display: flex; gap: .25rem; flex-wrap: wrap; }
+        .cust-topbar nav a { color: rgba(255,255,255,.85); text-decoration: none; font-weight: 600;
+            padding: .45rem .85rem; border-radius: .5rem; transition: all .15s; font-size: .95rem;
+            display: inline-flex; align-items: center; gap: .4rem; }
+        .cust-topbar nav a:hover { background: rgba(255,255,255,.15); color: #fff; }
+        .cust-topbar nav a.active { background: rgba(0,0,0,.2); color: #fff; }
+
+        .cust-wrap { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem 4rem; position: relative; z-index: 1; }
+        .crumb { color: #e2e8f0; font-size: .85rem; margin-bottom: 1rem; }
+        .crumb a { color: #fff; text-decoration: none; font-weight: 600; }
+
+        .cust-alert { border-radius: .75rem; padding: .85rem 1.1rem; margin-bottom: 1rem; font-weight: 500;
+            display: flex; align-items: center; gap: .6rem; box-shadow: 0 6px 16px rgba(0,0,0,0.12); }
+        .cust-alert-success { background: #d1fae5; color: #065f46; }
+        .cust-alert-warning { background: #fef3c7; color: #92400e; }
+        .cust-alert-danger  { background: #fee2e2; color: #991b1b; }
+        .cust-alert-info    { background: #dbeafe; color: #1e40af; }
+
+        .panel { background: rgba(255,255,255,0.97); border-radius: 1rem; padding: 1.7rem;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.22); border: 1px solid rgba(255,255,255,0.5); margin-bottom: 1.5rem; }
+        .panel h2 { font-size: 1.15rem; font-weight: 700; color: #0f172a; margin: 0 0 .35rem;
+            display: flex; align-items: center; gap: .55rem; }
+        .panel .sub { font-size: .87rem; color: #64748b; margin: 0 0 1.3rem; line-height: 1.55; }
+
+        .pf-field label { display: block; font-size: .75rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: .05em; color: #475569; margin-bottom: .4rem; }
+        .pf-field input[type="file"] { width: 100%; padding: .65rem .85rem; border: 1.5px solid #cbd5e1;
+            border-radius: .6rem; font-size: .93rem; font-family: inherit; background: #fff; }
+        .field-error { color: #dc2626; font-size: .82rem; margin-top: .35rem; }
+        .form-actions { margin-top: 1.25rem; display: flex; gap: .75rem; flex-wrap: wrap; }
+        .btn-add { display: inline-flex; align-items: center; gap: .5rem; background: var(--primary-color, #2563EB);
+            color: #fff; border: none; padding: .7rem 1.3rem; border-radius: .6rem; font-weight: 600;
+            font-size: .95rem; cursor: pointer; }
+        .btn-add:hover { background: #1d4ed8; }
+        .btn-ghost { display: inline-flex; align-items: center; gap: .5rem; background: #fff; color: #475569;
+            border: 1.5px solid #cbd5e1; padding: .7rem 1.3rem; border-radius: .6rem; font-weight: 600;
+            font-size: .95rem; text-decoration: none; }
+        .btn-ghost:hover { border-color: #94a3b8; }
+
+        /* ---- Column reference ---- */
+        .cols { border: 1px solid #e5e7eb; border-radius: .6rem; overflow: hidden; }
+        .cols table { width: 100%; border-collapse: collapse; font-size: .87rem; background: #fff; }
+        .cols th { text-align: left; padding: .6rem .9rem; background: #f8fafc; color: #64748b;
+            font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+            border-bottom: 1px solid #e5e7eb; }
+        .cols td { padding: .55rem .9rem; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: top; }
+        .cols tbody tr:last-child td { border-bottom: none; }
+        .cols .col-name { font-weight: 600; color: #0f172a; white-space: nowrap; }
+        .req { display: inline-block; font-size: .66rem; font-weight: 700; padding: .1rem .4rem; border-radius: 999px;
+            background: #fee2e2; color: #991b1b; margin-left: .4rem; vertical-align: middle; }
+
+        .callout { background: #f8fafc; border-left: 3px solid var(--primary-color, #2563EB);
+            border-radius: .4rem; padding: .85rem 1.1rem; margin-bottom: 1.2rem; font-size: .87rem;
+            color: #475569; line-height: 1.6; }
+        .callout ul { margin: .5rem 0 0; padding-left: 1.1rem; }
+        .callout li { margin-bottom: .3rem; }
+
+        /* ---- Result ---- */
+        .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.2rem; }
+        .stat { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: .7rem; padding: .9rem 1.2rem; min-width: 120px; }
+        .stat .v { font-size: 1.6rem; font-weight: 700; color: #0f172a; line-height: 1; }
+        .stat .l { font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em;
+            color: #64748b; margin-top: .3rem; }
+        .issues td { padding: .5rem .9rem; border-bottom: 1px solid #f1f5f9; font-size: .86rem; }
+        .issues .rowno { font-family: ui-monospace, "SF Mono", Menlo, monospace; color: #64748b; white-space: nowrap; }
+    </style>
+</head>
+<body>
+    <div class="cust-topbar">
+        <div class="bar">
+            <div class="brand"><i class="bi bi-upload"></i> Import Products</div>
+            <nav>
+                <a href="{{ url_for('dashboard') }}"><i class="bi bi-speedometer2"></i> Dashboard</a>
+                <a href="{{ url_for('customers') }}"><i class="bi bi-people"></i> Customers</a>
+                <a href="{{ url_for('products_crud') }}" class="active"><i class="bi bi-box-seam"></i> Products</a>
+                <a href="{{ url_for('logout') }}"><i class="bi bi-box-arrow-right"></i> Logout</a>
+            </nav>
+        </div>
+    </div>
+
+    <div class="cust-wrap">
+        <div class="crumb"><a href="{{ url_for('products_crud') }}"><i class="bi bi-arrow-left"></i> All Products</a></div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for category, message in messages %}
+            <div class="cust-alert cust-alert-{{ category }}">
+                <i class="bi bi-{% if category == 'success' %}check-circle-fill{% elif category == 'danger' %}exclamation-triangle-fill{% elif category == 'warning' %}exclamation-circle-fill{% else %}info-circle-fill{% endif %}"></i>
+                <span>{{ message }}</span>
+            </div>
+            {% endfor %}
+        {% endwith %}
+
+        <!-- UPLOAD -->
+        <div class="panel">
+            <h2><i class="bi bi-filetype-csv" style="color:var(--primary-color,#2563EB);"></i> Upload a Product Sheet</h2>
+            <p class="sub">
+                Start from the template below, fill it in, and upload it here. CSV or Excel both work.
+            </p>
+
+            <div class="callout">
+                <strong>How rows are matched</strong>
+                <ul>
+                    <li>A row is matched to an existing product by <strong>Product Code</strong>, falling back to <strong>Name</strong> — matched products are updated, the rest are added. Re-sending a corrected file is safe.</li>
+                    <li>A <strong>blank cell never blanks a field</strong>; it leaves what is already there. So a sheet of just Product Code and Weight is a safe way to top up one field across the catalogue.</li>
+                    <li><strong>Customers and departments must already exist</strong> — they are matched by name, never created here. Anything unresolved is listed after the import and the rest of the row still loads.</li>
+                    <li><strong>Current Price and Price per kg are not importable.</strong> Both are worked out for display — the price comes from the price list, and price per kg is that ÷ the weight.</li>
+                </ul>
+            </div>
+
+            <form method="POST" enctype="multipart/form-data">
+                {{ form.hidden_tag() }}
+                <div class="pf-field">
+                    {{ form.file.label }}
+                    {{ form.file() }}
+                    {% for e in form.file.errors %}<div class="field-error">{{ e }}</div>{% endfor %}
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn-add"><i class="bi bi-upload"></i> Import Products</button>
+                    <a href="{{ url_for('product_import_template') }}" class="btn-ghost">
+                        <i class="bi bi-download"></i> Download CSV Template
+                    </a>
+                    <a href="{{ url_for('product_export_csv') }}" class="btn-ghost">
+                        <i class="bi bi-box-arrow-down"></i> Export Current Products
+                    </a>
+                </div>
+            </form>
+        </div>
+
+        <!-- RESULT -->
+        {% if result %}
+        <div class="panel">
+            <h2><i class="bi bi-clipboard-check" style="color:var(--primary-color,#2563EB);"></i> Import Result</h2>
+            <p class="sub">What that file did.</p>
+
+            <div class="stat-row">
+                <div class="stat"><div class="v">{{ result.total }}</div><div class="l">Rows Read</div></div>
+                <div class="stat"><div class="v">{{ result.created }}</div><div class="l">Added</div></div>
+                <div class="stat"><div class="v">{{ result.updated }}</div><div class="l">Updated</div></div>
+                <div class="stat"><div class="v">{{ result.skipped }}</div><div class="l">Skipped</div></div>
+                <div class="stat"><div class="v">{{ result.row_issues | length }}</div><div class="l">Notices</div></div>
+            </div>
+
+            {% if result.row_issues %}
+            <div class="cols">
+                <table class="issues">
+                    <thead>
+                        <tr><th style="width:80px;">Row</th><th style="width:220px;">Product</th><th>What happened</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for row_no, name, message in result.row_issues %}
+                        <tr>
+                            <td class="rowno">{{ row_no }}</td>
+                            <td>{{ name or '—' }}</td>
+                            <td>{{ message }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="sub" style="margin:0;">Every row loaded cleanly.</p>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- COLUMN REFERENCE -->
+        <div class="panel">
+            <h2><i class="bi bi-table" style="color:var(--primary-color,#2563EB);"></i> Template Columns</h2>
+            <p class="sub">The headings the importer looks for. Column order does not matter, and anything it doesn't recognise is ignored.</p>
+
+            <div class="cols">
+                <table>
+                    <thead>
+                        <tr><th style="width:200px;">Column</th><th>Notes</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td class="col-name">Name<span class="req">required</span></td><td>Product name. Required for a new product; on an update it renames the matched one.</td></tr>
+                        <tr><td class="col-name">Product Code</td><td>Your casting/part code. Used first to match the row to an existing product.</td></tr>
+                        <tr><td class="col-name">Supplier Code</td><td>The customer's own code for the item.</td></tr>
+                        <tr><td class="col-name">Supplier Description</td><td>Free text.</td></tr>
+                        <tr><td class="col-name">Grade</td><td>One of {{ grades | join(', ') }}. Anything else is reported and left unset.</td></tr>
+                        <tr><td class="col-name">Price</td><td>Catalogue price. Used for price per kg only when the product has no price-list entry.</td></tr>
+                        <tr><td class="col-name">Weight (kg)</td><td>Cast weight. The divisor behind price per kg.</td></tr>
+                        <tr><td class="col-name">Primary Customer</td><td>Customer name, exactly as it appears on the Customers page.</td></tr>
+                        <tr><td class="col-name">Linked Customers</td><td>Extra customers, separated by <code>;</code>. Replaces the existing set when the cell has a value.</td></tr>
+                        <tr><td class="col-name">Departments</td><td>Separated by <code>;</code>. Where a department name exists in more than one division, qualify it — <code>HDC — Fettling</code>.</td></tr>
+                        <tr><td class="col-name">Barcode</td><td>Free text.</td></tr>
+                        <tr><td class="col-name">Stock Item</td><td>Yes / No — is this product held as stock, or made to order? New products default to Yes.</td></tr>
+                        <tr><td class="col-name">Active</td><td>Yes / No — No keeps the product and its history but takes it off the product pickers. New products default to Yes.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>

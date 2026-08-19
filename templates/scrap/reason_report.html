@@ -1,0 +1,581 @@
+{% extends "scrap/base_scrap.html" %}
+{% set container_class = "xwide" %}
+{% set page_title = "Scrap Reason Mix" %}
+{% set page_sub = "Pick a period and the reject reasons — see what share of each part's scrap they account for." %}
+
+{% block title %}Scrap Reason Mix{% endblock %}
+
+{% import "scrap/_price_src.html" as ps %}
+
+{% macro part_label(row) -%}
+    {% if row.product %}
+        <strong>{{ row.product }}</strong>
+        {% if row.casting_no %}<div class="mono-sm" style="font-size:.72rem;">{{ row.casting_no }}</div>{% endif %}
+    {% else %}
+        <span class="mono-sm">{{ row.casting_no or row.machined_part_no or '—' }}</span>
+        <span class="app-badge red" title="No product linked">unlinked</span>
+    {% endif %}
+{%- endmacro %}
+
+{% block scrap_head %}
+<style>
+    /* Reason picker — the catalogue runs to sixty-odd rows, so it collapses */
+    .reason-picker { border: 1px solid #e5e7eb; border-radius: .6rem; padding: .8rem; background: #f8fafc; }
+    .reason-picker > summary { cursor: pointer; font-size: .85rem; font-weight: 700; color: #334155;
+        list-style: none; display: flex; align-items: center; gap: .5rem; }
+    .reason-picker > summary::-webkit-details-marker { display: none; }
+    .reason-picker > summary::before { content: "\F231"; font-family: bootstrap-icons; font-size: .8rem; color: #94a3b8; }
+    .reason-picker[open] > summary::before { content: "\F235"; }
+    .reason-group { margin-top: .9rem; }
+    .reason-group h4 { font-size: .7rem; text-transform: uppercase; letter-spacing: .07em; color: #64748b;
+        margin: 0 0 .45rem; font-weight: 700; }
+    .reason-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); gap: .3rem .8rem; }
+    .reason-grid label { display: flex; align-items: center; gap: .45rem; font-size: .82rem; color: #334155;
+        padding: .2rem .35rem; border-radius: .35rem; cursor: pointer; }
+    .reason-grid label:hover { background: #eef2f7; }
+    .reason-grid input { accent-color: var(--hdc-primary); flex: none; }
+    .reason-grid .cd { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .72rem;
+        color: #64748b; flex: none; min-width: 2.1rem; }
+    .reason-grid .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .picker-acts { display: flex; gap: .5rem; align-items: center; margin-top: .8rem; padding-top: .7rem;
+        border-top: 1px solid #e5e7eb; }
+
+    /* Product picker — same collapsible checkbox-grid as the reason picker above,
+       so a run can be scoped to a handful of parts instead of "all" or "just one". */
+    .product-picker { margin-top: 1rem; }
+    .product-filter { max-width: 320px; margin: .8rem 0 .6rem; }
+    .product-grid { max-height: 15rem; overflow-y: auto; padding-right: .3rem; }
+    .product-grid .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* Chosen reasons, shown on the collapsed summary and above the table */
+    .reason-chips { display: flex; flex-wrap: wrap; gap: .35rem; }
+    .reason-chip { display: inline-flex; align-items: center; gap: .35rem; font-size: .75rem; font-weight: 600;
+        background: #fff; border: 1px solid #e2e8f0; border-radius: 999px; padding: .18rem .6rem; color: #334155; }
+    .reason-chip i { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+
+    /* Stacked mix bar — one segment per reason column */
+    .mix { display: flex; height: 9px; border-radius: 999px; overflow: hidden; background: #f1f5f9; min-width: 110px; }
+    .mix span { height: 100%; }
+    .share { font-size: .72rem; color: #64748b; }
+    .share.lead { color: #0f172a; font-weight: 700; }
+    td.rq { border-left: 1px solid #f1f5f9; }
+    .rank { color: #94a3b8; font-variant-numeric: tabular-nums; font-size: .78rem; }
+</style>
+{% endblock %}
+
+{% block scrap_content %}
+
+{% set qs = request.query_string.decode() %}
+<div class="app-card">
+    <div class="app-card-head">
+        <h2 class="app-card-title"><i class="bi bi-funnel"></i> Report Options</h2>
+        <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
+            <div class="division-switch">
+                <a href="{{ url_for(request.endpoint, division='hda', **request.view_args) }}{{ '?' + qs if qs }}"
+                   class="{{ 'active' if division == 'hda' }}">HDA</a>
+                <a href="{{ url_for(request.endpoint, division='hdc', **request.view_args) }}{{ '?' + qs if qs }}"
+                   class="{{ 'active' if division == 'hdc' }}">HDC</a>
+                <a href="{{ url_for(request.endpoint, division='both', **request.view_args) }}{{ '?' + qs if qs }}"
+                   class="{{ 'active' if division == 'both' }}">Both</a>
+            </div>
+            <a class="app-btn app-btn-sm app-btn-outline"
+               href="{{ url_for('scrap.reports', period='month', **period_link_args) }}">Monthly</a>
+            <a class="app-btn app-btn-sm app-btn-outline"
+               href="{{ url_for('scrap.reports', period='year', **period_link_args) }}">Yearly</a>
+            <span class="app-btn app-btn-sm app-btn-primary">Reason Mix</span>
+        </div>
+    </div>
+    <div class="app-card-body">
+        <form method="GET" id="reason-form">
+            <div class="filter-bar">
+                <div>
+                    <label class="app-label">From</label>
+                    <input type="date" name="start_date" class="app-input" value="{{ filters.start_date }}">
+                </div>
+                <div>
+                    <label class="app-label">To</label>
+                    <input type="date" name="end_date" class="app-input" value="{{ filters.end_date }}">
+                </div>
+                <div>
+                    <label class="app-label">Year</label>
+                    <select name="year" class="app-select">
+                        <option value="">All years</option>
+                        {% for y in years %}
+                        <option value="{{ y }}" {{ 'selected' if filters.year == y }}>{{ y }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="app-label">Source</label>
+                    <select name="source" class="app-select">
+                        <option value="">External + Internal</option>
+                        {% for value, label in source_choices %}
+                        <option value="{{ value }}" {{ 'selected' if filters.source == value }}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="app-label">Customer</label>
+                    <select name="customer_id" class="app-select">
+                        <option value="">All customers</option>
+                        {% for c in customers %}
+                        <option value="{{ c.id }}" {{ 'selected' if filters.customer_id == c.id }}>{{ c.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="app-label">Batch</label>
+                    <input type="text" name="batch_no" class="app-input" placeholder="e.g. 123A"
+                           value="{{ filters.batch_no }}">
+                </div>
+                <div>
+                    <label class="app-label">Rank parts by</label>
+                    <select name="sort" class="app-select">
+                        <option value="pct"   {{ 'selected' if sort == 'pct' }}>Highest scrap % first</option>
+                        <option value="scrap" {{ 'selected' if sort == 'scrap' }}>Highest scrap qty first</option>
+                        <option value="value" {{ 'selected' if sort == 'value' }}>Highest rand value first</option>
+                        <option value="part"  {{ 'selected' if sort == 'part' }}>Part name</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="app-label">Reason % measured against</label>
+                    <select name="basis" class="app-select">
+                        <option value="selected" {{ 'selected' if basis == 'selected' }}>The chosen reasons (adds to 100%)</option>
+                        <option value="scrap"    {{ 'selected' if basis == 'scrap' }}>All scrap on that part</option>
+                    </select>
+                </div>
+            </div>
+
+            <details class="reason-picker" style="margin-top:1rem;" {{ 'open' if not reason_ids }}>
+                <summary>
+                    Reject Reasons
+                    {% if reason_ids %}
+                        <span class="app-badge blue">{{ reason_ids|length }} selected</span>
+                    {% else %}
+                        <span class="app-badge gray">Top {{ reasons|length }} by quantity</span>
+                    {% endif %}
+                </summary>
+
+                {# Partitioned on the exact scope so a 'both' reason gets one box, not two #}
+                {% for scope, heading in [(scope_external, 'External — customer reject reports'),
+                                          (scope_internal, 'Internal — in-house capture'),
+                                          ('both',         'Used on both sides')] %}
+                {% set group = all_reasons | selectattr('applies_to', 'equalto', scope) | list %}
+                {% if group %}
+                <div class="reason-group">
+                    <h4>{{ heading }}</h4>
+                    <div class="reason-grid">
+                        {% for d in group %}
+                        <label title="{{ d.description or d.name }}">
+                            <input type="checkbox" name="reason" value="{{ d.id }}"
+                                   {{ 'checked' if d.id in reason_ids }}>
+                            <span class="cd">{{ d.code }}</span>
+                            <span class="nm">{{ d.name }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                {% endfor %}
+
+                <div class="picker-acts">
+                    <button type="button" class="app-btn app-btn-outline app-btn-sm" data-check="all" data-check-name="reason">Select all</button>
+                    <button type="button" class="app-btn app-btn-outline app-btn-sm" data-check="none" data-check-name="reason">Clear all</button>
+                    <span class="app-muted" style="font-size:.78rem;">
+                        Leave everything unticked to open on the {{ 'top ' ~ reasons|length if reasons else 'top' }} reasons by quantity.
+                    </span>
+                </div>
+            </details>
+
+            <details class="reason-picker product-picker">
+                <summary>
+                    Products
+                    {% if filters.product_id %}
+                        <span class="app-badge blue">{{ filters.product_id|length }} selected</span>
+                    {% else %}
+                        <span class="app-badge gray">All products</span>
+                    {% endif %}
+                </summary>
+                <input type="text" class="app-input product-filter" placeholder="Search products…"
+                       autocomplete="off">
+                <div class="reason-grid product-grid">
+                    {% for p in products %}
+                    <label data-search="{{ (p.name ~ ' ' ~ (p.product_code or ''))|lower }}">
+                        <input type="checkbox" name="product_id" value="{{ p.id }}"
+                               {{ 'checked' if p.id in filters.product_id }}>
+                        <span class="nm">{{ p.name }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+                <div class="picker-acts">
+                    <button type="button" class="app-btn app-btn-outline app-btn-sm" data-check="all" data-check-name="product_id">Select all</button>
+                    <button type="button" class="app-btn app-btn-outline app-btn-sm" data-check="none" data-check-name="product_id">Clear all</button>
+                    <span class="app-muted" style="font-size:.78rem;">
+                        Leave everything unticked to include every product.
+                    </span>
+                </div>
+            </details>
+
+            <div class="picker-acts" style="border:0;padding-top:1rem;">
+                <button type="submit" class="app-btn app-btn-primary"><i class="bi bi-search"></i> Run Report</button>
+                <a href="{{ url_for('scrap.reason_report') }}" class="app-btn app-btn-outline">Clear</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="kpi-row">
+    <div class="kpi muted">
+        <div class="v">{{ '{:,}'.format(totals.parts) }}</div>
+        <div class="l">Parts</div>
+        <div class="s">{{ '{:,}'.format(totals.entries) }} entries</div>
+    </div>
+    <div class="kpi">
+        <div class="v">{{ '{:,}'.format(totals.machined) }}</div>
+        <div class="l">Total Machined / Packed</div>
+    </div>
+    <div class="kpi danger">
+        <div class="v">{{ '{:,}'.format(totals.scrap) }}</div>
+        <div class="l">Total Scrapped</div>
+    </div>
+    <div class="kpi {{ 'danger' if totals.pct and totals.pct >= 5 else 'warn' if totals.pct and totals.pct >= 3 else 'ok' }}">
+        <div class="v">{% if totals.pct is not none %}{{ '%.2f'|format(totals.pct) }}%{% else %}—{% endif %}</div>
+        <div class="l">Scrap %</div>
+    </div>
+    <div class="kpi danger">
+        <div class="v" title="{{ totals.value|rand }}">{{ totals.value|rand_short }}</div>
+        <div class="l">Scrap Value</div>
+        <div class="s">
+            {% if totals.unpriced_qty %}
+                {{ '{:,}'.format(totals.unpriced_qty) }} unit(s) unpriced
+            {% else %}
+                Priced at each entry's date
+            {% endif %}
+        </div>
+    </div>
+    <div class="kpi warn">
+        <div class="v">{{ '{:,}'.format(totals.reason_total) }}</div>
+        <div class="l">Chosen Reasons</div>
+        <div class="s">
+            {{ totals.reason_value|rand_short }} ·
+            {% if totals.coverage is not none %}{{ '%.1f'|format(totals.coverage) }}% of scrap{% else %}—{% endif %}
+        </div>
+    </div>
+</div>
+
+{% if totals.unpriced_qty %}
+<div class="app-card" style="margin-bottom:1.4rem;border-left:3px solid #d97706;">
+    <div class="app-card-body" style="display:flex;gap:.6rem;align-items:flex-start;font-size:.85rem;color:#475569;">
+        <i class="bi bi-exclamation-triangle" style="color:#d97706;"></i>
+        <div>
+            <strong>{{ '{:,}'.format(totals.unpriced_qty) }}</strong> of
+            {{ '{:,}'.format(totals.scrap) }} scrapped unit(s) could not be priced —
+            no price list entry for the scrap date and no catalogue price on the product
+            (or the row was never linked to a product). Every rand figure below covers the
+            other {% if totals.priced_pct is not none %}{{ '%.1f'|format(totals.priced_pct) }}%{% endif %}.
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if reasons %}
+<!-- TOTAL BY MONTH -->
+<div class="app-card">
+    <div class="app-card-head">
+        <h2 class="app-card-title"><i class="bi bi-graph-up"></i> Total by Month</h2>
+        <div style="display:flex;align-items:center;gap:.8rem;">
+            {% if month_series %}
+            <div style="display:flex;gap:.3rem;">
+                <a class="app-btn app-btn-sm {{ 'app-btn-primary' if metric == 'qty' else 'app-btn-outline' }}"
+                   href="{{ url_for('scrap.reason_report', **metric_link_qty) }}">
+                    Qty
+                </a>
+                <a class="app-btn app-btn-sm {{ 'app-btn-primary' if metric == 'pct' else 'app-btn-outline' }}"
+                   href="{{ url_for('scrap.reason_report', **metric_link_pct) }}">
+                    Scrap %
+                </a>
+            </div>
+            <div style="display:flex;gap:.3rem;">
+                <a class="app-btn app-btn-sm {{ 'app-btn-primary' if chart_type == 'line' else 'app-btn-outline' }}"
+                   href="{{ url_for('scrap.reason_report', **chart_link_line) }}">
+                    <i class="bi bi-graph-up"></i> Line
+                </a>
+                <a class="app-btn app-btn-sm {{ 'app-btn-primary' if chart_type == 'bar' else 'app-btn-outline' }}"
+                   href="{{ url_for('scrap.reason_report', **chart_link_bar) }}">
+                    <i class="bi bi-bar-chart"></i> Bar
+                </a>
+            </div>
+            {% endif %}
+            <span class="app-muted" style="font-size:.82rem;">
+                {{ reasons|length }} reason(s) summed per month
+                {% if month_series %} · {{ month_series|length }} month(s){% endif %}
+            </span>
+        </div>
+    </div>
+    <div class="app-card-body">
+        {% if month_series %}
+        <div style="height:320px;">
+            <canvas id="reasonTrendChart"></canvas>
+        </div>
+        <p class="app-muted" style="font-size:.78rem;margin:.9rem 0 0;">
+            {% if metric == 'pct' %}
+            Each {{ 'bar' if chart_type == 'bar' else 'point' }} is the combined scrap of the reasons above
+            as a share of that month's total production — e.g. if 3,000 units were scrapped to
+            those reasons out of 60,000 produced, that {{ 'bar' if chart_type == 'bar' else 'point' }} reads 5.0%.
+            {% else %}
+            Each {{ 'bar' if chart_type == 'bar' else 'point' }} is the combined quantity of the reasons above
+            for that month — e.g. if Deformed was 1,000 and Fulcrum was 2,000 in a month,
+            that {{ 'bar' if chart_type == 'bar' else 'point' }} reads 3,000.
+            {% endif %}
+        </p>
+        {% else %}
+        <div class="app-empty">
+            <i class="bi bi-inbox"></i>
+            No scrap was booked to {{ 'those reject reasons' if reason_ids else 'any reject reason' }} for this selection.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- OVERALL REASON MIX -->
+<div class="app-card">
+    <div class="app-card-head">
+        <h2 class="app-card-title"><i class="bi bi-pie-chart"></i> Overall Mix</h2>
+        <div style="display:flex;gap:.4rem;">
+            <a class="app-btn app-btn-outline app-btn-sm"
+               href="{{ url_for('scrap.reason_report_pdf', **link_args) }}" target="_blank">
+                <i class="bi bi-file-earmark-pdf"></i> Export PDF
+            </a>
+            <a class="app-btn app-btn-outline app-btn-sm"
+               href="{{ url_for('scrap.reason_report_export', **link_args) }}">
+                <i class="bi bi-download"></i> Export CSV
+            </a>
+        </div>
+    </div>
+    <div class="app-card-body">
+        <div class="mix" style="height:16px;margin-bottom:.9rem;">
+            {% for d in reasons %}
+            {% if totals.qtys[loop.index0] %}
+            <span style="width:{{ totals.shares[loop.index0] }}%;background:{{ colours[loop.index0 % colours|length] }};"
+                  title="{{ d.name }} — {{ '{:,}'.format(totals.qtys[loop.index0]) }} ({{ '%.1f'|format(totals.shares[loop.index0]) }}%)"></span>
+            {% endif %}
+            {% endfor %}
+        </div>
+        <div class="reason-chips">
+            {% for d in reasons %}
+            <span class="reason-chip">
+                <i style="background:{{ colours[loop.index0 % colours|length] }};"></i>
+                {{ d.code }} · {{ d.name }}
+                <strong>{{ '%.1f'|format(totals.shares[loop.index0]) }}%</strong>
+                <span class="app-muted">({{ '{:,}'.format(totals.qtys[loop.index0]) }} ·
+                    {{ totals.col_values[loop.index0]|rand_short }})</span>
+            </span>
+            {% endfor %}
+        </div>
+        <p class="app-muted" style="font-size:.78rem;margin:.9rem 0 0;">
+            {% if basis == 'selected' %}
+                Each percentage is that reason's share of the chosen reasons, so a row adds up to 100%.
+            {% else %}
+                Each percentage is that reason's share of everything scrapped on the part — a row falls
+                short of 100% where scrap was booked to reasons outside this selection.
+            {% endif %}
+        </p>
+    </div>
+</div>
+{% endif %}
+
+<!-- BY PART -->
+<div class="app-card">
+    <div class="app-card-head">
+        <h2 class="app-card-title"><i class="bi bi-box-seam"></i> By Part</h2>
+        <span class="app-muted" style="font-size:.82rem;">
+            {% if sort == 'scrap' %}Ranked by scrap quantity
+            {% elif sort == 'value' %}Ranked by rand value
+            {% elif sort == 'part' %}In part order
+            {% else %}Ranked worst scrap % first{% endif %}
+            ·
+            <i class="bi bi-list-check price-src list" style="margin-left:.4rem;"></i> list price
+            <i class="bi bi-tag price-src fallback" style="margin-left:.5rem;"></i> product's current price
+        </span>
+    </div>
+    <div class="app-card-body">
+        {% if parts %}
+        <div class="app-table-wrap">
+            <table class="app-table">
+                <thead>
+                    <tr>
+                        <th class="num">#</th>
+                        <th>Part</th>
+                        <th class="num">Machined / Packed</th>
+                        <th class="num">Scrap</th>
+                        <th class="num">Scrap %</th>
+                        <th class="num">Value</th>
+                        <th>Mix</th>
+                        {% for d in reasons %}
+                        <th class="num rq" title="{{ d.name }}">
+                            <span style="border-bottom:3px solid {{ colours[loop.index0 % colours|length] }};">{{ d.code }}</span>
+                        </th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in parts %}
+                    <tr>
+                        <td class="num rank">{{ loop.index }}</td>
+                        <td>{{ part_label(r) }}</td>
+                        <td class="num">{{ '{:,}'.format(r.machined) }}</td>
+                        <td class="num"><strong>{{ '{:,}'.format(r.scrap) }}</strong></td>
+                        <td class="num">
+                            {% if r.pct is not none %}
+                                <span class="{{ 'pct-hi' if r.pct >= 5 else 'pct-ok' }}">{{ '%.2f'|format(r.pct) }}%</span>
+                            {% else %}—{% endif %}
+                        </td>
+                        <td class="num">
+                            {{ r.value|rand(0) }}{{ ps.price_src(r.price_basis) }}
+                            {% if r.unpriced_qty %}
+                            <i class="bi bi-exclamation-triangle" style="color:#d97706;font-size:.72rem;"
+                               title="{{ '{:,}'.format(r.unpriced_qty) }} unit(s) unpriced"></i>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="mix">
+                                {% for d in reasons %}
+                                {% if r.qtys[loop.index0] %}
+                                <span style="width:{{ r.shares[loop.index0] }}%;background:{{ colours[loop.index0 % colours|length] }};"
+                                      title="{{ d.name }} — {{ '{:,}'.format(r.qtys[loop.index0]) }} ({{ '%.1f'|format(r.shares[loop.index0]) }}%)"></span>
+                                {% endif %}
+                                {% endfor %}
+                            </div>
+                        </td>
+                        {% for d in reasons %}
+                        {% set qty = r.qtys[loop.index0] %}
+                        {% set share = r.shares[loop.index0] %}
+                        <td class="num rq">
+                            {% if qty %}
+                                <strong>{{ '{:,}'.format(qty) }}</strong>
+                                <div class="share {{ 'lead' if share >= 50 }}">{{ '%.0f'|format(share) }}%</div>
+                                <div class="share">{{ r.col_values[loop.index0]|rand(0) }}</div>
+                            {% else %}
+                                <span class="app-muted">—</span>
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr style="background:#f8fafc;font-weight:700;">
+                        <td></td>
+                        <td>Total — {{ totals.parts }} part(s)</td>
+                        <td class="num">{{ '{:,}'.format(totals.machined) }}</td>
+                        <td class="num">{{ '{:,}'.format(totals.scrap) }}</td>
+                        <td class="num">{% if totals.pct is not none %}{{ '%.2f'|format(totals.pct) }}%{% else %}—{% endif %}</td>
+                        <td class="num">{{ totals.value|rand(0) }}</td>
+                        <td></td>
+                        {% for d in reasons %}
+                        <td class="num rq">
+                            {{ '{:,}'.format(totals.qtys[loop.index0]) }}
+                            <div class="share">{{ '%.0f'|format(totals.shares[loop.index0]) }}%</div>
+                            <div class="share">{{ totals.col_values[loop.index0]|rand(0) }}</div>
+                        </td>
+                        {% endfor %}
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        {% else %}
+        <div class="app-empty">
+            <i class="bi bi-inbox"></i>
+            No scrap was booked to {{ 'those reject reasons' if reason_ids else 'any reject reason' }} for this selection.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+/* Select all / clear all for the reason and product checkbox pickers */
+document.querySelectorAll('#reason-form [data-check]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+        var on = btn.dataset.check === 'all';
+        var name = btn.dataset.checkName;
+        document.querySelectorAll('#reason-form input[name="' + name + '"]').forEach(function (box) {
+            box.checked = on;
+        });
+    });
+});
+
+/* Product picker — search box filters the visible checkboxes */
+document.querySelectorAll('#reason-form .product-filter').forEach(function (input) {
+    var grid = input.closest('.product-picker').querySelector('.product-grid');
+    input.addEventListener('input', function () {
+        var q = input.value.trim().toLowerCase();
+        grid.querySelectorAll('label').forEach(function (label) {
+            var hay = label.dataset.search || '';
+            label.style.display = (!q || hay.indexOf(q) > -1) ? '' : 'none';
+        });
+    });
+});
+</script>
+{% if month_series %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+(function () {
+    var ctx = document.getElementById('reasonTrendChart').getContext('2d');
+    var isPct = {{ 'true' if metric == 'pct' else 'false' }};
+    new Chart(ctx, {
+        type: '{{ chart_type }}',
+        data: {
+            labels: {{ month_series | map(attribute='label') | list | tojson }},
+            datasets: [{
+                label: 'Total',
+                data: {{ month_series | map(attribute=metric) | list | tojson }},
+                borderColor: '#2563eb',
+                backgroundColor: '{{ '#2563eb' if chart_type == 'bar' else 'rgba(37, 99, 235, 0.12)' }}',
+                borderWidth: 2,
+                borderRadius: {{ 4 if chart_type == 'bar' else 0 }},
+                pointRadius: {{ 0 if chart_type == 'bar' else 3 }},
+                pointBackgroundColor: '#2563eb',
+                pointHoverRadius: {{ 0 if chart_type == 'bar' else 5 }},
+                tension: 0.25,
+                fill: {{ 'false' if chart_type == 'bar' else 'true' }},
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    callbacks: {
+                        label: function (item) {
+                            return isPct
+                                ? 'Scrap %: ' + item.parsed.y.toFixed(1) + '%'
+                                : 'Total: ' + item.parsed.y.toLocaleString();
+                        }
+                    }
+                }
+            },
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+                x: { grid: { display: false } },
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: isPct ? 1 : 0,
+                        callback: function (value) {
+                            return isPct ? value.toFixed(1) + '%' : value.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+})();
+</script>
+{% endif %}
+{% endblock %}

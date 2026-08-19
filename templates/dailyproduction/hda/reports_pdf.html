@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>{{ report_type|replace("_", " ")|title }} Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; font-size: 12px; }
+        h1, h2 { text-align: center; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        table, th, td { border: 1px solid #444; }
+        th { background: #eee; padding: 6px; text-transform: uppercase; }
+        td { padding: 6px; text-align: center; }
+        .no-data { text-align: center; margin-top: 50px; font-size: 16px; color: #555; }
+        .chart-img { display: block; margin: 20px auto; max-width: 100%; }
+    </style>
+</head>
+<body>
+    <h1>HDA Core Production Report</h1>
+    <h2>{{ report_type|replace("_", " ")|title }}</h2>
+    <p><b>Date Range:</b> {{ start_date.strftime("%d %b %Y") }} to {{ end_date.strftime("%d %b %Y") }}</p>
+
+    {% if chart_image %}
+    <img src="{{ chart_image }}" class="chart-img" alt="Report Chart">
+    {% endif %}
+
+    {% if data|length > 0 %}
+    <table>
+        <thead>
+            <tr>{% for key in data[0].keys() %}<th>{{ key.replace("_", " ").upper() }}</th>{% endfor %}</tr>
+        </thead>
+        <tbody>
+            {% for row in data %}
+            <tr>{% for key, value in row.items() %}<td>{{ value }}</td>{% endfor %}</tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="no-data"><b>No data available for the selected report type and date range.</b></div>
+    {% endif %}
+</body>
+</html>

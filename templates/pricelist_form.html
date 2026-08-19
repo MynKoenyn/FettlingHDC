@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Edit' if period else 'New' }} Price List Period{% endblock %}
+
+{% block content %}
+<div class="app-container" style="max-width:700px;">
+    <div class="app-card">
+        <div class="app-card-head">
+            <span class="app-card-title">
+                <i class="bi bi-calendar-range" style="color:var(--hdc-primary);"></i>
+                {{ 'Edit Price List Period' if period else 'New Price List Period' }}
+                {% if period %}<span class="app-id">#{{ period.id }}</span>{% endif %}
+            </span>
+            <a href="{{ url_for('price_lists') }}" class="app-btn app-btn-outline app-btn-sm"><i class="bi bi-arrow-left"></i> Back</a>
+        </div>
+        <div class="app-card-body">
+
+            <form method="POST" novalidate>
+                {{ form.hidden_tag() }}
+                <div class="app-form-grid">
+                    <div class="app-field full">
+                        <label class="app-label">Division <span class="req">*</span></label>
+                        {{ form.division_id(class="app-select") }}
+                        <div class="app-hint">Only customers in this division can be priced on this period.</div>
+                    </div>
+                    <div class="app-field full">
+                        <label class="app-label">Label <span class="req">*</span></label>
+                        {{ form.label(class="app-input" + (" is-invalid" if form.label.errors else ""), placeholder="e.g. HDC 2025/26") }}
+                        {% for e in form.label.errors %}<div class="app-err">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label">Start Date <span class="req">*</span></label>
+                        {{ form.start_date(class="app-input" + (" is-invalid" if form.start_date.errors else ""), type="date") }}
+                        {% for e in form.start_date.errors %}<div class="app-err">{{ e }}</div>{% endfor %}
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label">End Date <span class="req">*</span></label>
+                        {{ form.end_date(class="app-input" + (" is-invalid" if form.end_date.errors else ""), type="date") }}
+                        {% for e in form.end_date.errors %}<div class="app-err">{{ e }}</div>{% endfor %}
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:.6rem; margin-top:1.5rem;">
+                    <button type="submit" class="app-btn app-btn-primary"><i class="bi bi-check-lg"></i> Save Period</button>
+                    <a href="{{ url_for('price_lists') }}" class="app-btn app-btn-outline">Cancel</a>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

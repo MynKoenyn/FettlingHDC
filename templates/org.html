@@ -1,0 +1,199 @@
+{% extends 'base.html' %}
+{% block title %}Org Structure{% endblock %}
+
+{% block content %}
+<div class="app-container wide">
+
+    <div class="app-card">
+        <div class="app-card-head">
+            <span class="app-card-title">
+                <i class="bi bi-diagram-2" style="color:var(--hdc-primary);"></i> Org Structure
+            </span>
+            {% if may_edit %}
+            <div style="display:flex; gap:.5rem; flex-wrap:wrap;">
+                <a href="{{ url_for('org_division_form') }}" class="app-btn app-btn-outline app-btn-sm">
+                    <i class="bi bi-plus-lg"></i> New Division
+                </a>
+                <a href="{{ url_for('org_department_form') }}" class="app-btn app-btn-primary app-btn-sm">
+                    <i class="bi bi-plus-lg"></i> New Department
+                </a>
+            </div>
+            {% endif %}
+        </div>
+        <div class="app-card-body">
+
+            <div style="display:flex; gap:1rem; flex-wrap:wrap; margin-bottom:1.25rem;">
+                <div class="app-badge blue" style="font-size:.8rem; padding:.4rem .9rem;">
+                    {{ divisions|length }} division{{ 's' if divisions|length != 1 }}
+                </div>
+                <div class="app-badge blue" style="font-size:.8rem; padding:.4rem .9rem;">
+                    {{ department_count }} department{{ 's' if department_count != 1 }}
+                </div>
+                <div class="app-badge gray" style="font-size:.8rem; padding:.4rem .9rem;">
+                    {{ personnel_total }} personnel assigned
+                </div>
+            </div>
+
+            {% if duplicate_names %}
+            <div class="hdc-flash hdc-flash-warning" style="margin-bottom:1.25rem;">
+                <i class="bi bi-exclamation-circle-fill"></i>
+                <span>
+                    The same department name appears under more than one division:
+                    <strong>{{ duplicate_names|join(', ') }}</strong>.
+                    If that was an import typo rather than deliberate, open the wrong one and merge it away.
+                </span>
+            </div>
+            {% endif %}
+
+            <div class="app-search" style="margin-bottom:1.25rem; max-width:420px;">
+                <i class="bi bi-search"></i>
+                <input type="text" id="orgSearch" placeholder="Search departments…" onkeyup="filterOrg()">
+            </div>
+
+            {% if divisions %}
+                {% for division in divisions %}
+                {% set rows = by_division.get(division.id, []) %}
+                <div class="org-division" data-division="{{ division.code }} {{ division.name }}">
+                    <div class="org-division-head">
+                        <div>
+                            <span class="app-badge blue">{{ division.code }}</span>
+                            <span style="font-weight:700; color:#0f172a; margin-left:.5rem;">{{ division.name }}</span>
+                            <span class="app-muted" style="font-size:.82rem; margin-left:.5rem;">
+                                {{ rows|length }} department{{ 's' if rows|length != 1 }}
+                            </span>
+                        </div>
+                        {% if may_edit %}
+                        <div style="display:flex; gap:.4rem;">
+                            <a href="{{ url_for('org_department_form', division_id=division.id) }}"
+                               class="app-btn app-btn-outline app-btn-sm">
+                                <i class="bi bi-plus-lg"></i> Add Department
+                            </a>
+                            <a href="{{ url_for('org_division_form', division_id=division.id) }}"
+                               class="app-btn app-btn-outline app-btn-sm">
+                                <i class="bi bi-pencil"></i> Edit
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    {% if rows %}
+                    <div class="app-table-wrap">
+                        <table class="app-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:70px;">ID</th>
+                                    <th>Department</th>
+                                    <th style="width:110px; text-align:center;">Personnel</th>
+                                    <th style="width:90px; text-align:center;">Users</th>
+                                    <th style="width:110px; text-align:center;">Stocktakes</th>
+                                    <th style="width:110px; text-align:center;">Overtime</th>
+                                    <th style="width:90px;"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in rows %}
+                                <tr class="org-row">
+                                    <td><span class="app-id">#{{ row.dept.id }}</span></td>
+                                    <td style="font-weight:600; color:#0f172a;">{{ row.dept.name }}</td>
+                                    <td style="text-align:center;">
+                                        <span class="app-badge {{ 'blue' if row.personnel else 'gray' }}">{{ row.personnel }}</span>
+                                    </td>
+                                    <td style="text-align:center;">
+                                        <span class="app-badge {{ 'blue' if row.users else 'gray' }}">{{ row.users }}</span>
+                                    </td>
+                                    <td style="text-align:center;">
+                                        <span class="app-badge {{ 'blue' if row.stocktakes else 'gray' }}">{{ row.stocktakes }}</span>
+                                    </td>
+                                    <td style="text-align:center;">
+                                        <span class="app-badge {{ 'blue' if row.overtime else 'gray' }}">{{ row.overtime }}</span>
+                                    </td>
+                                    <td style="text-align:right;">
+                                        {% if may_edit %}
+                                        <a href="{{ url_for('org_department_form', department_id=row.dept.id) }}"
+                                           class="app-btn app-btn-outline app-btn-sm">
+                                            <i class="bi bi-pencil"></i> Edit
+                                        </a>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="app-empty" style="padding:1.5rem 1rem;">
+                        <i class="bi bi-diagram-3"></i>
+                        No departments in {{ division.code }} yet.
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% else %}
+            <div class="app-empty">
+                <i class="bi bi-diagram-2"></i>
+                No divisions yet. Create a division first — every department belongs to one.
+            </div>
+            {% endif %}
+
+            {% if orphans %}
+            <div class="org-division" data-division="unassigned">
+                <div class="org-division-head">
+                    <div>
+                        <span class="app-badge red">Unassigned</span>
+                        <span style="font-weight:700; color:#0f172a; margin-left:.5rem;">No division</span>
+                    </div>
+                </div>
+                <div class="app-table-wrap">
+                    <table class="app-table">
+                        <tbody>
+                            {% for row in orphans %}
+                            <tr class="org-row">
+                                <td><span class="app-id">#{{ row.dept.id }}</span></td>
+                                <td style="font-weight:600; color:#0f172a;">{{ row.dept.name }}</td>
+                                <td style="text-align:right;">
+                                    {% if may_edit %}
+                                    <a href="{{ url_for('org_department_form', department_id=row.dept.id) }}"
+                                       class="app-btn app-btn-outline app-btn-sm">
+                                        <i class="bi bi-pencil"></i> Edit
+                                    </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+    .org-division { margin-bottom: 1.75rem; }
+    .org-division:last-child { margin-bottom: 0; }
+    .org-division-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+        flex-wrap: wrap; padding: .6rem 0 .75rem; }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function filterOrg() {
+        const q = document.getElementById('orgSearch').value.toLowerCase().trim();
+        document.querySelectorAll('.org-division').forEach(block => {
+            let visible = 0;
+            block.querySelectorAll('.org-row').forEach(row => {
+                const show = !q || row.innerText.toLowerCase().includes(q);
+                row.style.display = show ? '' : 'none';
+                if (show) visible++;
+            });
+            const divisionMatches = !q || (block.dataset.division || '').toLowerCase().includes(q);
+            block.style.display = (visible || divisionMatches) ? '' : 'none';
+        });
+    }
+</script>
+{% endblock %}

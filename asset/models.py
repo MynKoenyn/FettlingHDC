@@ -139,7 +139,7 @@ class Asset(db.Model):
     status = db.Column(db.String(25), default=AssetStatus.ACTIVE)
 
     # ----- Audit -----
-    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
@@ -224,7 +224,7 @@ class DepreciationSchedule(db.Model):
 
     is_posted  = db.Column(db.Boolean, default=False)
     run_date   = db.Column(db.DateTime, default=datetime.now)
-    posted_by  = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    posted_by  = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
 
     __table_args__ = (
         db.UniqueConstraint('asset_id', 'period_year', 'period_month',
@@ -261,7 +261,7 @@ class AssetTransfer(db.Model):
     depreciation_method = db.Column(db.String(5))
 
     notes      = db.Column(db.Text)
-    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.now)
 
     from_category = db.relationship('AssetCategory', foreign_keys=[from_category_id])
@@ -297,7 +297,7 @@ class Disposal(db.Model):
     accum_dep_at_disposal     = db.Column(db.Numeric(15, 2))
 
     notes       = db.Column(db.Text)
-    approved_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    approved_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     created_at  = db.Column(db.DateTime, default=datetime.now)
 
     def calculate_gain_loss(self):
@@ -341,7 +341,7 @@ class Impairment(db.Model):
     reversal_amount = db.Column(db.Numeric(15, 2))
     reversal_reason = db.Column(db.Text)
 
-    approved_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    approved_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     created_at  = db.Column(db.DateTime, default=datetime.now)
 
     def calculate_post_impairment_nbv(self):

@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<style>
+    
+    /* ── Scrap module shell ── */
+    .scrap-hero { background: rgba(255,255,255,0.97); border-radius: 1.1rem; padding: 1.3rem 1.6rem;
+        box-shadow: 0 12px 30px rgba(0,0,0,0.20); border: 1px solid rgba(255,255,255,0.5);
+        margin-bottom: 1.4rem; }
+    .scrap-hero h1 { margin: 0; font-size: 1.4rem; font-weight: 800; color: #0f172a;
+        display: flex; align-items: center; gap: .6rem; }
+    .scrap-hero p { margin: .3rem 0 0; color: #64748b; font-size: .9rem; }
+
+    .scrap-tabs { display: flex; gap: .3rem; flex-wrap: wrap; margin-top: 1rem;
+        border-top: 1px solid #eef2f7; padding-top: .9rem; }
+    .scrap-tabs a { font-size: .85rem; font-weight: 600; color: #64748b; text-decoration: none;
+        padding: .45rem .8rem; border-radius: .55rem; display: inline-flex; align-items: center; gap: .4rem; }
+    .scrap-tabs a:hover { background: #f1f5f9; color: #0f172a; }
+    .scrap-tabs a.active { background: var(--hdc-primary); color: #fff; }
+
+    /* ── Division switcher (HDA / HDC) ── */
+    .scrap-hero-top { display: flex; align-items: flex-start; justify-content: space-between;
+        gap: 1rem; flex-wrap: wrap; }
+    .division-switch { display: inline-flex; background: #f1f5f9; border-radius: .7rem; padding: .2rem; gap: .2rem; }
+    .division-switch a { font-size: .8rem; font-weight: 700; color: #64748b; text-decoration: none;
+        padding: .4rem .85rem; border-radius: .5rem; }
+    .division-switch a:hover { color: #0f172a; }
+    .division-switch a.active { background: #fff; color: var(--hdc-primary); box-shadow: 0 1px 4px rgba(0,0,0,.12); }
+    .scrap-hub-back { font-size: .78rem; color: #94a3b8; text-decoration: none; display: inline-flex;
+        align-items: center; gap: .3rem; margin-bottom: .3rem; }
+    .scrap-hub-back:hover { color: #64748b; }
+
+    /* ── KPI tiles ── */
+    .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1rem; margin-bottom: 1.4rem; }
+    .kpi { background: rgba(255,255,255,0.97); border-radius: 1rem; padding: 1.1rem 1.3rem;
+        box-shadow: 0 10px 24px rgba(0,0,0,0.18); border: 1px solid rgba(255,255,255,0.5);
+        border-top: 3px solid var(--hdc-primary); }
+    .kpi.warn   { border-top-color: #d97706; }
+    .kpi.danger { border-top-color: #dc2626; }
+    .kpi.ok     { border-top-color: #059669; }
+    .kpi.muted  { border-top-color: #94a3b8; }
+    .kpi .v { font-size: 1.75rem; font-weight: 800; color: #0f172a; line-height: 1.1;
+        font-variant-numeric: tabular-nums; }
+    .kpi .l { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em;
+        color: #64748b; margin-top: .35rem; }
+    .kpi .s { font-size: .78rem; color: #94a3b8; margin-top: .3rem; }
+
+    /* ── Filter bar ── */
+    .filter-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: .8rem; align-items: end; }
+    .filter-bar .acts { display: flex; gap: .5rem; }
+
+    /* ── Horizontal bars (defect / period breakdown) ── */
+    .bar-row { display: grid; grid-template-columns: minmax(120px, 1.4fr) 3fr auto;
+        gap: .8rem; align-items: center; padding: .4rem 0; font-size: .86rem; }
+    .bar-row .nm { color: #334155; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bar-track { background: #f1f5f9; border-radius: 999px; height: 10px; overflow: hidden; display: flex; }
+    .bar-fill { height: 100%; background: var(--hdc-primary); }
+    .bar-fill.ext { background: #2563eb; }
+    .bar-fill.int { background: #d97706; }
+    .bar-row .qty { font-variant-numeric: tabular-nums; font-weight: 700; color: #0f172a; min-width: 54px; text-align: right; }
+
+    .legend { display: flex; gap: 1rem; font-size: .78rem; color: #64748b; margin-bottom: .6rem; }
+    .legend span { display: inline-flex; align-items: center; gap: .35rem; }
+    .legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+    /* Duplicates waiting on a decision — amber wherever they surface */
+    .app-btn-warn { background: #d97706; color: #fff; }
+    .app-btn-warn:hover { background: #b45309; color: #fff; }
+    .app-badge.amber { background: #fef3c7; color: #92400e; }
+
+    /* Small marker next to a rand value — which price source it was priced
+       from, so a report doesn't quietly pass off a catalogue fallback as a
+       list price. Icon-only to stay out of the way of the figure itself. */
+    .price-src { font-size: .68rem; margin-left: .3rem; cursor: help; }
+    .price-src.list     { color: #2563eb; }
+    .price-src.fallback { color: #d97706; }
+    .price-src.mixed    { color: #7c3aed; }
+
+    /* Report pages carry a value column per reason, so they get more room than
+       the rest of the module. 80% keeps a breathing margin on big monitors;
+       below 1500px that margin is squeezing the report more than it's
+       helping, so it falls back to the full width. */
+    .app-container.xwide { width: 90%; max-width: 2600px; }
+    @media (max-width: 1500px) { .app-container.xwide { width: 100%; } }
+
+    /* Figures never wrap — a rand amount split over two lines is unreadable */
+    .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    /* base.html's `.app-table th` (left) outranks `.num`, so numeric headers
+       drift left of their right-aligned figures — pin them back with a
+       header-specific rule that wins on specificity. */
+    .app-table th.num { text-align: right; }
+    .pct-hi { color: #dc2626; font-weight: 700; }
+    .pct-ok { color: #059669; font-weight: 600; }
+    .src-ext { background: #dbeafe; color: #1e40af; }
+    .src-int { background: #fef3c7; color: #92400e; }
+    .mono-sm { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .8rem; color: #334155; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.4rem; }
+    @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+</style>
+<link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
+{% block scrap_head %}{% endblock %}
+{% endblock %}
+
+{% block content %}
+<div class="app-container {{ container_class or 'wide' }}">
+
+    <div class="scrap-hero">
+        <div class="scrap-hero-top">
+            <div>
+                <a href="{{ url_for('scrap.hub') }}" class="scrap-hub-back"><i class="bi bi-arrow-left"></i> All Scrap</a>
+                <h1><i class="bi bi-trash3" style="color:#dc2626;"></i> {{ page_title or "Scrap" }}{% if division_label %} <span style="color:#94a3b8;font-weight:600;">— {{ division_label }}</span>{% endif %}</h1>
+                <p>{{ page_sub or "External customer reject reports and internally captured scrap." }}</p>
+            </div>
+            {% if division and not is_report_page %}
+            <div class="division-switch">
+                <a href="{{ url_for(request.endpoint, division='hda', **request.view_args) }}"
+                   class="{{ 'active' if division == 'hda' }}">HDA</a>
+                <a href="{{ url_for(request.endpoint, division='hdc', **request.view_args) }}"
+                   class="{{ 'active' if division == 'hdc' }}">HDC</a>
+            </div>
+            {% endif %}
+        </div>
+
+        <nav class="scrap-tabs">
+            <a href="{{ url_for('scrap.dashboard') }}"
+               class="{{ 'active' if request.endpoint == 'scrap.dashboard' }}">
+                <i class="bi bi-speedometer2"></i> Overview
+            </a>
+            <a href="{{ url_for('scrap.import_report') }}"
+               class="{{ 'active' if request.endpoint in ['scrap.import_report', 'scrap.import_batches', 'scrap.import_batch'] }}">
+                <i class="bi bi-upload"></i> External Import
+            </a>
+            <a href="{{ url_for('scrap.internal_entry') }}"
+               class="{{ 'active' if request.endpoint == 'scrap.internal_entry' }}">
+                <i class="bi bi-pencil-square"></i> Internal Capture
+            </a>
+            <a href="{{ url_for('scrap.dispatch_entry') }}"
+               class="{{ 'active' if request.endpoint == 'scrap.dispatch_entry' }}">
+                <i class="bi bi-truck"></i> Dispatch
+            </a>
+            <a href="{{ url_for('scrap.dispatches') }}"
+               class="{{ 'active' if request.endpoint == 'scrap.dispatches' }}">
+                <i class="bi bi-list-ul"></i> Dispatches
+            </a>
+            <a href="{{ url_for('scrap.entries') }}"
+               class="{{ 'active' if request.endpoint == 'scrap.entries' }}">
+                <i class="bi bi-list-ul"></i> All Entries
+            </a>
+            <a href="{{ url_for('scrap.reports', period='month') }}"
+               class="{{ 'active' if request.endpoint == 'scrap.reports' }}">
+                <i class="bi bi-file-earmark-bar-graph"></i> Reports
+            </a>
+            <a href="{{ url_for('scrap.reason_report') }}"
+               class="{{ 'active' if request.endpoint == 'scrap.reason_report' }}">
+                <i class="bi bi-pie-chart"></i> Reason Mix
+            </a>
+            <a href="{{ url_for('scrap.balance_report') }}"
+               class="{{ 'active' if request.endpoint == 'scrap.balance_report' }}">
+                <i class="bi bi-clipboard-data"></i> Packed Balance
+            </a>
+            <a href="{{ url_for('scrap.defects') }}"
+               class="{{ 'active' if request.endpoint == 'scrap.defects' }}">
+                <i class="bi bi-tags"></i> Reject Reasons
+            </a>
+        </nav>
+    </div>
+
+    {% block scrap_content %}{% endblock %}
+
+</div>
+{% endblock %}

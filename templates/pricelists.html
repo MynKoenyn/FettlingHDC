@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+{% block title %}Price Lists{% endblock %}
+
+{% block content %}
+<div class="app-container wide">
+
+    <!-- Generate periods -->
+    <div class="app-card">
+        <div class="app-card-head">
+            <span class="app-card-title"><i class="bi bi-calendar-range" style="color:var(--hdc-primary);"></i> Generate Price List Periods</span>
+            <div style="display:flex; gap:.5rem;">
+                <a href="{{ url_for('price_lookup') }}" class="app-btn app-btn-outline app-btn-sm"><i class="bi bi-search"></i> Price Lookup</a>
+                <a href="{{ url_for('price_list_period_form') }}" class="app-btn app-btn-primary app-btn-sm"><i class="bi bi-plus-lg"></i> New Period</a>
+            </div>
+        </div>
+        <div class="app-card-body">
+            <div class="hdc-flash hdc-flash-info" style="margin-bottom:1.2rem;">
+                <i class="bi bi-info-circle-fill"></i>
+                <span><strong>HDC</strong> is normally annual (1 Jul → 30 Jun). <strong>HDA</strong> is quarterly (every 3 months).
+                      Generating is safe to repeat — periods that already exist are skipped.</span>
+            </div>
+
+            <form method="POST">
+                {{ gen_form.hidden_tag() }}
+                <div class="app-form-grid" style="grid-template-columns:repeat(3,1fr);">
+                    <div class="app-field">
+                        <label class="app-label">Division</label>
+                        {{ gen_form.division_id(class="app-select") }}
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label">Cadence</label>
+                        {{ gen_form.cadence(class="app-select") }}
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label">Year starting July</label>
+                        {{ gen_form.year(class="app-input", type="number", min="2000", max="2100") }}
+                        {% for e in gen_form.year.errors %}<div class="app-err">{{ e }}</div>{% endfor %}
+                    </div>
+                </div>
+                <div style="margin-top:1.1rem;">
+                    <button type="submit" class="app-btn app-btn-primary"><i class="bi bi-magic"></i> Generate Periods</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Existing periods -->
+    <div class="app-card">
+        <div class="app-card-head">
+            <span class="app-card-title"><i class="bi bi-list-columns-reverse" style="color:var(--hdc-primary);"></i> Price List Periods</span>
+        </div>
+        <div class="app-card-body">
+            {% if periods %}
+                {% for division_code, group in periods|groupby('division.code') %}
+                <div style="margin-bottom:1.6rem;">
+                    <div style="font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.1em;
+                                color:#64748b; margin-bottom:.6rem;">Division {{ division_code }}</div>
+                    <div class="app-table-wrap">
+                        <table class="app-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:70px;">ID</th>
+                                    <th>Label</th>
+                                    <th>Starts</th>
+                                    <th>Ends</th>
+                                    <th style="text-align:center;">Prices</th>
+                                    <th></th>
+                                    <th style="width:150px;"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for p in group %}
+                                <tr>
+                                    <td><span class="app-id">#{{ p.id }}</span></td>
+                                    <td style="font-weight:600; color:#0f172a;">{{ p.label }}</td>
+                                    <td class="app-muted">{{ p.start_date.strftime('%d %b %Y') }}</td>
+                                    <td class="app-muted">{{ p.end_date.strftime('%d %b %Y') }}</td>
+                                    <td style="text-align:center;">
+                                        <span class="app-badge {{ 'blue' if entry_counts.get(p.id, 0) else 'gray' }}">{{ entry_counts.get(p.id, 0) }}</span>
+                                    </td>
+                                    <td>
+                                        {% if p.start_date <= today <= p.end_date %}
+                                            <span class="app-badge green">Current</span>
+                                        {% elif p.start_date > today %}
+                                            <span class="app-badge gray">Future</span>
+                                        {% else %}
+                                            <span class="app-badge gray">Closed</span>
+                                        {% endif %}
+                                    </td>
+                                    <td style="text-align:right; white-space:nowrap;">
+                                        <a href="{{ url_for('price_list_detail', period_id=p.id) }}" class="app-btn app-btn-primary app-btn-sm">
+                                            <i class="bi bi-tags"></i> Prices
+                                        </a>
+                                        <a href="{{ url_for('price_list_import', period_id=p.id) }}" class="app-btn app-btn-outline app-btn-sm">
+                                            <i class="bi bi-upload"></i>
+                                        </a>
+                                        <a href="{{ url_for('price_list_period_form', period_id=p.id) }}" class="app-btn app-btn-outline app-btn-sm">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+            <div class="app-empty">
+                <i class="bi bi-calendar-x"></i>
+                No price list periods yet. Generate them above, or create one manually.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}

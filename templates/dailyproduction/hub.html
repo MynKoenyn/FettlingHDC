@@ -1,0 +1,29 @@
+{% extends "dailyproduction/base_dailyproduction.html" %}
+
+{% block title %}Daily Production{% endblock %}
+
+{% block dp_subnav %}{% endblock %}
+
+{% block dp_content %}
+<div class="app-container wide">
+    <div class="app-card">
+        <div class="app-card-head">
+            <div>
+                <h1 class="app-card-title"><i class="bi bi-clipboard-data"></i> Daily Production</h1>
+                <p class="app-muted" style="margin: .35rem 0 0;">Choose a production type to get started.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-tile-grid">
+        {% for pt in production_types %}
+        <a class="app-tile" href="{{ url_for(pt.endpoint) }}">
+            <span class="icon" style="background: {{ pt.color }};"><i class="bi {{ pt.icon }}"></i></span>
+            <h3>{{ pt.name }}</h3>
+            <p>{{ pt.description }}</p>
+            <span class="open">Open <i class="bi bi-arrow-right"></i></span>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

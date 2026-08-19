@@ -1,0 +1,527 @@
+{% extends "scrap/base_scrap.html" %}
+{% set is_hda = division == 'hda' %}
+{% set editing = dispatch or batch %}
+{% set container_class = "xwide" %}
+{% set page_title = "Dispatch" %}
+{% set page_sub = "Record packed stock leaving the site — nets against the packed balance for that part." %}
+
+{% block title %}{{ 'Edit' if editing else 'Capture' }} Dispatch{% endblock %}
+
+{% block scrap_head %}
+<style>
+    .balance-hint { display: flex; align-items: center; gap: .5rem; font-size: .85rem; font-weight: 600;
+        padding: .6rem .9rem; border-radius: .6rem; background: #f8fafc; border: 1px solid #e2e8f0; margin-top: .5rem; }
+    .balance-hint.neg { background: #fef3c7; border-color: #fcd34d; color: #92400e; }
+    .dispatch-line { display: grid; grid-template-columns: 2fr 1fr auto; gap: .5rem 1rem; align-items: start;
+        padding: 1rem 0; border-bottom: 1px dashed #e2e8f0; }
+    .dispatch-line:first-child { padding-top: 0; }
+    .dispatch-line:last-child { border-bottom: none; }
+    .dispatch-line .balance-hint { grid-column: 1 / 3; margin-top: 0; }
+    .remove-line { margin-top: 1.6rem; }
+
+    /* ── HDA cage lines ── */
+    .cage-line { border: 1px solid #e2e8f0; border-radius: .7rem; padding: 1.2rem 1.5rem;
+        margin-bottom: 1rem; background: #fafbfc; }
+    .cage-line:last-child { margin-bottom: 0; }
+    .cage-line-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+    .cage-line-head .cage-badge { font-weight: 800; color: #0f172a; font-size: .92rem;
+        display: inline-flex; align-items: center; gap: .4rem; }
+    .cage-line-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.1rem 1.8rem; }
+    .cage-line-grid label { display: block; font-size: .74rem; font-weight: 700; color: #64748b;
+        text-transform: uppercase; letter-spacing: .04em; margin-bottom: .3rem; }
+    /* Larger than the app-wide default (.93rem) — these fields are typed or
+       scanned on the shop floor, so bigger text is easier to read and hit. */
+    .cage-line-grid input, .cage-line-grid select { font-size: 1.08rem; padding: .8rem 1rem; }
+    .cage-line .balance-hint { grid-column: 1 / -1; margin-top: .2rem; }
+
+    /* Four per-cage confirmation checks — full width across the cage's grid */
+    .cage-checklist { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: .6rem; margin-top: .3rem; padding-top: .8rem; border-top: 1px dashed #e2e8f0; }
+    .cage-checklist label { display: flex; align-items: center; gap: .5rem; font-size: .82rem; font-weight: 600;
+        color: #334155; padding: .5rem .7rem; border: 1.5px solid #e2e8f0; border-radius: .55rem;
+        cursor: pointer; text-transform: none; letter-spacing: normal; background: #fff; }
+    .cage-checklist input { width: 1rem; height: 1rem; accent-color: var(--hdc-primary); flex: none; }
+
+    .dispatch-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: .8rem; }
+    .dispatch-summary .stat { background: #fff; border: 1px solid #e2e8f0; border-radius: .7rem;
+        padding: .8rem 1rem; text-align: center; }
+    .dispatch-summary .stat .v { font-size: 1.35rem; font-weight: 800; color: #0f172a; font-variant-numeric: tabular-nums; }
+    .dispatch-summary .stat .l { font-size: .68rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: .06em; color: #94a3b8; margin-top: .2rem; }
+</style>
+{% endblock %}
+
+{% block scrap_content %}
+
+<form method="POST" autocomplete="off">
+    {{ form.hidden_tag() }}
+
+    <div class="app-card">
+        <div class="app-card-head">
+            <h2 class="app-card-title">
+                <i class="bi bi-truck"></i>
+                {{ 'Edit Dispatch' if editing else 'New Dispatch' }}
+            </h2>
+            {% if dispatch %}<span class="app-badge gray">Dispatch #{{ dispatch.id }}</span>{% endif %}
+            {% if batch %}<span class="app-badge gray">Dispatch #{{ batch.id }}</span>{% endif %}
+        </div>
+        <div class="app-card-body">
+            <div class="app-form-grid">
+
+                <div class="app-field">
+                    <label class="app-label" for="dispatch_date">{{ form.dispatch_date.label.text }} <span class="req">*</span></label>
+                    {{ form.dispatch_date(class="app-input", type="date") }}
+                    {% for e in form.dispatch_date.errors %}<div class="app-err"><i class="bi bi-exclamation-circle"></i>{{ e }}</div>{% endfor %}
+                </div>
+
+                <div class="app-field">
+                    <label class="app-label" for="customerSelect">{{ form.customer_id.label.text }}</label>
+                    {% if locked_customer %}
+                        <div class="app-input" style="display:flex;align-items:center;gap:.5rem;background:#f8fafc;color:#334155;">
+                            <i class="bi bi-lock-fill" style="font-size:.75rem;color:#94a3b8;"></i> {{ locked_customer.name }}
+                        </div>
+                        {{ form.customer_id(style="display:none;", id="customerSelect") }}
+                        <div class="app-hint">HDA's main customer — set automatically.</div>
+                    {% else %}
+                        {{ form.customer_id(class="app-select searchable-select", id="customerSelect") }}
+                        <div class="app-hint">Filters the product lists below.</div>
+                    {% endif %}
+                </div>
+
+                {% if is_hda %}
+                <div class="app-field">
+                    <label class="app-label" for="invoice_no">{{ form.invoice_no.label.text }}</label>
+                    {{ form.invoice_no(class="app-input", placeholder="e.g. INV-10234") }}
+                    {% for e in form.invoice_no.errors %}<div class="app-err"><i class="bi bi-exclamation-circle"></i>{{ e }}</div>{% endfor %}
+                </div>
+
+                <div class="app-field">
+                    <label class="app-label" for="dispatcher_id">{{ form.dispatcher_id.label.text }}</label>
+                    {{ form.dispatcher_id(class="app-select") }}
+                    {% for e in form.dispatcher_id.errors %}<div class="app-err"><i class="bi bi-exclamation-circle"></i>{{ e }}</div>{% endfor %}
+                </div>
+
+                <div class="app-field">
+                    <label class="app-label" for="total_black_bags">{{ form.total_black_bags.label.text }}</label>
+                    {{ form.total_black_bags(class="app-input", type="number", min="0") }}
+                    <div class="app-hint">{{ form.total_black_bags.description }}</div>
+                    {% for e in form.total_black_bags.errors %}<div class="app-err"><i class="bi bi-exclamation-circle"></i>{{ e }}</div>{% endfor %}
+                </div>
+                {% endif %}
+
+                {% if dispatch %}
+                <div class="app-field">
+                    <label class="app-label" for="productSelect">{{ form.product_id.label.text }} <span class="req">*</span></label>
+                    {{ form.product_id(class="app-select searchable-select", id="productSelect") }}
+                    {% for e in form.product_id.errors %}<div class="app-err"><i class="bi bi-exclamation-circle"></i>{{ e }}</div>{% endfor %}
+                    <div class="balance-hint" id="balanceHint">
+                        <i class="bi bi-info-circle"></i>
+                        <span id="balanceHintText">Select a product to see its outstanding packed balance.</span>
+                    </div>
+                </div>
+
+                <div class="app-field">
+                    <label class="app-label" for="qty_dispatched">{{ form.qty_dispatched.label.text }} <span class="req">*</span></label>
+                    {{ form.qty_dispatched(class="app-input", type="number", min="1") }}
+                    {% for e in form.qty_dispatched.errors %}<div class="app-err"><i class="bi bi-exclamation-circle"></i>{{ e }}</div>{% endfor %}
+                </div>
+                {% endif %}
+
+                <div class="app-field full">
+                    <label class="app-label" for="notes">{{ form.notes.label.text }}</label>
+                    {{ form.notes(class="app-textarea", rows="2", maxlength="255", placeholder="Optional — truck/driver, delivery note number") }}
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    {% if is_hda %}
+    <div class="app-card">
+        <div class="app-card-head">
+            <h2 class="app-card-title"><i class="bi bi-box-seam"></i> Cages On This Truck</h2>
+            <button type="button" class="app-btn app-btn-outline app-btn-sm" id="addLineBtn">
+                <i class="bi bi-plus-lg"></i> Add cage
+            </button>
+        </div>
+        <div class="app-card-body">
+            <div class="dispatch-summary" style="margin-bottom:1.2rem;">
+                <div class="stat"><div class="v" id="summaryQty">0</div><div class="l">Total Dispatched</div></div>
+                <div class="stat"><div class="v" id="summaryWeight">0.0</div><div class="l">Total Weight (kg)</div></div>
+                <div class="stat"><div class="v" id="summaryCages">0</div><div class="l">Total Cages</div></div>
+            </div>
+            <div id="dispatchLines"></div>
+        </div>
+    </div>
+    {% elif not dispatch %}
+    <div class="app-card">
+        <div class="app-card-head">
+            <h2 class="app-card-title"><i class="bi bi-box-seam"></i> Products On This Truck</h2>
+            <button type="button" class="app-btn app-btn-outline app-btn-sm" id="addLineBtn">
+                <i class="bi bi-plus-lg"></i> Add product line
+            </button>
+        </div>
+        <div class="app-card-body">
+            <div id="dispatchLines"></div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div style="display:flex;gap:.75rem;margin-bottom:2rem;">
+        <button type="submit" class="app-btn app-btn-primary"><i class="bi bi-check-lg"></i> {{ form.submit.label.text }}</button>
+        <a href="{{ url_for('scrap.dispatches') }}" class="app-btn app-btn-outline">Cancel</a>
+    </div>
+</form>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const PRODUCTS_BY_CUSTOMER = {{ products_by_customer | safe }};
+    const PRODUCT_BALANCES = {{ product_balances | safe }};
+    {% if dispatch %}
+    const ALL_PRODUCT_OPTIONS = Array.from(document.getElementById('productSelect').options)
+        .map(o => ({ value: o.value, text: o.text }));
+
+    function filterProducts(keepSelection) {
+        const customerSelect = document.getElementById('customerSelect');
+        const productSelect  = document.getElementById('productSelect');
+        const current = keepSelection ? productSelect.value : '0';
+        const customerId = customerSelect.value;
+
+        let options;
+        if (customerId && customerId !== '0' && PRODUCTS_BY_CUSTOMER[customerId]) {
+            options = [{ value: '0', text: '— Not linked —' }]
+                .concat(PRODUCTS_BY_CUSTOMER[customerId].map(p => ({ value: String(p.id), text: p.name })));
+        } else {
+            options = ALL_PRODUCT_OPTIONS;
+        }
+
+        productSelect.innerHTML = '';
+        options.forEach(o => {
+            const opt = document.createElement('option');
+            opt.value = o.value;
+            opt.textContent = o.text;
+            productSelect.appendChild(opt);
+        });
+
+        if (options.some(o => o.value === current)) {
+            productSelect.value = current;
+        }
+        if (window.hdcRefreshSearchableSelect) hdcRefreshSearchableSelect(productSelect);
+        updateBalanceHint();
+    }
+
+    function updateBalanceHint() {
+        const productSelect = document.getElementById('productSelect');
+        const hint = document.getElementById('balanceHint');
+        const text = document.getElementById('balanceHintText');
+        const balance = PRODUCT_BALANCES[productSelect.value];
+
+        if (productSelect.value === '0' || balance === undefined) {
+            hint.classList.remove('neg');
+            text.textContent = 'Select a product to see its outstanding packed balance.';
+            return;
+        }
+
+        text.textContent = balance.toLocaleString() + ' outstanding (packed but not yet dispatched).';
+        hint.classList.toggle('neg', balance < 0);
+    }
+
+    document.getElementById('customerSelect').addEventListener('change', () => filterProducts(false));
+    document.getElementById('productSelect').addEventListener('change', updateBalanceHint);
+
+    filterProducts(true);
+    {% elif is_hda %}
+    const ALL_PRODUCT_OPTIONS = {{ product_choices | default('[]', true) | safe }};
+    const PRODUCT_DRAWING_LEVELS = {{ product_drawing_levels | safe }};
+    const INITIAL_CAGE_LINES = {{ initial_cage_lines | default('[]', true) | safe }};
+
+    let lineIndex = 0;
+    const linesContainer = document.getElementById('dispatchLines');
+
+    function productOptionsFor(customerId) {
+        if (customerId && customerId !== '0' && PRODUCTS_BY_CUSTOMER[customerId]) {
+            return [{ value: '0', text: '— Select a product —' }]
+                .concat(PRODUCTS_BY_CUSTOMER[customerId].map(p => ({ value: String(p.id), text: p.name })));
+        }
+        return ALL_PRODUCT_OPTIONS;
+    }
+
+    function renumberCages() {
+        linesContainer.querySelectorAll('.cage-line').forEach((row, i) => {
+            row.querySelector('.cage-badge span').textContent = i + 1;
+            row.querySelector('.remove-line').style.visibility =
+                linesContainer.querySelectorAll('.cage-line').length > 1 ? 'visible' : 'hidden';
+        });
+    }
+
+    function updateCageBalanceHint(row) {
+        const select = row.querySelector('.line-product');
+        const hint = row.querySelector('.line-balance-hint');
+        const text = hint.querySelector('span');
+        const balance = PRODUCT_BALANCES[select.value];
+
+        if (select.value === '0' || balance === undefined) {
+            hint.classList.remove('neg');
+            text.textContent = 'Select a product to see its outstanding packed balance.';
+        } else {
+            text.textContent = balance.toLocaleString() + ' outstanding (packed but not yet dispatched).';
+            hint.classList.toggle('neg', balance < 0);
+        }
+    }
+
+    function updateSummary() {
+        let qty = 0, weight = 0;
+        linesContainer.querySelectorAll('.line-qty').forEach(i => { qty += parseInt(i.value, 10) || 0; });
+        linesContainer.querySelectorAll('.line-weight').forEach(i => { weight += parseFloat(i.value) || 0; });
+        document.getElementById('summaryQty').textContent = qty.toLocaleString();
+        document.getElementById('summaryWeight').textContent = weight.toFixed(1);
+        document.getElementById('summaryCages').textContent = linesContainer.querySelectorAll('.cage-line').length;
+    }
+
+    function fillDrawingLevel(row) {
+        const select = row.querySelector('.line-product');
+        const drawingInput = row.querySelector('.line-drawing');
+        const level = PRODUCT_DRAWING_LEVELS[select.value];
+        if (level) drawingInput.value = level;
+    }
+
+    function addCageLine(initial) {
+        initial = initial || {};
+        const idx = lineIndex++;
+        const customerId = document.getElementById('customerSelect').value;
+
+        const row = document.createElement('div');
+        row.className = 'cage-line';
+
+        const head = document.createElement('div');
+        head.className = 'cage-line-head';
+
+        const badge = document.createElement('span');
+        badge.className = 'cage-badge';
+        badge.innerHTML = '<i class="bi bi-box-seam"></i> Cage #<span>1</span>';
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'app-btn app-btn-outline app-btn-sm remove-line';
+        removeBtn.title = 'Remove cage';
+        removeBtn.innerHTML = '<i class="bi bi-x-lg"></i> Remove';
+        removeBtn.addEventListener('click', () => {
+            if (linesContainer.querySelectorAll('.cage-line').length > 1) {
+                row.remove();
+                renumberCages();
+                updateSummary();
+            }
+        });
+
+        head.appendChild(badge);
+        head.appendChild(removeBtn);
+
+        const grid = document.createElement('div');
+        grid.className = 'cage-line-grid';
+        grid.innerHTML =
+            '<div><label>Trenstar Cage No.</label>' +
+                '<input type="text" name="line_trenstar_' + idx + '" class="app-input line-trenstar" ' +
+                'placeholder="Scan or type…" autocomplete="off"></div>' +
+            '<div><label>Product <span class="req">*</span></label>' +
+                '<select name="line_product_' + idx + '" class="app-select searchable-select line-product"></select></div>' +
+            '<div><label>Quantity <span class="req">*</span></label>' +
+                '<input type="number" min="1" name="line_qty_' + idx + '" class="app-input line-qty"></div>' +
+            '<div><label>Weight (kg)</label>' +
+                '<input type="number" min="0" step="0.001" name="line_weight_' + idx + '" class="app-input line-weight"></div>' +
+            '<div><label>Head Numbers</label>' +
+                '<input type="text" name="line_head_' + idx + '" class="app-input line-head" placeholder="e.g. 1, 2, 3"></div>' +
+            '<div><label>Drawing Level</label>' +
+                '<input type="text" name="line_drawing_' + idx + '" class="app-input line-drawing" maxlength="10"></div>' +
+            '<div class="cage-checklist">' +
+                '<label><input type="checkbox" name="line_blue_card_' + idx + '" class="line-blue-card"> Blue card in cage</label>' +
+                '<label><input type="checkbox" name="line_black_bag_' + idx + '" class="line-black-bag"> Black bag covering all castings</label>' +
+                '<label><input type="checkbox" name="line_packed_half_' + idx + '" class="line-packed-half"> Cage packed more than half</label>' +
+                '<label><input type="checkbox" name="line_weighbridge_' + idx + '" class="line-weighbridge"> All cages weighed and tickets printed</label>' +
+            '</div>';
+
+        const hint = document.createElement('div');
+        hint.className = 'balance-hint line-balance-hint';
+        hint.innerHTML = '<i class="bi bi-info-circle"></i><span>Select a product to see its outstanding packed balance.</span>';
+        grid.appendChild(hint);
+
+        row.appendChild(head);
+        row.appendChild(grid);
+        linesContainer.appendChild(row);
+
+        const select = row.querySelector('.line-product');
+        productOptionsFor(customerId).forEach(o => {
+            const opt = document.createElement('option');
+            opt.value = o.value;
+            opt.textContent = o.text;
+            select.appendChild(opt);
+        });
+        if (initial.product_id) select.value = String(initial.product_id);
+        if (initial.qty) row.querySelector('.line-qty').value = initial.qty;
+        if (initial.weight) row.querySelector('.line-weight').value = initial.weight;
+        if (initial.trenstar_no) row.querySelector('.line-trenstar').value = initial.trenstar_no;
+        if (initial.head_numbers) row.querySelector('.line-head').value = initial.head_numbers;
+        if (initial.drawing_level) row.querySelector('.line-drawing').value = initial.drawing_level;
+        if (initial.blue_card_confirmed) row.querySelector('.line-blue-card').checked = true;
+        if (initial.black_bag_confirmed) row.querySelector('.line-black-bag').checked = true;
+        if (initial.cage_packed_half_confirmed) row.querySelector('.line-packed-half').checked = true;
+        if (initial.weighbridge_printed_confirmed) row.querySelector('.line-weighbridge').checked = true;
+
+        select.addEventListener('change', () => {
+            updateCageBalanceHint(row);
+            fillDrawingLevel(row);
+        });
+        row.querySelectorAll('.line-qty, .line-weight').forEach(i => i.addEventListener('input', updateSummary));
+
+        if (window.hdcEnhanceSearchableSelects) hdcEnhanceSearchableSelects(row);
+        renumberCages();
+        updateCageBalanceHint(row);
+        updateSummary();
+    }
+
+    function refreshAllLineOptions() {
+        const customerId = document.getElementById('customerSelect').value;
+        linesContainer.querySelectorAll('.cage-line').forEach(row => {
+            const select = row.querySelector('.line-product');
+            const current = select.value;
+            select.innerHTML = '';
+            productOptionsFor(customerId).forEach(o => {
+                const opt = document.createElement('option');
+                opt.value = o.value;
+                opt.textContent = o.text;
+                select.appendChild(opt);
+            });
+            if (Array.from(select.options).some(o => o.value === current)) {
+                select.value = current;
+            }
+            if (window.hdcRefreshSearchableSelect) hdcRefreshSearchableSelect(select);
+            updateCageBalanceHint(row);
+        });
+    }
+
+    document.getElementById('addLineBtn').addEventListener('click', () => addCageLine());
+    document.getElementById('customerSelect').addEventListener('change', refreshAllLineOptions);
+
+    if (INITIAL_CAGE_LINES.length) {
+        INITIAL_CAGE_LINES.forEach(line => addCageLine(line));
+    } else {
+        addCageLine();
+    }
+    {% else %}
+    const ALL_PRODUCT_OPTIONS = {{ product_choices | default('[]', true) | safe }};
+
+    let lineIndex = 0;
+    const linesContainer = document.getElementById('dispatchLines');
+
+    function productOptionsFor(customerId) {
+        if (customerId && customerId !== '0' && PRODUCTS_BY_CUSTOMER[customerId]) {
+            return [{ value: '0', text: '— Select a product —' }]
+                .concat(PRODUCTS_BY_CUSTOMER[customerId].map(p => ({ value: String(p.id), text: p.name })));
+        }
+        return ALL_PRODUCT_OPTIONS;
+    }
+
+    function updateLineBalanceHint(row) {
+        const select = row.querySelector('.line-product');
+        const hint = row.querySelector('.line-balance-hint');
+        const text = hint.querySelector('span');
+        const balance = PRODUCT_BALANCES[select.value];
+
+        if (select.value === '0' || balance === undefined) {
+            hint.classList.remove('neg');
+            text.textContent = 'Select a product to see its outstanding packed balance.';
+        } else {
+            text.textContent = balance.toLocaleString() + ' outstanding (packed but not yet dispatched).';
+            hint.classList.toggle('neg', balance < 0);
+        }
+    }
+
+    function updateRemoveButtons() {
+        const rows = linesContainer.querySelectorAll('.dispatch-line');
+        rows.forEach(r => {
+            r.querySelector('.remove-line').style.visibility = rows.length > 1 ? 'visible' : 'hidden';
+        });
+    }
+
+    function addLine() {
+        const idx = lineIndex++;
+        const customerId = document.getElementById('customerSelect').value;
+
+        const row = document.createElement('div');
+        row.className = 'dispatch-line';
+
+        const productField = document.createElement('div');
+        productField.className = 'app-field';
+        productField.innerHTML =
+            '<label class="app-label" for="line_product_' + idx + '">Product <span class="req">*</span></label>' +
+            '<select id="line_product_' + idx + '" name="line_product_' + idx + '" class="app-select searchable-select line-product"></select>';
+
+        const qtyField = document.createElement('div');
+        qtyField.className = 'app-field';
+        qtyField.innerHTML =
+            '<label class="app-label" for="line_qty_' + idx + '">Quantity <span class="req">*</span></label>' +
+            '<input type="number" min="1" id="line_qty_' + idx + '" name="line_qty_' + idx + '" class="app-input line-qty">';
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'app-btn app-btn-outline app-btn-sm remove-line';
+        removeBtn.title = 'Remove line';
+        removeBtn.innerHTML = '<i class="bi bi-x-lg"></i>';
+        removeBtn.addEventListener('click', () => {
+            if (linesContainer.querySelectorAll('.dispatch-line').length > 1) {
+                row.remove();
+                updateRemoveButtons();
+            }
+        });
+
+        const hint = document.createElement('div');
+        hint.className = 'balance-hint line-balance-hint';
+        hint.innerHTML = '<i class="bi bi-info-circle"></i><span>Select a product to see its outstanding packed balance.</span>';
+
+        row.appendChild(productField);
+        row.appendChild(qtyField);
+        row.appendChild(removeBtn);
+        row.appendChild(hint);
+        linesContainer.appendChild(row);
+
+        const select = row.querySelector('.line-product');
+        productOptionsFor(customerId).forEach(o => {
+            const opt = document.createElement('option');
+            opt.value = o.value;
+            opt.textContent = o.text;
+            select.appendChild(opt);
+        });
+        select.addEventListener('change', () => updateLineBalanceHint(row));
+
+        if (window.hdcEnhanceSearchableSelects) hdcEnhanceSearchableSelects(row);
+        updateRemoveButtons();
+    }
+
+    function refreshAllLineOptions() {
+        const customerId = document.getElementById('customerSelect').value;
+        linesContainer.querySelectorAll('.dispatch-line').forEach(row => {
+            const select = row.querySelector('.line-product');
+            const current = select.value;
+            select.innerHTML = '';
+            productOptionsFor(customerId).forEach(o => {
+                const opt = document.createElement('option');
+                opt.value = o.value;
+                opt.textContent = o.text;
+                select.appendChild(opt);
+            });
+            if (Array.from(select.options).some(o => o.value === current)) {
+                select.value = current;
+            }
+            if (window.hdcRefreshSearchableSelect) hdcRefreshSearchableSelect(select);
+            updateLineBalanceHint(row);
+        });
+    }
+
+    document.getElementById('addLineBtn').addEventListener('click', addLine);
+    document.getElementById('customerSelect').addEventListener('change', refreshAllLineOptions);
+
+    addLine();
+    {% endif %}
+</script>
+{% endblock %}

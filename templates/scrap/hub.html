@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Scrap{% endblock %}
+
+{% block extra_head %}
+<style>
+    .scrap-hub-hero { background: rgba(255,255,255,0.97); border-radius: 1.1rem; padding: 1.3rem 1.6rem;
+        box-shadow: 0 12px 30px rgba(0,0,0,0.20); border: 1px solid rgba(255,255,255,0.5);
+        margin-bottom: 1.4rem; }
+    .scrap-hub-hero h1 { margin: 0; font-size: 1.4rem; font-weight: 800; color: #0f172a;
+        display: flex; align-items: center; gap: .6rem; }
+    .scrap-hub-hero p { margin: .3rem 0 0; color: #64748b; font-size: .9rem; }
+
+    .scrap-hub-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.2rem; }
+    .scrap-hub-tile { background: rgba(255,255,255,0.97); border-radius: 1.1rem; padding: 1.5rem;
+        box-shadow: 0 12px 30px rgba(0,0,0,0.18); border: 1px solid rgba(255,255,255,0.5);
+        text-decoration: none; display: block; transition: transform .15s ease, box-shadow .15s ease; }
+    .scrap-hub-tile:hover { transform: translateY(-2px); box-shadow: 0 16px 36px rgba(0,0,0,0.24); }
+    .scrap-hub-tile .icon { width: 3rem; height: 3rem; border-radius: .8rem; display: flex;
+        align-items: center; justify-content: center; color: #fff; font-size: 1.4rem; margin-bottom: 1rem; }
+    .scrap-hub-tile h3 { margin: 0 0 .35rem; font-size: 1.15rem; font-weight: 800; color: #0f172a; }
+    .scrap-hub-tile p { margin: 0 0 1rem; color: #64748b; font-size: .87rem; line-height: 1.4; }
+    .scrap-hub-tile .stat { font-size: 1.6rem; font-weight: 800; color: #0f172a;
+        font-variant-numeric: tabular-nums; }
+    .scrap-hub-tile .stat-label { font-size: .7rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: .07em; color: #94a3b8; margin: .15rem 0 1rem; }
+    .scrap-hub-tile .open { font-size: .85rem; font-weight: 700; color: var(--hdc-primary);
+        display: inline-flex; align-items: center; gap: .35rem; }
+</style>
+<link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
+{% endblock %}
+
+{% block content %}
+<div class="app-container wide">
+
+    <div class="scrap-hub-hero">
+        <h1><i class="bi bi-trash3" style="color:#dc2626;"></i> Scrap</h1>
+        <p>External customer reject reports and internally captured scrap, split by division.</p>
+    </div>
+
+    <div class="scrap-hub-grid">
+        {% for t in tiles %}
+        <a class="scrap-hub-tile" href="{{ url_for('scrap.dashboard', division=t.code) }}">
+            <span class="icon" style="background: {{ t.color }};"><i class="bi {{ t.icon }}"></i></span>
+            <h3>{{ t.name }}</h3>
+            <p>{{ t.description }}</p>
+            <div class="stat">{{ '{:,}'.format(t.ytd_scrap) }}</div>
+            <div class="stat-label">Scrap {{ today.year }}</div>
+            <span class="open">Open <i class="bi bi-arrow-right"></i></span>
+        </a>
+        {% endfor %}
+    </div>
+
+</div>
+{% endblock %}

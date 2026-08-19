@@ -1,0 +1,303 @@
+{% extends "scrap/base_scrap.html" %}
+{% set page_title = "Internal Scrap Capture" %}
+{% set page_sub = "Record scrap picked up in-house. Split the quantity across reject reasons so it reports alongside the customer's figures." %}
+
+{% block title %}{{ 'Edit' if entry else 'Capture' }} Internal Scrap{% endblock %}
+
+{% block scrap_head %}
+<style>
+    .defect-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: .8rem 1.1rem; }
+    .defect-cell label { display: block; font-size: .78rem; font-weight: 600; color: #334155; margin-bottom: .3rem; }
+    .defect-cell label .code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .7rem;
+        background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: .35rem; padding: .05rem .35rem;
+        color: #475569; margin-right: .35rem; }
+    .defect-cell input { width: 100%; padding: .45rem .7rem; border: 1.5px solid #cbd5e1; border-radius: .5rem;
+        font-size: .9rem; font-family: inherit; outline: none; }
+    .defect-cell input:focus { border-color: var(--hdc-primary); box-shadow: 0 0 0 3px rgba(37,99,235,.15); }
+    .defect-cell .desc { font-size: .72rem; color: #94a3b8; margin-top: .25rem; }
+    .recon { display: flex; align-items: center; gap: .6rem; font-size: .88rem; font-weight: 600;
+        padding: .7rem 1rem; border-radius: .6rem; background: #f8fafc; border: 1px solid #e2e8f0; margin-top: 1rem; }
+    .recon.bad { background: #fef3c7; border-color: #fcd34d; color: #92400e; }
+    .recon.good { background: #dcfce7; border-color: #86efac; color: #166534; }
+    .balance-hint { display: flex; align-items: center; gap: .5rem; font-size: .8rem; font-weight: 600;
+        padding: .5rem .8rem; border-radius: .5rem; background: #f8fafc; border: 1px solid #e2e8f0; margin-top: .4rem; }
+</style>
+{% endblock %}
+
+{% block scrap_content %}
+
+<form method="POST" autocomplete="off">
+    {{ form.hidden_tag() }}
+
+    <div class="app-card">
+        <div class="app-card-head">
+            <h2 class="app-card-title">
+                <i class="bi bi-pencil-square"></i>
+                {{ 'Edit Internal Scrap Entry' if entry else 'New Internal Scrap Entry' }}
+            </h2>
+            {% if entry %}<span class="app-badge gray">Entry #{{ entry.id }}</span>{% endif %}
+        </div>
+        <div class="app-card-body">
+            <div class="app-form-grid">
+
+                <div class="app-field">
+                    <label class="app-label" for="entry_date">{{ form.entry_date.label.text }} <span class="req">*</span></label>
+                    {{ form.entry_date(class="app-input", type="date") }}
+                    {% for e in form.entry_date.errors %}<div class="app-err"><i class="bi bi-exclamation-circle"></i>{{ e }}</div>{% endfor %}
+                </div>
+
+                <div class="app-field">
+                    <label class="app-label" for="customerSelect">{{ form.customer_id.label.text }}</label>
+                    {% if locked_customer %}
+                        <div class="app-input" style="display:flex;align-items:center;gap:.5rem;background:#f8fafc;color:#334155;">
+                            <i class="bi bi-lock-fill" style="font-size:.75rem;color:#94a3b8;"></i> {{ locked_customer.name }}
+                        </div>
+                        {{ form.customer_id(style="display:none;", id="customerSelect") }}
+                        <div class="app-hint">HDA's main customer — set automatically.</div>
+                    {% else %}
+                        {{ form.customer_id(class="app-select searchable-select", id="customerSelect") }}
+                        <div class="app-hint">Filters the product list below.</div>
+                    {% endif %}
+                </div>
+
+                <div class="app-field">
+                    <label class="app-label" for="productSelect">{{ form.product_id.label.text }}</label>
+                    {{ form.product_id(class="app-select searchable-select", id="productSelect") }}
+                    <div class="app-hint">Search by name, product code or simplified code. Leave unlinked if the part is not on the product list.</div>
+                    <div class="balance-hint" id="balanceHint">
+                        <i class="bi bi-info-circle"></i>
+                        <span id="balanceHintText">Select a product to see its packed balance so far.</span>
+                    </div>
+                    <div class="balance-hint" id="productInfoHint">
+                        <i class="bi bi-tag"></i>
+                        <span id="productInfoText">Select a product to see its grade and supplier code.</span>
+                    </div>
+                </div>
+
+                <div class="app-field">
+                    <label class="app-label" for="castingNo">{{ form.casting_no.label.text }}</label>
+                    {{ form.casting_no(class="app-input", placeholder="e.g. 1 203 VB2 00", maxlength="60", id="castingNo") }}
+                    <div class="app-hint">Filled in automatically when a linked product is selected.</div>
+                </div>
+
+                <div class="app-field">
+                    <label class="app-label" for="batch_no">{{ form.batch_no.label.text }}</label>
+                    {{ form.batch_no(class="app-input", placeholder="e.g. 371I", maxlength="40") }}
+                </div>
+
+                <div class="app-field">
+                    <label class="app-label" for="totalPacked">{{ form.total_packed.label.text }}</label>
+                    {{ form.total_packed(class="app-input", type="number", min="0", id="totalPacked") }}
+                    <div class="app-hint">{{ form.total_packed.description }}</div>
+                </div>
+
+                <div class="app-field">
+                    <label class="app-label" for="qtyBase">{{ form.qty_packed.label.text }}</label>
+                    {{ form.qty_packed(class="app-input", type="number", min="0", id="qtyBase") }}
+                    <div class="app-hint">{{ form.qty_packed.description }}</div>
+                    {% for e in form.qty_packed.errors %}<div class="app-err"><i class="bi bi-exclamation-circle"></i>{{ e }}</div>{% endfor %}
+                </div>
+
+                <div class="app-field">
+                    <label class="app-label" for="qtyScrap">{{ form.qty_scrap.label.text }} <span class="req">*</span></label>
+                    {{ form.qty_scrap(class="app-input", type="number", min="0", id="qtyScrap") }}
+                    <div class="app-hint" id="pctHint">Reject % is worked out from packed + scrapped.</div>
+                    {% for e in form.qty_scrap.errors %}<div class="app-err"><i class="bi bi-exclamation-circle"></i>{{ e }}</div>{% endfor %}
+                </div>
+
+                <div class="app-field full">
+                    <label class="app-label" for="notes">{{ form.notes.label.text }}</label>
+                    {{ form.notes(class="app-textarea", rows="2", maxlength="255", placeholder="Optional — what happened, who picked it up") }}
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="app-card">
+        <div class="app-card-head">
+            <h2 class="app-card-title"><i class="bi bi-tags"></i> Reject Reasons</h2>
+            <span class="app-muted" style="font-size:.85rem;">Leave blank where a reason does not apply</span>
+        </div>
+        <div class="app-card-body">
+            {% if defects %}
+            <div class="defect-grid">
+                {% for d in defects %}
+                <div class="defect-cell">
+                    <label for="defect_{{ d.id }}"><span class="code">{{ d.code }}</span>{{ d.name }}</label>
+                    <input type="number" min="0" step="1" name="defect_{{ d.id }}" id="defect_{{ d.id }}"
+                           class="defect-qty" placeholder="0"
+                           value="{{ existing_qtys.get(d.id, '') }}">
+                    {% if d.description %}<div class="desc">{{ d.description }}</div>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="recon" id="recon">
+                <i class="bi bi-calculator"></i>
+                <span>Reasons total <strong id="reconTotal">0</strong> — scrap quantity <strong id="reconScrap">0</strong></span>
+            </div>
+            {% else %}
+            <div class="app-empty">
+                <i class="bi bi-tags"></i>
+                No reject reasons defined yet. Add them on the
+                <a href="{{ url_for('scrap.defects') }}">Reject Reasons</a> screen.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div style="display:flex;gap:.75rem;margin-bottom:2rem;">
+        <button type="submit" class="app-btn app-btn-primary"><i class="bi bi-check-lg"></i> {{ form.submit.label.text }}</button>
+        <a href="{{ url_for('scrap.entries', source='internal') }}" class="app-btn app-btn-outline">Cancel</a>
+    </div>
+</form>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const PRODUCTS_BY_CUSTOMER = {{ products_by_customer | safe }};
+    const PRODUCT_CASTING_NUMBERS = {{ product_casting_numbers | safe }};
+    const PRODUCT_BALANCES = {{ product_balances | safe }};
+    const PRODUCT_DETAILS = {{ product_details | safe }};
+    const ALL_PRODUCT_OPTIONS = Array.from(document.getElementById('productSelect').options)
+        .map(o => ({ value: o.value, text: o.text }));
+
+    function updateBalanceHint() {
+        const productSelect = document.getElementById('productSelect');
+        const text = document.getElementById('balanceHintText');
+        const balance = PRODUCT_BALANCES[productSelect.value];
+
+        text.textContent = (productSelect.value === '0' || balance === undefined)
+            ? 'Select a product to see its packed balance so far.'
+            : balance.toLocaleString() + ' outstanding before this entry (packed but not yet dispatched).';
+    }
+
+    function updateProductInfo() {
+        const productSelect = document.getElementById('productSelect');
+        const text = document.getElementById('productInfoText');
+        const details = PRODUCT_DETAILS[productSelect.value];
+
+        if (productSelect.value === '0' || !details || (!details.grade && !details.supplier_code)) {
+            text.textContent = 'Select a product to see its grade and supplier code.';
+        } else {
+            const parts = [];
+            if (details.grade) parts.push('Grade ' + details.grade);
+            if (details.supplier_code) parts.push('Supplier Code ' + details.supplier_code);
+            text.textContent = parts.join(' · ');
+        }
+    }
+
+    function updateQtyPacked() {
+        const productSelect = document.getElementById('productSelect');
+        const totalPacked = parseInt(document.getElementById('totalPacked').value, 10);
+        const balance = PRODUCT_BALANCES[productSelect.value];
+
+        if (!isNaN(totalPacked) && balance !== undefined) {
+            document.getElementById('qtyBase').value = Math.max(0, totalPacked - balance);
+            updateRecon();
+        }
+    }
+
+    function filterProducts(keepSelection) {
+        const customerSelect = document.getElementById('customerSelect');
+        const productSelect  = document.getElementById('productSelect');
+        const current = keepSelection ? productSelect.value : '0';
+        const customerId = customerSelect.value;
+
+        let options;
+        if (customerId && customerId !== '0' && PRODUCTS_BY_CUSTOMER[customerId]) {
+            options = [{ value: '0', text: '— Not linked —' }]
+                .concat(PRODUCTS_BY_CUSTOMER[customerId].map(p => ({ value: String(p.id), text: p.name })));
+        } else {
+            options = ALL_PRODUCT_OPTIONS;
+        }
+
+        productSelect.innerHTML = '';
+        options.forEach(o => {
+            const opt = document.createElement('option');
+            opt.value = o.value;
+            opt.textContent = o.text;
+            productSelect.appendChild(opt);
+        });
+
+        if (options.some(o => o.value === current)) {
+            productSelect.value = current;
+        }
+        if (window.hdcRefreshSearchableSelect) hdcRefreshSearchableSelect(productSelect);
+    }
+
+    function fillCastingNumber() {
+        const productSelect = document.getElementById('productSelect');
+        const castingNo = PRODUCT_CASTING_NUMBERS[productSelect.value];
+        if (castingNo) {
+            document.getElementById('castingNo').value = castingNo;
+        }
+    }
+
+    function updateRecon() {
+        let total = 0;
+        document.querySelectorAll('.defect-qty').forEach(input => {
+            const v = parseInt(input.value, 10);
+            if (!isNaN(v) && v > 0) total += v;
+        });
+
+        const scrapInput = document.getElementById('qtyScrap');
+        const scrap = parseInt(scrapInput.value, 10) || 0;
+
+        const totalEl = document.getElementById('reconTotal');
+        const scrapEl = document.getElementById('reconScrap');
+        const box = document.getElementById('recon');
+        if (!totalEl || !box) return;
+
+        totalEl.textContent = total;
+        scrapEl.textContent = scrap;
+        box.classList.remove('good', 'bad');
+        if (total > 0) box.classList.add(total === scrap ? 'good' : 'bad');
+
+        // Typing the breakdown first fills the scrap quantity in for you
+        if (total > 0 && !scrap) scrapInput.value = total;
+
+        const packed = parseInt(document.getElementById('qtyBase').value, 10) || 0;
+        const hint = document.getElementById('pctHint');
+        const effectiveScrap = parseInt(scrapInput.value, 10) || 0;
+        const produced = packed + effectiveScrap;
+        if (hint) {
+            hint.textContent = (produced && effectiveScrap)
+                ? 'Total produced: ' + produced + ' — Reject %: ' + ((effectiveScrap / produced) * 100).toFixed(2) + '%'
+                : 'Reject % is worked out from packed + scrapped.';
+        }
+    }
+
+    document.getElementById('customerSelect').addEventListener('change', () => filterProducts(false));
+    document.getElementById('productSelect').addEventListener('change', fillCastingNumber);
+    document.getElementById('productSelect').addEventListener('change', updateBalanceHint);
+    document.getElementById('productSelect').addEventListener('change', updateProductInfo);
+    document.getElementById('productSelect').addEventListener('change', updateQtyPacked);
+    document.getElementById('totalPacked').addEventListener('input', updateQtyPacked);
+    document.querySelectorAll('.defect-qty').forEach(i => i.addEventListener('input', updateRecon));
+    document.getElementById('qtyScrap').addEventListener('input', updateRecon);
+    document.getElementById('qtyBase').addEventListener('input', updateRecon);
+
+    document.querySelector('form').addEventListener('submit', function (e) {
+        const totalEl = document.getElementById('reconTotal');
+        const scrapEl = document.getElementById('reconScrap');
+        if (!totalEl || !scrapEl) return;
+        const total = parseInt(totalEl.textContent, 10) || 0;
+        const scrap = parseInt(scrapEl.textContent, 10) || 0;
+        if (total > 0 && total !== scrap) {
+            const proceed = confirm(
+                'Reject reasons add up to ' + total + ' but Qty Scrapped is ' + scrap +
+                '. Are you sure you want to save?'
+            );
+            if (!proceed) e.preventDefault();
+        }
+    });
+
+    filterProducts(true);
+    updateRecon();
+    updateBalanceHint();
+    updateProductInfo();
+</script>
+{% endblock %}

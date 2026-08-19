@@ -1,0 +1,104 @@
+{% extends 'overtime/base.html' %}
+{% block title %}Import Personnel{% endblock %}
+{% block page_title %}Import Personnel{% endblock %}
+
+{% block topbar_actions %}
+<a href="{{ url_for('overtime.personnel_list') }}" class="ot-btn ot-btn-outline ot-btn-sm">← Personnel</a>
+{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+  <div class="col-lg-7">
+
+    <!-- Upload -->
+    <div class="ot-card mb-3">
+      <div class="ot-card-header">
+        <span class="ot-card-title"><i class="bi bi-filetype-csv me-2"></i>Upload a Personnel Sheet</span>
+      </div>
+      <div class="ot-card-body">
+        <p style="font-size:.88rem;color:var(--ot-muted);line-height:1.55;margin-top:0;">
+          Start from the template, fill it in, and upload it here — CSV or Excel both work.
+        </p>
+
+        <div class="ot-alert ot-alert-info" style="line-height:1.6;">
+          <ul style="margin:0;padding-left:1.1rem;">
+            <li>Rows are matched to existing people by <strong>Clock No</strong> — matched rows are updated, the rest added. Re-sending a corrected file is safe.</li>
+            <li>A <strong>blank cell never blanks a field</strong>; it leaves what's already there.</li>
+            <li><strong>Division</strong> is the code (<code>HDC</code>) or the full name (<code>High Duty Castings</code>). <strong>Department</strong> is its name (<code>FETTLING/WHEELABRATING</code>) — it must already exist. Always fill in Division too where a department name repeats across divisions (e.g. MAINTENANCE).</li>
+            <li><strong>Pay Group</strong> must be one of: {{ pay_groups | join(', ') }}.</li>
+          </ul>
+        </div>
+
+        <form method="POST" enctype="multipart/form-data">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="mb-3">
+            <label class="ot-form-label" for="file">Personnel File</label>
+            <input type="file" name="file" id="file" class="ot-form-control" accept=".csv,.xlsx,.xlsm" required>
+          </div>
+          <div class="d-flex gap-2 flex-wrap">
+            <button type="submit" class="ot-btn ot-btn-primary"><i class="bi bi-upload"></i> Import Personnel</button>
+            <a href="{{ url_for('overtime.personnel_import_template') }}" class="ot-btn ot-btn-outline"><i class="bi bi-download"></i> Download Template</a>
+            <a href="{{ url_for('overtime.personnel_export') }}" class="ot-btn ot-btn-outline"><i class="bi bi-box-arrow-down"></i> Export Current</a>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Result -->
+    {% if result %}
+    <div class="ot-card mb-3">
+      <div class="ot-card-header"><span class="ot-card-title"><i class="bi bi-clipboard-check me-2"></i>Import Result</span></div>
+      <div class="ot-card-body">
+        <div class="stat-row" style="margin-bottom:1rem;">
+          <div class="stat-chip"><div class="val">{{ result.total }}</div><div class="lbl">Rows Read</div></div>
+          <div class="stat-chip success"><div class="val">{{ result.created }}</div><div class="lbl">Added</div></div>
+          <div class="stat-chip" style="border-top-color:#0ea5e9;"><div class="val">{{ result.updated }}</div><div class="lbl">Updated</div></div>
+          <div class="stat-chip warning"><div class="val">{{ result.skipped }}</div><div class="lbl">Skipped</div></div>
+        </div>
+        {% if result.row_issues %}
+        <div style="overflow-x:auto;">
+          <table class="ot-table">
+            <thead><tr><th style="width:70px;">Row</th><th style="width:110px;">Clock No</th><th>What happened</th></tr></thead>
+            <tbody>
+              {% for row_no, who, message in result.row_issues %}
+              <tr><td style="color:var(--ot-muted);">{{ row_no }}</td><td>{{ who or '—' }}</td><td style="font-size:.86rem;">{{ message }}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p style="font-size:.88rem;color:var(--ot-muted);margin:0;">Every row loaded cleanly.</p>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Column reference -->
+  <div class="col-lg-5">
+    <div class="ot-card">
+      <div class="ot-card-header"><span class="ot-card-title"><i class="bi bi-table me-2"></i>Template Columns</span></div>
+      <div class="ot-card-body" style="font-size:.86rem;">
+        <table class="ot-table">
+          <tbody>
+            <tr><td><strong>Clock No</strong> <span class="ot-badge rejected" style="font-size:.6rem;">required</span></td><td>Matches the row to a person.</td></tr>
+            <tr><td><strong>First Name</strong></td><td>Required for a new person.</td></tr>
+            <tr><td>Surname</td><td></td></tr>
+            <tr><td>Division</td><td>Code (<code>HDC</code>) or name (<code>High Duty Castings</code>).</td></tr>
+            <tr><td>Department</td><td>Its name (e.g. <code>UNIT 2</code>). Must already exist; sets the division.</td></tr>
+            <tr><td>Pay Group</td><td>{{ pay_groups | join(' / ') }}.</td></tr>
+            <tr><td>Job Grade</td><td>Up to 3 chars.</td></tr>
+            <tr><td>Rate</td><td>Hourly rate for overtime pay.</td></tr>
+            <tr><td>ID Number</td><td></td></tr>
+            <tr><td>Gender</td><td></td></tr>
+            <tr><td>Date Joined</td><td>e.g. 2019-03-01.</td></tr>
+            <tr><td>Job Description</td><td></td></tr>
+            <tr><td>Active</td><td>Yes / No. New people default to Yes.</td></tr>
+          </tbody>
+        </table>
+        <p style="font-size:.78rem;color:var(--ot-muted);margin:.75rem 0 0;">Column order doesn't matter; anything unrecognised is ignored.</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

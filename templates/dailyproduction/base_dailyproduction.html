@@ -1,27 +1,22 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Daily Production{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
+{% extends "base.html" %}
 
-<header>
-    <div class="nav-container">
-        <h1>{% block header %}Daily Production Dashboard{% endblock %}</h1>
-
-        <nav>
-            <a href="{{ url_for('dashboard') }}">Home</a>
-            <a href="{{ url_for('logout') }}">Logout</a>
-        </nav>
+{% block content %}
+<div class="dp-app">
+{% block dp_subnav %}
+<div class="hdc-subnav">
+    <div class="hdc-subnav-inner">
+        <div class="hdc-breadcrumb">
+            <a href="{{ url_for('daily_production.dashboard') }}" style="color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: .35rem;">
+                <i class="bi bi-clipboard-data"></i> Daily Production
+            </a>
+            {% block dp_crumb %}{% endblock %}
+        </div>
+        <div class="hdc-subnav-links">
+            {% block dp_subnav_links %}{% endblock %}
+        </div>
     </div>
-</header>
-
-<main class="container">
-    {% block content %}{% endblock %}
-</main>
-
-</body>
-</html>
+</div>
+{% endblock %}
+{% block dp_content %}{% endblock %}
+</div>
+{% endblock %}

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Scrap Reason Mix Report</title>
+<style>
+    @page {
+        size: A4 landscape;
+        margin: 14mm 12mm 16mm;
+        @bottom-center {
+            content: "High Duty Castings — Scrap Reason Mix Report — Page " counter(page) " of " counter(pages);
+            font-size: 7.5pt;
+            color: #94a3b8;
+        }
+    }
+    * { box-sizing: border-box; }
+    body {
+        font-family: 'DejaVu Sans', Helvetica, Arial, sans-serif;
+        font-size: 9.5pt;
+        color: #0f172a;
+        margin: 0;
+    }
+
+    /* ── Header ── */
+    .pdf-header { display: flex; align-items: center; gap: 14pt; padding-bottom: 8pt;
+        border-bottom: 2pt solid #0f172a; }
+    .pdf-logo { height: 42pt; width: auto; }
+    .pdf-header-text { flex: 1; }
+    .pdf-company { font-size: 15pt; font-weight: 700; letter-spacing: .02em; }
+    .pdf-title { font-size: 11pt; font-weight: 600; color: #2563eb; margin-top: 1pt; }
+    .pdf-meta { text-align: right; font-size: 8pt; color: #64748b; line-height: 1.5; }
+    .pdf-meta strong { color: #334155; }
+
+    /* ── KPI strip ── */
+    .pdf-kpis { display: flex; gap: 8pt; margin: 12pt 0; }
+    .pdf-kpi { flex: 1; border: 1pt solid #e2e8f0; border-top: 2.5pt solid #2563eb; border-radius: 4pt;
+        padding: 6pt 9pt; }
+    .pdf-kpi.danger { border-top-color: #dc2626; }
+    .pdf-kpi.warn   { border-top-color: #d97706; }
+    .pdf-kpi .v { font-size: 13pt; font-weight: 700; line-height: 1.15; }
+    .pdf-kpi .l { font-size: 6.8pt; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+        color: #64748b; margin-top: 2pt; }
+    .pdf-kpi .s { font-size: 7.3pt; color: #94a3b8; margin-top: 1pt; }
+
+    /* ── Reason legend ── */
+    .pdf-reasons { margin-bottom: 10pt; font-size: 8pt; }
+    .pdf-reasons-label { font-weight: 700; color: #334155; margin-right: 6pt; }
+    .pdf-chip { display: inline-block; border: 1pt solid #e2e8f0; border-radius: 999pt; padding: 2pt 8pt;
+        margin: 2pt 3pt 2pt 0; }
+    .pdf-chip i { display: inline-block; width: 6pt; height: 6pt; border-radius: 2pt; margin-right: 4pt;
+        vertical-align: middle; }
+    .pdf-note { font-size: 7.5pt; color: #94a3b8; margin: 3pt 0 10pt; }
+
+    .pdf-warn-box { background: #fffbeb; border: 1pt solid #fde68a; border-left: 3pt solid #d97706;
+        border-radius: 4pt; padding: 6pt 9pt; font-size: 8pt; color: #92400e; margin-bottom: 10pt; }
+
+    h2.pdf-h2 { font-size: 10.5pt; font-weight: 700; color: #0f172a; margin: 14pt 0 6pt;
+        padding-bottom: 3pt; border-bottom: 1pt solid #e2e8f0; }
+
+    /* ── Month trend chart (hand-built SVG — see _month_trend_svg) ── */
+    .pdf-chart { margin-bottom: 4pt; }
+
+    /* ── Tables ── */
+    table.pdf-table { width: 100%; border-collapse: collapse; font-size: 8.3pt; }
+    table.pdf-table.dense { font-size: 7.2pt; }
+    .pdf-table th { background: #f1f5f9; color: #475569; font-weight: 700; text-transform: uppercase;
+        font-size: 7pt; letter-spacing: .03em; padding: 4pt 5pt; text-align: left; border-bottom: 1pt solid #e2e8f0; }
+    .pdf-table.dense th { font-size: 6pt; padding: 3pt 4pt; }
+    .pdf-table td { padding: 3.5pt 5pt; border-bottom: 0.5pt solid #f1f5f9; }
+    .pdf-table.dense td { padding: 2.5pt 4pt; }
+    .pdf-table .num { text-align: right; white-space: nowrap; }
+    .pdf-table tbody tr:nth-child(even) { background: #fafbfc; }
+    .pdf-table tfoot td { border-top: 1.5pt solid #0f172a; font-weight: 700; background: #f8fafc; }
+    .pdf-table .rank { color: #94a3b8; }
+    .pdf-table .muted { color: #cbd5e1; }
+    .pdf-table .pct-hi { color: #dc2626; font-weight: 700; }
+    .pdf-table .pct-ok { color: #059669; }
+    .pdf-table .rq { border-left: 0.5pt solid #e2e8f0; }
+    .pdf-table .share { font-size: 7pt; color: #64748b; display: block; }
+
+    .pdf-empty { color: #94a3b8; font-style: italic; font-size: 8.5pt; padding: 6pt 0; }
+</style>
+</head>
+<body>
+
+<div class="pdf-header">
+    {% if logo_url %}<img class="pdf-logo" src="{{ logo_url }}" alt="High Duty Castings">{% endif %}
+    <div class="pdf-header-text">
+        <div class="pdf-company">High Duty Castings</div>
+        <div class="pdf-title">Scrap Reason Mix Report</div>
+    </div>
+    <div class="pdf-meta">
+        <strong>Period:</strong> {{ filters.start_date or 'Start' }} &ndash; {{ filters.end_date or 'Today' }}
+        {% if filters.year %}&nbsp;&middot;&nbsp;Year {{ filters.year }}{% endif %}<br>
+        {% if filters.source %}<strong>Source:</strong> {{ 'External' if filters.source == 'external' else 'Internal' }}<br>{% endif %}
+        {% if customer_name %}<strong>Customer:</strong> {{ customer_name }}<br>{% endif %}
+        {% if product_name %}<strong>Product:</strong> {{ product_name }}<br>{% endif %}
+        Generated {{ generated_at.strftime('%d %b %Y, %H:%M') }}
+    </div>
+</div>
+
+<div class="pdf-kpis">
+    <div class="pdf-kpi">
+        <div class="v">{{ '{:,}'.format(totals.parts) }}</div>
+        <div class="l">Parts</div>
+        <div class="s">{{ '{:,}'.format(totals.entries) }} entries</div>
+    </div>
+    <div class="pdf-kpi">
+        <div class="v">{{ '{:,}'.format(totals.machined) }}</div>
+        <div class="l">Total Machined / Packed</div>
+    </div>
+    <div class="pdf-kpi danger">
+        <div class="v">{{ '{:,}'.format(totals.scrap) }}</div>
+        <div class="l">Total Scrapped</div>
+    </div>
+    <div class="pdf-kpi {{ 'danger' if totals.pct and totals.pct >= 5 else 'warn' if totals.pct and totals.pct >= 3 else '' }}">
+        <div class="v">{% if totals.pct is not none %}{{ '%.2f'|format(totals.pct) }}%{% else %}&mdash;{% endif %}</div>
+        <div class="l">Scrap %</div>
+    </div>
+    <div class="pdf-kpi danger">
+        <div class="v">{{ totals.value|rand_short }}</div>
+        <div class="l">Scrap Value</div>
+    </div>
+    <div class="pdf-kpi warn">
+        <div class="v">{{ '{:,}'.format(totals.reason_total) }}</div>
+        <div class="l">Chosen Reasons</div>
+        <div class="s">{% if totals.coverage is not none %}{{ '%.1f'|format(totals.coverage) }}% of scrap{% endif %}</div>
+    </div>
+</div>
+
+<div class="pdf-reasons">
+    <span class="pdf-reasons-label">Reasons in this report:</span>
+    {% for d in reasons %}
+    <span class="pdf-chip"><i style="background:{{ colours[loop.index0 % colours|length] }};"></i>{{ d.code }} &mdash; {{ d.name }}</span>
+    {% endfor %}
+</div>
+<p class="pdf-note">
+    {% if basis == 'selected' %}
+        Each part's reason percentages are measured against the chosen reasons above, so a row adds up to 100%.
+    {% else %}
+        Each part's reason percentages are measured against everything scrapped on that part.
+    {% endif %}
+</p>
+
+{% if totals.unpriced_qty %}
+<div class="pdf-warn-box">
+    {{ '{:,}'.format(totals.unpriced_qty) }} of {{ '{:,}'.format(totals.scrap) }} scrapped unit(s) could not be
+    priced (no price list entry and no catalogue price) and are excluded from the rand values in this report.
+</div>
+{% endif %}
+
+<h2 class="pdf-h2">Total by Month</h2>
+{% if month_series %}
+<div class="pdf-chart">{{ month_svg | safe }}</div>
+<p class="pdf-note">
+    {% if metric == 'pct' %}
+    Each {{ 'bar' if chart_type == 'bar' else 'point' }} is the combined scrap of the reasons above
+    as a share of that month's total production &mdash; e.g. if 3,000 units were scrapped to those
+    reasons out of 60,000 produced, that {{ 'bar' if chart_type == 'bar' else 'point' }} reads 5.0%.
+    {% else %}
+    Each {{ 'bar' if chart_type == 'bar' else 'point' }} is the combined quantity of the reasons above
+    for that month &mdash; e.g. if Deformed was 1,000 and Fulcrum was 2,000 in a month,
+    that {{ 'bar' if chart_type == 'bar' else 'point' }} reads 3,000.
+    {% endif %}
+</p>
+{% else %}
+<p class="pdf-empty">No scrap was booked to the selected reject reasons for this selection.</p>
+{% endif %}
+
+<h2 class="pdf-h2">By Part</h2>
+{% if parts %}
+{% set dense = reasons|length > 6 %}
+<table class="pdf-table {{ 'dense' if dense }}">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Part</th>
+            <th class="num">Machined / Packed</th>
+            <th class="num">Scrap</th>
+            <th class="num">Scrap %</th>
+            <th class="num">Value</th>
+            {% for d in reasons %}
+            <th class="num rq">{{ d.code }}</th>
+            {% endfor %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for r in parts %}
+        <tr>
+            <td class="rank">{{ loop.index }}</td>
+            <td>
+                {% if r.product %}{{ r.product }}{% else %}{{ r.casting_no or r.machined_part_no or '—' }}{% endif %}
+            </td>
+            <td class="num">{{ '{:,}'.format(r.machined) }}</td>
+            <td class="num">{{ '{:,}'.format(r.scrap) }}</td>
+            <td class="num">
+                {% if r.pct is not none %}<span class="{{ 'pct-hi' if r.pct >= 5 else 'pct-ok' }}">{{ '%.2f'|format(r.pct) }}%</span>{% else %}&mdash;{% endif %}
+            </td>
+            <td class="num">{{ r.value|rand(0) }}</td>
+            {% for d in reasons %}
+            {% set qty = r.qtys[loop.index0] %}
+            <td class="num rq">
+                {% if qty %}
+                    <strong>{{ '{:,}'.format(qty) }}</strong>
+                    <span class="share">{{ '%.0f'|format(r.shares[loop.index0]) }}%</span>
+                {% else %}<span class="muted">&mdash;</span>{% endif %}
+            </td>
+            {% endfor %}
+        </tr>
+        {% endfor %}
+    </tbody>
+    <tfoot>
+        <tr>
+            <td></td>
+            <td>Total &mdash; {{ totals.parts }} part(s)</td>
+            <td class="num">{{ '{:,}'.format(totals.machined) }}</td>
+            <td class="num">{{ '{:,}'.format(totals.scrap) }}</td>
+            <td class="num">{% if totals.pct is not none %}{{ '%.2f'|format(totals.pct) }}%{% else %}&mdash;{% endif %}</td>
+            <td class="num">{{ totals.value|rand(0) }}</td>
+            {% for d in reasons %}
+            <td class="num rq">{{ '{:,}'.format(totals.qtys[loop.index0]) }}</td>
+            {% endfor %}
+        </tr>
+    </tfoot>
+</table>
+{% else %}
+<p class="pdf-empty">No scrap was booked to the selected reject reasons for this selection.</p>
+{% endif %}
+
+</body>
+</html>

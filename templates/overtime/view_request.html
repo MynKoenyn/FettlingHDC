@@ -1,0 +1,300 @@
+{% extends 'overtime/base.html' %}
+{% block title %}Overtime #{{ ot.id }}{% endblock %}
+{% block page_title %}Overtime for {{ ot.personnel.name }} {{ ot.personnel.surname }}{% endblock %}
+
+{% block topbar_actions %}
+<a href="{{ url_for('overtime.index') }}" class="ot-btn ot-btn-outline ot-btn-sm">← All Overtime</a>
+{% endblock %}
+
+{% macro auth_badge(entry) %}
+  {% if entry.authorisation == 'approved' %}
+    <span class="ot-flag ok"><i class="bi bi-check-circle-fill"></i> Approved</span>
+  {% elif entry.authorisation == 'overrun' %}
+    <span class="ot-flag warn"><i class="bi bi-exclamation-triangle-fill"></i>
+      Over-run +{{ '%.2f'|format(entry.unauthorised_hours|float) }}h</span>
+  {% elif entry.authorisation == 'unapproved' %}
+    <span class="ot-flag warn"><i class="bi bi-hourglass-split"></i> Worked, not yet approved</span>
+  {% elif entry.authorisation == 'rejected' %}
+    <span class="ot-flag bad"><i class="bi bi-x-octagon-fill"></i> Worked after rejection</span>
+  {% elif entry.authorisation == 'unrequested' %}
+    <span class="ot-flag bad"><i class="bi bi-question-octagon-fill"></i> Not requested</span>
+  {% endif %}
+{% endmacro %}
+
+{% block extra_head %}
+<style>
+  .ot-day { border: 1.5px solid var(--ot-border); border-radius: 9px; margin-bottom: .7rem; }
+  .ot-day-head {
+    display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+    padding: .55rem .85rem; background: #f8fafc;
+    border-bottom: 1px solid var(--ot-border); border-radius: 7px 7px 0 0;
+    font-size: .875rem; font-weight: 700;
+  }
+  .ot-period {
+    display: grid; grid-template-columns: 2.5rem 1fr 1fr auto;
+    gap: .6rem; align-items: start;
+    padding: .65rem .85rem; font-size: .85rem;
+  }
+  .ot-period + .ot-period { border-top: 1px solid var(--ot-border); }
+  .ot-decide { display: grid; grid-template-columns: 1.4rem 1fr auto; gap: .6rem;
+               align-items: center; padding: .55rem .85rem; font-size: .85rem;
+               background: #fffbeb; cursor: pointer; }
+  .ot-decide + .ot-decide { border-top: 1px solid var(--ot-border); }
+  .ot-side-lbl {
+    font-size: .62rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .06em; color: var(--ot-muted); display: block; margin-bottom: .15rem;
+  }
+  .ot-times { font-weight: 700; }
+  .ot-times .hrs { font-weight: 600; color: var(--ot-muted); font-size: .8rem; }
+  .ot-none { color: var(--ot-muted); }
+
+  .ot-flag {
+    display: inline-flex; align-items: center; gap: .3rem; white-space: nowrap;
+    padding: .18rem .6rem; border-radius: 999px;
+    font-size: .68rem; font-weight: 700;
+  }
+  .ot-flag.ok   { background: var(--ot-success-lt); color: var(--ot-success); }
+  .ot-flag.warn { background: var(--ot-warning-lt); color: var(--ot-warning); }
+  .ot-flag.bad  { background: var(--ot-danger-lt);  color: var(--ot-danger); }
+
+  .ot-mult {
+    display: inline-block; padding: .1rem .5rem; border-radius: 999px;
+    font-size: .66rem; font-weight: 700;
+    background: var(--ot-danger-lt); color: var(--ot-danger);
+  }
+  .ot-meta { font-size: .78rem; color: var(--ot-muted); }
+  .ot-meta b { color: var(--ot-text); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:900px;">
+
+  <!-- ── Who, and the submission at a glance ── -->
+  <div class="ot-card mb-3">
+    <div class="ot-card-header">
+      <span class="ot-card-title"><i class="bi bi-person me-2"></i>
+        {{ ot.personnel.name }} {{ ot.personnel.surname }} ({{ ot.personnel.clockno }})
+      </span>
+    </div>
+    <div class="ot-card-body">
+      <div class="ot-meta mb-3">
+        {{ ot.department.name if ot.department else '—' }} /
+        {{ ot.division.code if ot.division else '—' }}
+        {% if totals.periods > 1 %}
+          · <b>{{ totals.periods }}</b> periods over <b>{{ totals.days }}</b> days,
+          submitted together
+        {% endif %}
+      </div>
+
+      <div class="stat-row" style="margin-bottom:0;">
+        <div class="stat-chip">
+          <div class="val">{{ '%.2f'|format(totals.req_hours) }}</div>
+          <div class="lbl">Requested hrs</div>
+        </div>
+        <div class="stat-chip success">
+          <div class="val">{{ '%.2f'|format(totals.act_hours) }}</div>
+          <div class="lbl">Actual hrs</div>
+        </div>
+        {% if totals.unauthorised_hours %}
+        <div class="stat-chip danger">
+          <div class="val">{{ '%.2f'|format(totals.unauthorised_hours) }}</div>
+          <div class="lbl">Not authorised</div>
+        </div>
+        {% endif %}
+        {% if show_money %}
+        <div class="stat-chip">
+          <div class="val" style="font-size:1.4rem;">R {{ '%.2f'|format(totals.act_amount) }}</div>
+          <div class="lbl">Actual amount</div>
+        </div>
+        {% endif %}
+      </div>
+
+      {% if totals.unauthorised_hours %}
+      <div class="ot-alert ot-alert-warning mt-3 mb-0">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        <strong>{{ '%.2f'|format(totals.unauthorised_hours) }} hours</strong> here were
+        worked without being approved — never requested, turned down, still awaiting a
+        decision, or run past the window that was approved. Each one is flagged below.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ── Approve or reject the pending periods ── -->
+  {% if can_approve and totals.pending %}
+  <form method="POST" action="{{ url_for('overtime.decide_batch') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="return_to" value="{{ ot.id }}">
+
+    <div class="ot-card mb-3">
+      <div class="ot-card-header">
+        <span class="ot-card-title"><i class="bi bi-check2-square me-2"></i>
+          {{ totals.pending }} period{{ 's' if totals.pending != 1 }} awaiting a decision
+        </span>
+        <button type="button" class="ot-btn ot-btn-outline ot-btn-sm" id="toggle-all">Select none</button>
+      </div>
+      <div class="ot-card-body">
+        <p class="ot-meta mb-3">
+          Each period is decided on its own — untick any you are not allowing and reject
+          those separately. Approving is what lets the actual times be captured against
+          them afterwards.
+        </p>
+
+        {% for day in days %}
+          {% set pending = day.entries | selectattr('entry_type', 'equalto', 'request')
+                                       | selectattr('status', 'equalto', 'pending') | list %}
+          {% if pending %}
+          <div class="ot-day">
+            <div class="ot-day-head">
+              <span>{{ day.date.strftime('%a %d %b %Y') }}</span>
+              {% if day.date.weekday() == 6 %}<span class="ot-mult">×2 Sunday</span>{% endif %}
+            </div>
+            {% for e in pending %}
+            <label class="ot-decide">
+              <input type="checkbox" name="entry_ids" value="{{ e.id }}" checked class="decide-tick">
+              <span class="ot-times">
+                {{ e.start_time.strftime('%H:%M') }} → {{ e.end_time.strftime('%H:%M') }}
+                <span class="hrs">({{ '%.2f'|format(e.hours|float) }} h)</span>
+              </span>
+              <span class="ot-meta">
+                {% if show_money and e.overtime_amount is not none %}
+                  R {{ '%.2f'|format(e.overtime_amount|float) }}
+                {% endif %}
+              </span>
+            </label>
+            {% endfor %}
+          </div>
+          {% endif %}
+        {% endfor %}
+
+        <div class="mb-3">
+          <label class="ot-form-label" for="approval_notes">Note (optional)</label>
+          <input type="text" name="approval_notes" id="approval_notes" class="ot-form-control"
+                 placeholder="Saved against every period decided here…">
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="submit" name="action" value="approve" class="ot-btn ot-btn-success">
+            <i class="bi bi-check-lg"></i> Approve selected
+          </button>
+          <button type="submit" name="action" value="reject" class="ot-btn ot-btn-danger">
+            <i class="bi bi-x-lg"></i> Reject selected
+          </button>
+        </div>
+      </div>
+    </div>
+  </form>
+  {% endif %}
+
+  <!-- ── Every period ── -->
+  <div class="ot-card mb-3">
+    <div class="ot-card-header">
+      <span class="ot-card-title"><i class="bi bi-list-check me-2"></i>
+        {{ totals.periods }} period{{ 's' if totals.periods != 1 }}
+      </span>
+      {% if can_capture %}
+      <a href="{{ url_for('overtime.capture_batch', request_id=ot.id) }}"
+         class="ot-btn ot-btn-primary ot-btn-sm">
+        <i class="bi bi-clipboard-check"></i>
+        {% if totals.awaiting_capture %}
+          Capture actual times ({{ totals.awaiting_capture }} to go)
+        {% else %}
+          Edit actual times
+        {% endif %}
+      </a>
+      {% endif %}
+    </div>
+    <div class="ot-card-body">
+      {% for day in days %}
+      <div class="ot-day">
+        <div class="ot-day-head">
+          <span>{{ day.date.strftime('%a %d %b %Y') }}</span>
+          {% if day.date.weekday() == 6 %}<span class="ot-mult">×2 Sunday</span>{% endif %}
+        </div>
+
+        {% for e in day.entries %}
+        <div class="ot-period">
+          <span class="ot-meta">#{{ e.id }}</span>
+
+          <span>
+            <span class="ot-side-lbl">Requested</span>
+            {% if e.has_request %}
+              <span class="ot-times">
+                {{ e.start_time.strftime('%H:%M') }} → {{ e.end_time.strftime('%H:%M') }}
+                <span class="hrs">({{ '%.2f'|format(e.hours|float) }} h)</span>
+              </span><br>
+              {% if e.status == 'approved' %}
+                <span class="ot-flag ok">Approved</span>
+              {% elif e.status == 'rejected' %}
+                <span class="ot-flag bad">Rejected</span>
+              {% else %}
+                <span class="ot-flag warn">Pending</span>
+              {% endif %}
+            {% else %}
+              <span class="ot-none">Never requested</span>
+            {% endif %}
+          </span>
+
+          <span>
+            <span class="ot-side-lbl">Actual</span>
+            {% if e.has_actual %}
+              <span class="ot-times">
+                {{ e.actual_start_time.strftime('%H:%M') }} → {{ e.actual_end_time.strftime('%H:%M') }}
+                <span class="hrs">({{ '%.2f'|format(e.actual_hours|float) }} h)</span>
+              </span>
+              {% if e.actual_deducted_minutes %}
+              <br><span class="ot-meta">less
+                {%- if e.actual_break_minutes %} {{ e.actual_break_minutes }} min lunch{% endif %}
+                {%- if e.actual_break_minutes and e.actual_late_minutes %} ·{% endif %}
+                {%- if e.actual_late_minutes %} {{ e.actual_late_minutes }} min late/early{% endif %}
+              </span>
+              {% endif %}
+              {% if show_money and e.actual_amount is not none %}
+              <br><span class="ot-meta">R <b>{{ '%.2f'|format(e.actual_amount|float) }}</b>
+                {% if e.actual_amount_overridden %}(overridden){% endif %}</span>
+              {% endif %}
+            {% else %}
+              <span class="ot-none">Not captured</span>
+            {% endif %}
+          </span>
+
+          <span>{{ auth_badge(e) }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- ── Trail ── -->
+  <div class="ot-card">
+    <div class="ot-card-body ot-meta">
+      {% if ot.requester %}Requested by <b>{{ ot.requester.name }}</b>
+        on {{ ot.created_at.strftime('%d %b %Y %H:%M') }}.{% endif %}
+      {% if ot.approver %} Decided by <b>{{ ot.approver.name }}</b>
+        on {{ ot.approved_at.strftime('%d %b %Y %H:%M') }}.{% endif %}
+      {% if ot.actual_capturer %} Actuals captured by <b>{{ ot.actual_capturer.name }}</b>
+        on {{ ot.actual_captured_at.strftime('%d %b %Y %H:%M') }}.{% endif %}
+      {% if ot.reason %}<br>Reason: {{ ot.reason }}{% endif %}
+      {% if ot.approval_notes %}<br>Decision note: {{ ot.approval_notes }}{% endif %}
+      {% if ot.actual_notes %}<br>Capture note: {{ ot.actual_notes }}{% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  var toggle = document.getElementById("toggle-all");
+  if (toggle) {
+    toggle.addEventListener("click", function () {
+      var turnOn = toggle.textContent.trim() === "Select all";
+      document.querySelectorAll(".decide-tick").forEach(function (tick) {
+        tick.checked = turnOn;
+      });
+      toggle.textContent = turnOn ? "Select none" : "Select all";
+    });
+  }
+</script>
+{% endblock %}

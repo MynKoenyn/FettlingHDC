@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<style>
+    .acc-hero h1 { margin: 0; font-size: 1.4rem; font-weight: 800; color: #0f172a;
+        display: flex; align-items: center; gap: .6rem; }
+    .acc-hero p { margin: .3rem 0 0; color: #64748b; font-size: .9rem; }
+
+    .acc-tabs { display: flex; gap: .3rem; flex-wrap: wrap; }
+    .acc-tabs a { font-size: .85rem; font-weight: 600; color: #64748b; text-decoration: none;
+        padding: .45rem .8rem; border-radius: .55rem; display: inline-flex; align-items: center; gap: .4rem; }
+    .acc-tabs a:hover { background: #f1f5f9; color: #0f172a; }
+    .acc-tabs a.active { background: var(--hdc-primary); color: #fff; }
+
+    .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--hdc-primary); color: #fff;
+        display: inline-flex; align-items: center; justify-content: center; font-size: .78rem;
+        font-weight: 700; flex-shrink: 0; }
+    .avatar.admin { background: #dc2626; }
+
+    /* Toggle switch used on the matrix — state is conveyed by the knob's
+       position AND a glyph (not color alone, for colorblind/low-vision users). */
+    .toggle { width: 38px; height: 21px; background: #cbd5e1; border-radius: 999px; border: none;
+        cursor: pointer; position: relative; transition: background .18s; padding: 0; display: inline-block; }
+    .toggle::after { content: '\2715'; position: absolute; left: 3px; top: 3px; width: 15px; height: 15px;
+        background: #fff; border-radius: 50%; transition: transform .18s;
+        font-size: 9px; line-height: 15px; text-align: center; color: #94a3b8; }
+    .toggle.on { background: #16a34a; }
+    .toggle.on::after { content: '\2713'; transform: translateX(17px); color: #16a34a; }
+    .toggle:hover { opacity: .85; }
+    .toggle:focus-visible { outline: 2px solid var(--hdc-primary); outline-offset: 2px; }
+    .toggle:disabled { opacity: .45; cursor: not-allowed; }
+
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .note-box { display: flex; gap: .7rem; align-items: flex-start; padding: .9rem 1.1rem;
+        border-radius: .7rem; font-size: .87rem; line-height: 1.5; margin-bottom: 1.3rem; }
+    .note-box.info { background: #dbeafe; color: #1e40af; }
+    .note-box.warn { background: #fef3c7; color: #92400e; }
+    .note-box i { font-size: 1.05rem; margin-top: .1rem; }
+</style>
+{% block access_head %}{% endblock %}
+{% endblock %}
+
+{% block content %}
+<div class="app-container wide">
+
+    <div class="app-card" style="margin-bottom: 1.4rem;">
+        <div class="app-card-body acc-hero">
+            <h1><i class="bi bi-shield-lock" style="color:#0f766e;"></i> {{ page_title or "Access Control" }}</h1>
+            <p>{{ page_sub or "Decide which parts of the system each user account can reach." }}</p>
+        </div>
+    </div>
+
+    <div class="app-card" style="margin-bottom: 1.4rem;">
+        <div class="app-card-body" style="padding: .7rem .9rem;">
+            <nav class="acc-tabs">
+                <a href="{{ url_for('access.index') }}" class="{{ 'active' if request.endpoint == 'access.index' }}">
+                    <i class="bi bi-people"></i> Users
+                </a>
+                <a href="{{ url_for('access.matrix') }}" class="{{ 'active' if request.endpoint == 'access.matrix' }}">
+                    <i class="bi bi-grid-3x3"></i> Permission Matrix
+                </a>
+                <a href="{{ url_for('list_users') }}" class="{{ 'active' if request.endpoint in ['list_users','create_user','edit_user'] }}">
+                    <i class="bi bi-person-gear"></i> Manage Accounts
+                </a>
+            </nav>
+        </div>
+    </div>
+
+    {% block access_content %}{% endblock %}
+
+</div>
+{% endblock %}

@@ -1,0 +1,214 @@
+{% extends 'overtime/base.html' %}
+{% block title %}Organogram{% endblock %}
+{% block page_title %}Organogram{% endblock %}
+
+{% block content %}
+<style>
+  .org-scroll { overflow-x: auto; padding-bottom: .5rem; }
+  .org-branch { display: inline-flex; margin-bottom: 2rem; }
+  .org-branch:last-child { margin-bottom: 0; }
+
+  /* One node = its own box, a stem down to its children, and a
+     horizontal row of children (sub-heads / teams / direct reports). */
+  .org-node-wrap { display: flex; flex-direction: column; align-items: center; }
+  .org-stem { width: 2px; height: 18px; background: var(--ot-border); }
+  .org-children-row { display: flex; flex-wrap: nowrap; gap: 1.5rem; align-items: flex-start; margin-top: .1rem; }
+  .org-col { display: flex; flex-direction: column; align-items: center; }
+
+  .org-node {
+    display: inline-block; width: 230px;
+    border: 1px solid var(--ot-border); border-radius: .6rem;
+    background: var(--ot-surface); padding: .55rem .8rem;
+    box-shadow: 0 1px 2px rgba(0,0,0,.04);
+    text-align: left;
+  }
+  .org-node.role-director { border-color: var(--ot-danger); background: var(--ot-danger-lt); }
+  .org-node.role-head     { border-color: var(--ot-primary); background: var(--ot-primary-lt); }
+  .org-node.role-superintendent { border-color: var(--ot-success); background: var(--ot-success-lt); }
+  .org-node.role-supervisor { border-color: var(--ot-warning); background: var(--ot-warning-lt); }
+  .org-node.inactive { opacity: .55; }
+
+  .org-node .org-name { font-weight: 600; color: var(--ot-text); font-size: .85rem; line-height: 1.25;
+    display: flex; align-items: flex-start; gap: .4rem; }
+  .org-node .org-name .ot-icon-tile { width: 20px; height: 20px; border-radius: 5px; font-size: .65rem; box-shadow: none; flex-shrink: 0; }
+  .org-node .org-name .ot-avatar { width: 20px; height: 20px; font-size: .6rem; box-shadow: none; flex-shrink: 0; }
+  .org-node .org-meta { font-size: .7rem; color: var(--ot-muted); line-height: 1.25; margin-top: .15rem; }
+  .org-node .org-badge { display: inline-block; font-size: .62rem; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; margin-top: .25rem; padding: .1rem .4rem; border-radius: .3rem; }
+  .role-director .org-badge { background: var(--ot-danger); color: #fff; }
+  .role-head .org-badge { background: var(--ot-primary); color: #fff; }
+  .role-superintendent .org-badge { background: var(--ot-success); color: #fff; }
+  .role-supervisor .org-badge { background: var(--ot-warning); color: #fff; }
+
+  /* Personnel under a Supervisor (or direct reports under a Head) —
+     max two columns, however many people there are. */
+  .org-team { width: 380px; flex: 0 0 auto; }
+  .org-team-head { text-align: center; margin-bottom: .5rem; }
+  .org-team-label {
+    font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+    color: var(--ot-muted); text-align: center; margin-bottom: .5rem;
+  }
+  .org-team-members { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .4rem; }
+
+  .org-member {
+    border: 1px solid var(--ot-border); border-left: 4px solid var(--ot-border);
+    border-radius: .4rem; background: var(--ot-surface);
+    padding: .4rem .55rem; font-size: .74rem; min-width: 0;
+  }
+  .org-member.inactive { opacity: .55; }
+  .org-member .org-member-name { font-weight: 600; color: var(--ot-text); display: flex; align-items: flex-start; gap: .3rem; line-height: 1.25; }
+  .org-member .org-member-name .ot-icon-tile { width: 16px; height: 16px; border-radius: 4px; font-size: .55rem; box-shadow: none; flex-shrink: 0; }
+  .org-member .org-member-name .ot-avatar { width: 16px; height: 16px; font-size: .5rem; box-shadow: none; flex-shrink: 0; }
+  .org-member .org-member-meta { color: var(--ot-muted); font-size: .65rem; line-height: 1.25; margin-top: .1rem; }
+
+  .org-legend { display: flex; gap: 1.2rem; flex-wrap: wrap; font-size: .78rem; color: var(--ot-muted); margin-bottom: 1rem; }
+  .org-legend span { display: inline-flex; align-items: center; gap: .4rem; }
+  .org-legend i { width: .7rem; height: .7rem; border-radius: .2rem; display: inline-block; }
+
+  .org-filter-form { display: flex; gap: .6rem; flex-wrap: wrap; align-items: flex-end; margin-bottom: 1.25rem; }
+  .org-filter-form .org-filter-field { display: flex; flex-direction: column; gap: .25rem; }
+  .org-filter-form label { font-size: .72rem; font-weight: 600; color: var(--ot-muted); text-transform: uppercase; letter-spacing: .04em; }
+  .org-filter-form select { min-width: 180px; }
+</style>
+
+{% macro render_person_node(p, role) %}
+<div class="org-node {{ role }} {{ 'inactive' if not p.status }}">
+  <div class="org-name">
+    {% if p.photo %}<div class="ot-avatar"><img src="{{ url_for('static', filename='images/personnel/' + p.photo) }}" alt=""></div>
+    {% elif p.icon %}<div class="ot-icon-tile" style="background:{{ p.icon_color }};"><i class="bi {{ p.icon }}"></i></div>{% endif %}
+    <span>{{ p.name }} {{ p.surname or '' }}</span>
+  </div>
+  <div class="org-meta">{{ p.job_description or (p.department.name if p.department else '') }}</div>
+  {% if p.is_director %}<span class="org-badge">Director</span>
+  {% elif p.is_head %}<span class="org-badge">Head</span>
+  {% elif p.is_superintendent %}<span class="org-badge">Superintendent</span>
+  {% elif p.is_supervisor %}<span class="org-badge">Supervisor</span>{% endif %}
+</div>
+{% endmacro %}
+
+{% macro render_member(p) %}
+{% set color = job_colors.get(p.job_description.strip()) if p.job_description else None %}
+<div class="org-member {{ 'inactive' if not p.status }}" style="{{ 'border-left-color:' + color + ';' if color }}">
+  <div class="org-member-name">
+    {% if p.photo %}<div class="ot-avatar"><img src="{{ url_for('static', filename='images/personnel/' + p.photo) }}" alt=""></div>
+    {% elif p.icon %}<div class="ot-icon-tile" style="background:{{ p.icon_color }};"><i class="bi {{ p.icon }}"></i></div>{% endif %}
+    <span>{{ p.name }} {{ p.surname or '' }}</span>
+  </div>
+  <div class="org-member-meta">{{ p.job_description or '—' }} · {{ p.clockno }}</div>
+</div>
+{% endmacro %}
+
+{% macro render_node(node) %}
+<div class="org-node-wrap">
+  {{ render_person_node(node.person, 'role-director' if node.person.is_director else ('role-head' if node.person.is_head else 'role-superintendent')) }}
+  {% if node.sub_heads or node.teams or node.loose %}
+  <div class="org-stem"></div>
+  <div class="org-children-row">
+    {% for sub in node.sub_heads %}
+    <div class="org-col">{{ render_node(sub) }}</div>
+    {% endfor %}
+    {% for team in node.teams %}
+    <div class="org-team">
+      <div class="org-team-head">{{ render_person_node(team.lead, 'role-supervisor') }}</div>
+      <div class="org-team-members">
+        {% for p in team.members %}{{ render_member(p) }}{% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+    {% if node.loose %}
+    <div class="org-team">
+      <div class="org-team-label">Direct reports</div>
+      <div class="org-team-members">
+        {% for p in node.loose %}{{ render_member(p) }}{% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endmacro %}
+
+<div class="ot-card" style="margin-bottom:1.5rem;">
+  <div class="ot-card-header">
+    <span class="ot-card-title"><i class="bi bi-diagram-3 me-2"></i>Organogram</span>
+    <a href="{{ url_for('overtime.personnel_list') }}" class="ot-btn ot-btn-outline ot-btn-sm"><i class="bi bi-arrow-left"></i> Personnel</a>
+  </div>
+  <div class="ot-card-body">
+
+    <form method="GET" class="org-filter-form">
+      <div class="org-filter-field">
+        <label for="division_id">Division</label>
+        <select id="division_id" name="division_id" class="ot-form-control"
+                onchange="document.getElementById('department_id').value=''; this.form.submit()">
+          <option value="">Whole company</option>
+          {% for d in divisions %}
+          <option value="{{ d.id }}" {{ 'selected' if division_id == d.id }}>{{ d.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="org-filter-field">
+        <label for="department_id">Department</label>
+        <select id="department_id" name="department_id" class="ot-form-control" onchange="this.form.submit()">
+          <option value="">All departments</option>
+          {% for dept in departments %}
+          <option value="{{ dept.id }}" {{ 'selected' if department_id == dept.id }}>{{ dept.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% if division_id or department_id %}
+      <a href="{{ url_for('overtime.personnel_organogram') }}" class="ot-btn ot-btn-outline ot-btn-sm">Clear</a>
+      {% endif %}
+    </form>
+
+    <div class="org-legend">
+      <span><i style="background:var(--ot-danger);"></i> Director</span>
+      <span><i style="background:var(--ot-primary);"></i> Head</span>
+      <span><i style="background:var(--ot-success);"></i> Production Superintendent</span>
+      <span><i style="background:var(--ot-warning);"></i> Supervisor</span>
+      <span style="opacity:.55;">Faded = inactive employee</span>
+      <span style="color:var(--ot-muted);">Coloured stripe on each card = job title</span>
+    </div>
+
+    {% if branches %}
+    <div class="org-scroll">
+      {% for branch in branches %}
+        {{ render_node(branch) }}
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <i class="bi bi-diagram-3" style="font-size:1.6rem; display:block; margin-bottom:.5rem;"></i>
+      {% if division_id or department_id %}
+      No hierarchy in this selection. Try clearing the filter, or set up the reporting lines on the
+      <a href="{{ url_for('overtime.personnel_list') }}">Personnel</a> screen.
+      {% else %}
+      No hierarchy set up yet. Tick Director / Head / Production Superintendent / Supervisor and set who each person reports to on the
+      <a href="{{ url_for('overtime.personnel_list') }}">Personnel</a> screen to build the chart.
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% if unassigned %}
+<div class="ot-card">
+  <div class="ot-card-header">
+    <span class="ot-card-title"><i class="bi bi-person-dash me-2"></i>Not in the chart yet</span>
+  </div>
+  <div class="ot-card-body">
+    <div style="font-size:.78rem; color:var(--ot-muted); margin-bottom:.8rem;">
+      These personnel have no Supervisor/Superintendent/Head/Director link and aren't a Director, Head, Production Superintendent or Supervisor for anyone else.
+      Set their reporting line on the <a href="{{ url_for('overtime.personnel_list') }}">Personnel</a> screen to place them.
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:.5rem;">
+      {% for p in unassigned %}
+      <a href="{{ url_for('overtime.personnel_edit', personnel_id=p.id) }}"
+         style="font-size:.82rem; padding:.4rem .6rem; border:1px solid var(--ot-border); border-radius:.5rem; color:var(--ot-text); text-decoration:none; {{ 'opacity:.55;' if not p.status }}">
+        {{ p.name }} {{ p.surname or '' }}
+        <span style="color:var(--ot-muted);">({{ p.clockno }})</span>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -69,28 +69,28 @@
   <div class="col-6 col-md-3">
     <div class="ar-card text-center py-3">
       <div style="font-size:2rem;color:var(--ar-gold);"><i class="bi bi-tools"></i></div>
-      <div style="font-size:1.4rem;font-family:'DM Serif Display',serif;color:var(--ar-light);">{{ auc_count }}</div>
+      <div class="ar-figure">{{ auc_count }}</div>
       <div class="stat-sub">Assets Under Construction</div>
     </div>
   </div>
   <div class="col-6 col-md-3">
     <div class="ar-card text-center py-3">
       <div style="font-size:2rem;color:var(--ar-muted);"><i class="bi bi-archive"></i></div>
-      <div style="font-size:1.4rem;font-family:'DM Serif Display',serif;color:var(--ar-light);">{{ spares_count }}</div>
+      <div class="ar-figure">{{ spares_count }}</div>
       <div class="stat-sub">Spares</div>
     </div>
   </div>
   <div class="col-6 col-md-3">
     <div class="ar-card text-center py-3">
       <div style="font-size:2rem;color:var(--ar-danger);"><i class="bi bi-exclamation-diamond"></i></div>
-      <div style="font-size:1.4rem;font-family:'DM Serif Display',serif;color:var(--ar-light);">{{ impaired_count }}</div>
+      <div class="ar-figure">{{ impaired_count }}</div>
       <div class="stat-sub">Impaired</div>
     </div>
   </div>
   <div class="col-6 col-md-3">
     <div class="ar-card text-center py-3">
-      <div style="font-size:2rem;color:#8888aa;"><i class="bi bi-slash-circle"></i></div>
-      <div style="font-size:1.4rem;font-family:'DM Serif Display',serif;color:var(--ar-light);">{{ fully_dep }}</div>
+      <div style="font-size:2rem;color:#7c3aed;"><i class="bi bi-slash-circle"></i></div>
+      <div class="ar-figure">{{ fully_dep }}</div>
       <div class="stat-sub">Fully Depreciated</div>
     </div>
   </div>
@@ -154,7 +154,7 @@
             <div style="font-size:0.75rem;color:var(--ar-muted);">{{ d.disposal_date }} · {{ d.disposal_type }}</div>
           </div>
           <div class="text-end">
-            <div class="mono" style="font-size:0.875rem;color:{% if d.gain_loss >= 0 %}var(--ar-accent){% else %}var(--ar-danger){% endif %}">
+            <div class="mono" style="font-size:0.875rem;font-weight:600;color:{% if d.gain_loss >= 0 %}var(--ar-success){% else %}var(--ar-danger){% endif %}">
               R{{ '{:,.0f}'.format(d.gain_loss or 0) }}
             </div>
             <div style="font-size:0.7rem;color:var(--ar-muted);">{% if d.gain_loss >= 0 %}profit{% else %}loss{% endif %}</div>

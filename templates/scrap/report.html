@@ -1,0 +1,413 @@
+{% extends "scrap/base_scrap.html" %}
+{% set container_class = "xwide" %}
+{% set page_title = ("Yearly" if period == "year" else "Monthly") ~ " Scrap Report" %}
+{% set page_sub = "Scrap by period, reject reason and part — external and internal side by side." %}
+
+{% block title %}{{ 'Yearly' if period == 'year' else 'Monthly' }} Scrap Report{% endblock %}
+
+{% import "scrap/_price_src.html" as ps %}
+
+{% block scrap_head %}
+<style>
+    /* The product picker panel sits inside a <details>; the card's
+       overflow:hidden (base.html) was clipping it to a sliver. Let just the
+       filter card overflow so it shows in full over the KPI row. */
+    .report-filters { overflow: visible; }
+
+    /* Product picker — same collapsible checkbox-grid pattern as the reason
+       picker on the Reason Mix report, so a run can be scoped to a handful
+       of parts instead of "all" or "just one". */
+    .product-picker { grid-column: 1 / -1; border: 1px solid #e5e7eb; border-radius: .6rem; padding: .8rem;
+        background: #f8fafc; margin-top: 1rem; }
+    .product-picker > summary { cursor: pointer; font-size: .85rem; font-weight: 700; color: #334155;
+        list-style: none; display: flex; align-items: center; gap: .5rem; }
+    .product-picker > summary::-webkit-details-marker { display: none; }
+    .product-picker > summary::before { content: "\F231"; font-family: bootstrap-icons; font-size: .8rem; color: #94a3b8; }
+    .product-picker[open] > summary::before { content: "\F235"; }
+    .product-filter { max-width: 320px; margin: .8rem 0 .6rem; }
+    .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: .3rem .8rem;
+        max-height: 15rem; overflow-y: auto; padding-right: .3rem; }
+    .product-grid label { display: flex; align-items: center; gap: .45rem; font-size: .82rem; color: #334155;
+        padding: .2rem .35rem; border-radius: .35rem; cursor: pointer; }
+    .product-grid label:hover { background: #eef2f7; }
+    .product-grid input { accent-color: var(--hdc-primary); flex: none; }
+    .product-grid .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .picker-acts { display: flex; gap: .5rem; align-items: center; margin-top: .8rem; padding-top: .7rem;
+        border-top: 1px solid #e5e7eb; }
+</style>
+{% endblock %}
+
+{% block scrap_content %}
+
+{% set qs = request.query_string.decode() %}
+<div class="app-card report-filters">
+    <div class="app-card-head">
+        <h2 class="app-card-title"><i class="bi bi-funnel"></i> Report Options</h2>
+        <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
+            <div class="division-switch">
+                <a href="{{ url_for(request.endpoint, division='hda', **request.view_args) }}{{ '?' + qs if qs }}"
+                   class="{{ 'active' if division == 'hda' }}">HDA</a>
+                <a href="{{ url_for(request.endpoint, division='hdc', **request.view_args) }}{{ '?' + qs if qs }}"
+                   class="{{ 'active' if division == 'hdc' }}">HDC</a>
+                <a href="{{ url_for(request.endpoint, division='both', **request.view_args) }}{{ '?' + qs if qs }}"
+                   class="{{ 'active' if division == 'both' }}">Both</a>
+            </div>
+            <a class="app-btn app-btn-sm {{ 'app-btn-primary' if period == 'month' else 'app-btn-outline' }}"
+               href="{{ url_for('scrap.reports', period='month', source=filters.source, customer_id=filters.customer_id or '', product_id=filters.product_id or '', start_date=filters.start_date, end_date=filters.end_date, year=filters.year or '', batch_no=filters.batch_no or '') }}">
+                Monthly
+            </a>
+            <a class="app-btn app-btn-sm {{ 'app-btn-primary' if period == 'year' else 'app-btn-outline' }}"
+               href="{{ url_for('scrap.reports', period='year', source=filters.source, customer_id=filters.customer_id or '', product_id=filters.product_id or '', start_date=filters.start_date, end_date=filters.end_date, year=filters.year or '', batch_no=filters.batch_no or '') }}">
+                Yearly
+            </a>
+            <a class="app-btn app-btn-sm app-btn-outline"
+               href="{{ url_for('scrap.reason_report', source=filters.source, customer_id=filters.customer_id or '', product_id=filters.product_id or '', start_date=filters.start_date, end_date=filters.end_date, year=filters.year or '', batch_no=filters.batch_no or '') }}">
+                Reason Mix
+            </a>
+        </div>
+    </div>
+    <div class="app-card-body">
+        <form method="GET" class="filter-bar" id="report-form">
+            <input type="hidden" name="period" value="{{ period }}">
+            <div>
+                <label class="app-label">Source</label>
+                <select name="source" class="app-select">
+                    <option value="">External + Internal</option>
+                    {% for value, label in source_choices %}
+                    <option value="{{ value }}" {{ 'selected' if filters.source == value }}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="app-label">Customer</label>
+                <select name="customer_id" class="app-select">
+                    <option value="">All customers</option>
+                    {% for c in customers %}
+                    <option value="{{ c.id }}" {{ 'selected' if filters.customer_id == c.id }}>{{ c.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="app-label">Year</label>
+                <select name="year" class="app-select">
+                    <option value="">All years</option>
+                    {% for y in years %}
+                    <option value="{{ y }}" {{ 'selected' if filters.year == y }}>{{ y }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="app-label">Batch</label>
+                <input type="text" name="batch_no" class="app-input" placeholder="e.g. 123A"
+                       value="{{ filters.batch_no }}">
+            </div>
+            <div>
+                <label class="app-label">From</label>
+                <input type="date" name="start_date" class="app-input" value="{{ filters.start_date }}">
+            </div>
+            <div>
+                <label class="app-label">To</label>
+                <input type="date" name="end_date" class="app-input" value="{{ filters.end_date }}">
+            </div>
+
+            <details class="product-picker">
+                <summary>
+                    Products
+                    {% if filters.product_id %}
+                        <span class="app-badge blue">{{ filters.product_id|length }} selected</span>
+                    {% else %}
+                        <span class="app-badge gray">All products</span>
+                    {% endif %}
+                </summary>
+                <input type="text" class="app-input product-filter" placeholder="Search products…"
+                       autocomplete="off">
+                <div class="product-grid">
+                    {% for p in products %}
+                    <label data-search="{{ (p.name ~ ' ' ~ (p.product_code or ''))|lower }}">
+                        <input type="checkbox" name="product_id" value="{{ p.id }}"
+                               {{ 'checked' if p.id in filters.product_id }}>
+                        <span class="nm">{{ p.name }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+                <div class="picker-acts">
+                    <button type="button" class="app-btn app-btn-outline app-btn-sm" data-check="all">Select all</button>
+                    <button type="button" class="app-btn app-btn-outline app-btn-sm" data-check="none">Clear all</button>
+                    <span class="app-muted" style="font-size:.78rem;">
+                        Leave everything unticked to include every product.
+                    </span>
+                </div>
+            </details>
+
+            <div class="acts" style="margin-top:1rem;">
+                <button type="submit" class="app-btn app-btn-primary"><i class="bi bi-search"></i> Run</button>
+                <a href="{{ url_for('scrap.reports', period=period) }}" class="app-btn app-btn-outline">Clear</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="kpi-row">
+    <div class="kpi muted">
+        <div class="v">{{ '{:,}'.format(totals.entries) }}</div>
+        <div class="l">Entries</div>
+    </div>
+    <div class="kpi">
+        <div class="v">{{ '{:,}'.format(totals.machined) }}</div>
+        <div class="l">Qty Machined / Packed</div>
+    </div>
+    <div class="kpi danger">
+        <div class="v">{{ '{:,}'.format(totals.scrap) }}</div>
+        <div class="l">Qty Scrapped</div>
+    </div>
+    <div class="kpi {{ 'danger' if totals.pct and totals.pct >= 5 else 'warn' if totals.pct and totals.pct >= 3 else 'ok' }}">
+        <div class="v">{% if totals.pct is not none %}{{ '%.2f'|format(totals.pct) }}%{% else %}—{% endif %}</div>
+        <div class="l">Reject %</div>
+    </div>
+    <div class="kpi danger">
+        <div class="v" title="{{ totals.value|rand }}">{{ totals.value|rand_short }}</div>
+        <div class="l">Scrap Value</div>
+        <div class="s">
+            {% if totals.unpriced_qty %}
+                {{ '{:,}'.format(totals.unpriced_qty) }} unit(s) unpriced
+            {% else %}
+                Priced at each entry's date
+            {% endif %}
+        </div>
+    </div>
+    <div class="kpi">
+        <div class="v">{{ '{:,}'.format(totals.external) }}</div>
+        <div class="l">External</div>
+    </div>
+    <div class="kpi warn">
+        <div class="v">{{ '{:,}'.format(totals.internal) }}</div>
+        <div class="l">Internal</div>
+    </div>
+</div>
+
+{% if totals.unpriced_qty %}
+<div class="app-card" style="margin-bottom:1.4rem;border-left:3px solid #d97706;">
+    <div class="app-card-body" style="display:flex;gap:.6rem;align-items:flex-start;font-size:.85rem;color:#475569;">
+        <i class="bi bi-exclamation-triangle" style="color:#d97706;"></i>
+        <div>
+            <strong>{{ '{:,}'.format(totals.unpriced_qty) }}</strong> of
+            {{ '{:,}'.format(totals.scrap) }} scrapped unit(s) could not be priced —
+            no price list entry for the scrap date and no catalogue price on the product
+            (or the row was never linked to a product). Every rand figure below covers the
+            other {% if totals.priced_pct is not none %}{{ '%.1f'|format(totals.priced_pct) }}%{% endif %}.
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- BY PERIOD -->
+<div class="app-card">
+    <div class="app-card-head">
+        <h2 class="app-card-title">
+            <i class="bi bi-calendar3"></i> By {{ 'Year' if period == 'year' else 'Month' }}
+        </h2>
+        <a class="app-btn app-btn-outline app-btn-sm"
+           href="{{ url_for('scrap.reports_export', period=period, source=filters.source, customer_id=filters.customer_id or '', product_id=filters.product_id or '', start_date=filters.start_date, end_date=filters.end_date, year=filters.year or '', batch_no=filters.batch_no or '') }}">
+            <i class="bi bi-download"></i> Export CSV
+        </a>
+    </div>
+    <div class="app-card-body">
+        {% if periods %}
+        <div class="legend">
+            <span><i style="background:#2563eb;"></i> External</span>
+            <span><i style="background:#d97706;"></i> Internal</span>
+        </div>
+        {% for p in periods %}
+        <div class="bar-row">
+            <div class="nm">{{ p.label }}</div>
+            <div class="bar-track">
+                <div class="bar-fill ext" style="width: {{ (p.external / period_max * 100) if period_max else 0 }}%"></div>
+                <div class="bar-fill int" style="width: {{ (p.internal / period_max * 100) if period_max else 0 }}%"></div>
+            </div>
+            <div class="qty">{{ '{:,}'.format(p.scrap) }}</div>
+        </div>
+        {% endfor %}
+
+        <div class="app-table-wrap" style="margin-top:1.2rem;">
+            <table class="app-table">
+                <thead>
+                    <tr>
+                        <th>{{ 'Year' if period == 'year' else 'Month' }}</th>
+                        <th class="num">Entries</th><th class="num">Qty Machined / Packed</th>
+                        <th class="num">Qty Scrap</th><th class="num">External</th>
+                        <th class="num">Internal</th><th class="num">% Reject</th>
+                        <th class="num">Scrap Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in periods %}
+                    <tr>
+                        <td><strong>{{ p.label }}</strong></td>
+                        <td class="num">{{ '{:,}'.format(p.entries) }}</td>
+                        <td class="num">{{ '{:,}'.format(p.machined) }}</td>
+                        <td class="num"><strong>{{ '{:,}'.format(p.scrap) }}</strong></td>
+                        <td class="num">{{ '{:,}'.format(p.external) }}</td>
+                        <td class="num">{{ '{:,}'.format(p.internal) }}</td>
+                        <td class="num">
+                            {% if p.pct is not none %}
+                                <span class="{{ 'pct-hi' if p.pct >= 5 else 'pct-ok' }}">{{ '%.2f'|format(p.pct) }}%</span>
+                            {% else %}—{% endif %}
+                        </td>
+                        <td class="num">
+                            {{ p.value|rand(0) }}{{ ps.price_src(p.price_basis) }}
+                            {% if p.unpriced_qty %}
+                            <i class="bi bi-exclamation-triangle" style="color:#d97706;font-size:.72rem;"
+                               title="{{ '{:,}'.format(p.unpriced_qty) }} unit(s) unpriced"></i>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr style="background:#f8fafc;font-weight:700;">
+                        <td>Total</td>
+                        <td class="num">{{ '{:,}'.format(totals.entries) }}</td>
+                        <td class="num">{{ '{:,}'.format(totals.machined) }}</td>
+                        <td class="num">{{ '{:,}'.format(totals.scrap) }}</td>
+                        <td class="num">{{ '{:,}'.format(totals.external) }}</td>
+                        <td class="num">{{ '{:,}'.format(totals.internal) }}</td>
+                        <td class="num">{% if totals.pct is not none %}{{ '%.2f'|format(totals.pct) }}%{% else %}—{% endif %}</td>
+                        <td class="num">{{ totals.value|rand(0) }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        {% else %}
+        <div class="app-empty"><i class="bi bi-inbox"></i> No scrap matches those filters.</div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="two-col">
+
+    <!-- BY REJECT REASON -->
+    <div class="app-card">
+        <div class="app-card-head"><h2 class="app-card-title"><i class="bi bi-tags"></i> By Reject Reason</h2></div>
+        <div class="app-card-body">
+            {% if defect_rows %}
+            <div class="app-table-wrap">
+                <table class="app-table">
+                    <thead><tr><th>Code</th><th>Reason</th><th class="num">Qty</th><th class="num">% of Scrap</th><th class="num">Value</th></tr></thead>
+                    <tbody>
+                        {% for d in defect_rows %}
+                        <tr>
+                            <td><span class="app-id">{{ d.code }}</span></td>
+                            <td>{{ d.name }}</td>
+                            <td class="num"><strong>{{ '{:,}'.format(d.qty) }}</strong></td>
+                            <td class="num">{{ '%.1f'|format(d.share) }}%</td>
+                            <td class="num">{{ d.value|rand(0) }}{{ ps.price_src(d.price_basis) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr style="background:#f8fafc;font-weight:700;">
+                            <td colspan="2">Total</td>
+                            <td class="num">{{ '{:,}'.format(defect_rows|sum(attribute='qty')) }}</td>
+                            <td class="num">100.0%</td>
+                            <td class="num">{{ defect_rows|sum(attribute='value')|rand(0) }}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            {% else %}
+            <div class="app-empty"><i class="bi bi-inbox"></i> No reject reasons recorded for this selection.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- BY PART -->
+    <div class="app-card">
+        <div class="app-card-head">
+            <h2 class="app-card-title"><i class="bi bi-box-seam"></i> By Part</h2>
+            <span class="app-muted" style="font-size:.82rem;">
+                Top 100 by scrap ·
+                <i class="bi bi-list-check price-src list" style="margin-left:.4rem;"></i> list price
+                <i class="bi bi-tag price-src fallback" style="margin-left:.5rem;"></i> product's current price
+            </span>
+        </div>
+        <div class="app-card-body">
+            {% if part_rows %}
+            <div class="app-table-wrap">
+                <table class="app-table">
+                    <thead><tr><th>Part</th><th class="num">Machined / Packed</th><th class="num">Scrap</th><th class="num">% Reject</th><th class="num">Value</th></tr></thead>
+                    <tbody>
+                        {% for r in part_rows %}
+                        <tr>
+                            <td>
+                                {% if r.product %}
+                                    <strong>{{ r.product }}</strong>
+                                {% else %}
+                                    <span class="mono-sm">{{ r.casting_no or r.machined_part_no or '—' }}</span>
+                                    <span class="app-badge red" title="No product linked">unlinked</span>
+                                {% endif %}
+                                {% if r.product and r.casting_no %}
+                                <div class="mono-sm" style="font-size:.72rem;">{{ r.casting_no }}</div>
+                                {% endif %}
+                            </td>
+                            <td class="num">{{ '{:,}'.format(r.machined) }}</td>
+                            <td class="num"><strong>{{ '{:,}'.format(r.scrap) }}</strong></td>
+                            <td class="num">
+                                {% if r.pct is not none %}
+                                    <span class="{{ 'pct-hi' if r.pct >= 5 else 'pct-ok' }}">{{ '%.2f'|format(r.pct) }}%</span>
+                                {% else %}—{% endif %}
+                            </td>
+                            <td class="num">
+                                {{ r.value|rand(0) }}{{ ps.price_src(r.price_basis) }}
+                                {% if r.unpriced_qty %}
+                                <i class="bi bi-exclamation-triangle" style="color:#d97706;font-size:.72rem;"
+                                   title="{{ '{:,}'.format(r.unpriced_qty) }} unit(s) unpriced"></i>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr style="background:#f8fafc;font-weight:700;">
+                            <td>Total — top {{ part_rows|length }}</td>
+                            <td class="num">{{ '{:,}'.format(part_rows|sum(attribute='machined')) }}</td>
+                            <td class="num">{{ '{:,}'.format(part_rows|sum(attribute='scrap')) }}</td>
+                            <td class="num"></td>
+                            <td class="num">{{ part_rows|sum(attribute='value')|rand(0) }}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            {% else %}
+            <div class="app-empty"><i class="bi bi-inbox"></i> Nothing to show.</div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+/* Product picker — search box filters the visible checkboxes; select all /
+   clear all act on every product regardless of what the search currently shows. */
+document.querySelectorAll('#report-form .product-filter').forEach(function (input) {
+    var grid = input.closest('.product-picker').querySelector('.product-grid');
+    input.addEventListener('input', function () {
+        var q = input.value.trim().toLowerCase();
+        grid.querySelectorAll('label').forEach(function (label) {
+            var hay = label.dataset.search || '';
+            label.style.display = (!q || hay.indexOf(q) > -1) ? '' : 'none';
+        });
+    });
+});
+document.querySelectorAll('#report-form [data-check]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+        var on = btn.dataset.check === 'all';
+        document.querySelectorAll('#report-form input[name="product_id"]').forEach(function (box) {
+            box.checked = on;
+        });
+    });
+});
+</script>
+{% endblock %}

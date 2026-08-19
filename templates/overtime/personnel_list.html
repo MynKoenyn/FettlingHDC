@@ -1,0 +1,110 @@
+{% extends 'overtime/base.html' %}
+{% block title %}Personnel{% endblock %}
+{% block page_title %}Personnel{% endblock %}
+
+{% block topbar_actions %}
+{% if can('personnel', 'edit') %}
+<a href="{{ url_for('overtime.personnel_import') }}" class="ot-btn ot-btn-outline ot-btn-sm">
+    <i class="bi bi-upload"></i> Import
+</a>
+{% endif %}
+<a href="{{ url_for('overtime.personnel_export') }}" class="ot-btn ot-btn-outline ot-btn-sm">
+    <i class="bi bi-download"></i> Export
+</a>
+{% if can('personnel', 'edit') %}
+<a href="{{ url_for('overtime.personnel_new') }}" class="ot-btn ot-btn-primary ot-btn-sm">
+    <i class="bi bi-person-plus"></i> New Personnel
+</a>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="ot-card">
+    <div class="ot-card-header">
+        <span class="ot-card-title"><i class="bi bi-person-vcard me-2"></i>Personnel</span>
+    </div>
+    <div class="ot-card-body">
+
+        <form method="GET" style="display:flex; gap:.6rem; flex-wrap:wrap; margin-bottom:1.25rem;">
+            <input type="text" name="search" class="ot-form-control" style="max-width:320px;"
+                   placeholder="Search name, surname or clock no…" value="{{ search }}">
+            <button type="submit" class="ot-btn ot-btn-primary"><i class="bi bi-search"></i> Search</button>
+            {% if search %}<a href="{{ url_for('overtime.personnel_list') }}" class="ot-btn ot-btn-outline">Clear</a>{% endif %}
+        </form>
+
+        {% if personnel %}
+        <div style="overflow-x:auto;">
+            <table class="ot-table">
+                <thead>
+                    <tr>
+                        <th>Clock No</th>
+                        <th>Name</th>
+                        <th>Division</th>
+                        <th>Department</th>
+                        <th>Pay Group</th>
+                        <th>Grade</th>
+                        <th style="text-align:right;">Rate</th>
+                        <th>Status</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in personnel %}
+                    <tr>
+                        <td style="font-family:ui-monospace,Menlo,monospace; font-weight:600;">{{ p.clockno }}</td>
+                        <td style="font-weight:600; color:var(--ot-text);">
+                            <div class="d-flex align-items-center gap-2">
+                                {% if p.photo %}
+                                <div class="ot-avatar"><img src="{{ url_for('static', filename='images/personnel/' + p.photo) }}" alt=""></div>
+                                {% elif p.icon %}
+                                <div class="ot-icon-tile" style="background:{{ p.icon_color }};"><i class="bi {{ p.icon }}"></i></div>
+                                {% endif %}
+                                {{ p.name }} {{ p.surname or '' }}
+                            </div>
+                        </td>
+                        <td style="color:var(--ot-muted);">{{ p.division.code if p.division else '—' }}</td>
+                        <td style="color:var(--ot-muted);">{{ p.department.name if p.department else '—' }}</td>
+                        <td>
+                            {% if p.pay_group %}
+                              <span class="ot-badge" style="background:{{ '#dbeafe' if p.pay_group|lower == 'salary' else '#dcfce7' }};color:{{ '#1e40af' if p.pay_group|lower == 'salary' else '#166534' }};">{{ p.pay_group }}</span>
+                            {% else %}<span style="color:var(--ot-muted);">—</span>{% endif %}
+                        </td>
+                        <td style="color:var(--ot-muted);">{{ p.jobgrade or '—' }}</td>
+                        <td style="text-align:right;">{% if p.rate is not none %}R {{ '%.2f'|format(p.rate) }}{% else %}<span style="color:var(--ot-muted);">—</span>{% endif %}</td>
+                        <td>
+                            {% if p.status %}<span class="ot-badge approved">Active</span>
+                            {% else %}<span class="ot-badge rejected">Inactive</span>{% endif %}
+                        </td>
+                        <td style="text-align:right;">
+                            {% if can('personnel', 'edit') %}
+                            <a href="{{ url_for('overtime.personnel_edit', personnel_id=p.id) }}" class="ot-btn ot-btn-outline ot-btn-sm">
+                                <i class="bi bi-pencil"></i> Edit
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div style="font-size:.8rem; color:var(--ot-muted); margin-top:1rem;">
+            {{ personnel|length }} personnel record{{ 's' if personnel|length != 1 }}{% if search %} matching “{{ search }}”{% endif %}
+        </div>
+
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-person-x" style="font-size:1.6rem; display:block; margin-bottom:.5rem;"></i>
+            No personnel found{% if search %} matching “{{ search }}”{% endif %}.
+            {% if can('personnel', 'edit') %}
+            <div style="margin-top:1rem;">
+                <a href="{{ url_for('overtime.personnel_new') }}" class="ot-btn ot-btn-primary ot-btn-sm">
+                    <i class="bi bi-person-plus"></i> Add Personnel
+                </a>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+    </div>
+</div>
+{% endblock %}

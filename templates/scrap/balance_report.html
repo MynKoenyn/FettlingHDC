@@ -1,0 +1,121 @@
+{% extends "scrap/base_scrap.html" %}
+{% set page_title = "Packed Balance" %}
+{% set page_sub = "Packed stock still outstanding — packed minus dispatched, per part." %}
+
+{% block title %}Packed Balance{% endblock %}
+
+{% block scrap_content %}
+
+{% set qs = request.query_string.decode() %}
+<div class="app-card">
+    <div class="app-card-head">
+        <h2 class="app-card-title"><i class="bi bi-funnel"></i> Filters</h2>
+        <div class="division-switch">
+            <a href="{{ url_for(request.endpoint, division='hda', **request.view_args) }}{{ '?' + qs if qs }}"
+               class="{{ 'active' if division == 'hda' }}">HDA</a>
+            <a href="{{ url_for(request.endpoint, division='hdc', **request.view_args) }}{{ '?' + qs if qs }}"
+               class="{{ 'active' if division == 'hdc' }}">HDC</a>
+            <a href="{{ url_for(request.endpoint, division='both', **request.view_args) }}{{ '?' + qs if qs }}"
+               class="{{ 'active' if division == 'both' }}">Both</a>
+        </div>
+    </div>
+    <div class="app-card-body">
+        <form method="GET" class="filter-bar">
+            <div>
+                <label class="app-label">Customer</label>
+                <select name="customer_id" class="app-select">
+                    <option value="">All customers</option>
+                    {% for c in customers %}
+                    <option value="{{ c.id }}" {{ 'selected' if filters.customer_id == c.id }}>{{ c.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="app-label">Product</label>
+                <select name="product_id" class="app-select">
+                    <option value="">All products</option>
+                    {% for p in products %}
+                    <option value="{{ p.id }}" {{ 'selected' if p.id in filters.product_id }}>{{ p.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="app-label">As of</label>
+                <input type="date" name="end_date" class="app-input" value="{{ filters.end_date }}">
+            </div>
+            <div class="acts">
+                <button type="submit" class="app-btn app-btn-primary"><i class="bi bi-search"></i> Apply</button>
+                <a href="{{ url_for('scrap.balance_report') }}" class="app-btn app-btn-outline">Clear</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="kpi-row">
+    <div class="kpi">
+        <div class="v">{{ '{:,}'.format(totals.packed) }}</div>
+        <div class="l">Total Packed</div>
+    </div>
+    <div class="kpi">
+        <div class="v">{{ '{:,}'.format(totals.dispatched) }}</div>
+        <div class="l">Total Dispatched</div>
+    </div>
+    <div class="kpi {{ 'danger' if totals.balance < 0 else 'warn' if totals.balance > 0 else 'ok' }}">
+        <div class="v">{{ '{:,}'.format(totals.balance) }}</div>
+        <div class="l">Outstanding Balance</div>
+    </div>
+</div>
+
+<div class="app-card">
+    <div class="app-card-head">
+        <h2 class="app-card-title"><i class="bi bi-clipboard-data"></i> By Part</h2>
+        <span class="app-muted" style="font-size:.82rem;">Biggest outstanding balance first</span>
+    </div>
+    <div class="app-card-body">
+        {% if rows %}
+        <div class="app-table-wrap">
+            <table class="app-table">
+                <thead>
+                    <tr>
+                        <th>Part</th><th class="num">Packed</th><th class="num">Dispatched</th><th class="num">Balance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in rows %}
+                    <tr>
+                        <td>
+                            <strong>{{ r.product or '—' }}</strong>
+                            {% if r.casting_no %}<div class="mono-sm" style="font-size:.72rem;">{{ r.casting_no }}</div>{% endif %}
+                        </td>
+                        <td class="num">{{ '{:,}'.format(r.packed) }}</td>
+                        <td class="num">{{ '{:,}'.format(r.dispatched) }}</td>
+                        <td class="num">
+                            <strong class="{{ 'pct-hi' if r.balance < 0 else '' }}">{{ '{:,}'.format(r.balance) }}</strong>
+                            {% if r.balance < 0 %}
+                            <i class="bi bi-exclamation-triangle" style="color:#d97706;font-size:.72rem;"
+                               title="More dispatched than packed captured — check for a missing packed entry"></i>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr style="background:#f8fafc;font-weight:700;">
+                        <td>Total</td>
+                        <td class="num">{{ '{:,}'.format(totals.packed) }}</td>
+                        <td class="num">{{ '{:,}'.format(totals.dispatched) }}</td>
+                        <td class="num">{{ '{:,}'.format(totals.balance) }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        {% else %}
+        <div class="app-empty">
+            <i class="bi bi-inbox"></i>
+            No internal scrap entries or dispatches match those filters.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
